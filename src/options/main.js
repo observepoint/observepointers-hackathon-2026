@@ -12,9 +12,7 @@ function setStatus(message, isError = false) {
 storage.sync
   .get('color')
   .then(color => {
-    if (color) {
-      colorSelect.value = color
-    }
+    if (color) colorSelect.value = color
   })
   .catch(error => {
     setStatus(`Unable to load options: ${error.message}`, true)

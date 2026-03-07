@@ -14,7 +14,5 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.alarms.create('demo-alarm', { periodInMinutes: 1 })
 
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === 'demo-alarm') {
-    console.log('Alarm trigger:', new Date().toISOString())
-  }
+  if (alarm.name === 'demo-alarm') console.log('Alarm trigger:', new Date().toISOString())
 })

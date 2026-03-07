@@ -8,6 +8,6 @@ overlay.textContent = 'Extension Active'
 document.body.appendChild(overlay)
 
 // Listen for messages from background/popup (optional demo)
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, _sendResponse) => {
   console.log('Message received in content script:', request)
 })

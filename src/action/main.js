@@ -18,9 +18,7 @@ async function initializePopup() {
 
     countElement.textContent = count ?? 0
 
-    if (color) {
-      document.body.style.backgroundColor = color
-    }
+    if (color) document.body.style.backgroundColor = color
   } catch (error) {
     countElement.textContent = '0'
     incrementBtn.disabled = true
