@@ -25,6 +25,13 @@ button:hover {
   background-color: #0056b3;
 }
 
+#status {
+  min-height: 1.25rem;
+  margin: 0.75rem 0 0;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
 a {
   display: block;
   margin-top: 1rem;

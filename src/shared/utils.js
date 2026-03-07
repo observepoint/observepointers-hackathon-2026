@@ -1,12 +1,31 @@
+function createStorageArea(areaName) {
+    const area = chrome.storage[areaName];
+
+    return {
+        get: (key) => new Promise((resolve, reject) => {
+            area.get([key], (result) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+
+                resolve(result[key]);
+            });
+        }),
+        set: (key, value) => new Promise((resolve, reject) => {
+            area.set({ [key]: value }, () => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+
+                resolve();
+            });
+        }),
+    };
+}
+
 export const storage = {
-    get: (key) => new Promise((resolve) => {
-        chrome.storage.sync.get([key], (result) => {
-            resolve(result[key]);
-        });
-    }),
-    set: (key, value) => new Promise((resolve) => {
-        chrome.storage.sync.set({ [key]: value }, () => {
-            resolve();
-        });
-    }),
+    sync: createStorageArea('sync'),
+    local: createStorageArea('local'),
 };
