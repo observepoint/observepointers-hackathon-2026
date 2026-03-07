@@ -29,24 +29,30 @@ src/
 ## Getting Started
 
 ### 1. Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### 2. Development Mode
+
 ```bash
 npm run dev
 ```
+
 This will start the Vite dev server.
+
 - Open Chrome and go to `chrome://extensions`.
 - Enable **Developer mode**.
 - Drag and drop the `dist` folder into the extensions page (Note: CRXJS usually loads directly from memory or a specific path, check console output if needed, but standard `npm run dev` with CRXJS usually requires loading the `dist` folder once).
 - **CRXJS Note**: When using `npm run dev`, load the `dist` folder. Vite will watch for changes and reload the extension automatically.
 
 ### 3. Build for Production
+
 ```bash
 npm run build
 ```
+
 Generates a production-ready build in the `dist` folder.
 
 ## Demos & Usage

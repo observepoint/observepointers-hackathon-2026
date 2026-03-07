@@ -1,1 +1,1 @@
-console.log('Side panel script loaded');
+console.log('Side panel script loaded')

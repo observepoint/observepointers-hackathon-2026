@@ -1,0 +1,7 @@
+dist
+node_modules
+coverage
+.crx
+.idea
+.DS_Store
+package-lock.json
