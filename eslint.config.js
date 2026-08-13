@@ -1,4 +1,5 @@
 import js from '@eslint/js'
+import globals from 'globals'
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended'
 
 export default [
@@ -11,10 +12,8 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: {
-        chrome: 'readonly',
-        console: 'readonly',
-        document: 'readonly',
-        setTimeout: 'readonly',
+        ...globals.browser,
+        ...globals.webextensions,
       },
     },
     rules: {
