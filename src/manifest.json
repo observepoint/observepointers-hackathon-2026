@@ -1,19 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Extension Skeleton",
-  "version": "1.0.0",
-  "description": "A modern Vite + CRXJS Chrome Extension Skeleton",
+  "name": "ObservePoint Guided Walkthroughs",
+  "version": "0.1.0",
+  "description": "Interactive, guided walkthroughs for the ObservePoint web governance platform",
   "action": {
-    "default_popup": "src/action/index.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  },
-  "options_ui": {
-    "page": "src/options/index.html",
-    "open_in_tab": true
   },
   "background": {
     "service_worker": "src/background/index.js",
@@ -21,14 +16,26 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/index.js"]
+      "matches": [
+        "https://app.observepoint.com/*",
+        "https://*.app.observepoint.com/*",
+        "https://app.observepointstaging.com/*",
+        "https://*.app.observepointstaging.com/*",
+        "https://*.observepointstaging.com/*"
+      ],
+      "js": ["src/content/index.js"],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
-  "side_panel": {
-    "default_path": "src/sidepanel/index.html"
-  },
-  "permissions": ["storage", "activeTab", "sidePanel", "alarms", "contextMenus"],
+  "host_permissions": [
+    "https://app.observepoint.com/*",
+    "https://*.app.observepoint.com/*",
+    "https://app.observepointstaging.com/*",
+    "https://*.app.observepointstaging.com/*",
+    "https://*.observepointstaging.com/*"
+  ],
+  "permissions": ["storage"],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

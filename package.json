@@ -1,8 +1,7 @@
 {
-  "name": "chrome-extension-skeleton",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "observepoint-guided-walkthroughs",
+  "version": "0.1.0",
+  "description": "Chrome extension delivering interactive guided walkthroughs for the ObservePoint web governance platform",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -22,6 +21,7 @@
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.11.0",
     "prettier": "^3.8.1",
     "vite": "^7.3.0"
   }
