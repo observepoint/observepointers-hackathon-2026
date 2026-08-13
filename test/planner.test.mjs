@@ -171,21 +171,43 @@ check(
   JSON.stringify(apiKeyMatch),
 )
 
-const alertMatch = matchDeterministic('I want to be alerted when checkout breaks on example.com')
+const alertMatch = matchDeterministic('alert me when the purchase tag stops firing')
 check(
   'matches the alert recipe',
-  alertMatch.recipeId === 'alert_on_rule_failure',
+  alertMatch.recipeId === 'alert_from_report',
   JSON.stringify(alertMatch),
 )
 check(
-  'extracts a URL from the goal',
-  alertMatch.parameters.siteUrl === 'example.com',
-  JSON.stringify(alertMatch.parameters),
+  'extracts the failure condition after "when"',
+  (alertMatch.parameters.conditionSummary || '').startsWith('the purchase tag'),
+  alertMatch.parameters.conditionSummary,
+)
+
+const auditMatch = matchDeterministic(
+  'set up an audit for https://www.example.com that checks my tag rules',
 )
 check(
-  'extracts the failure condition after "when"',
-  (alertMatch.parameters.conditionSummary || '').startsWith('checkout breaks'),
-  alertMatch.parameters.conditionSummary,
+  'matches the rules recipe',
+  auditMatch.recipeId === 'audit_with_rules',
+  JSON.stringify(auditMatch),
+)
+check(
+  'extracts a URL from the goal',
+  auditMatch.parameters.siteUrl === 'https://www.example.com',
+  JSON.stringify(auditMatch.parameters),
+)
+
+// The three audit recipes share a shape, so intent has to separate them.
+check(
+  'distinguishes consent categories from rules',
+  matchDeterministic('audit example.com for GDPR consent compliance').recipeId ===
+    'audit_with_consent_categories',
+  JSON.stringify(matchDeterministic('audit example.com for GDPR consent compliance')),
+)
+check(
+  'distinguishes attaching alerts from creating one',
+  matchDeterministic('add alerts to my audit').recipeId === 'audit_with_alerts',
+  JSON.stringify(matchDeterministic('add alerts to my audit')),
 )
 
 const quoted = matchDeterministic('create an api key called "Deploy bot"')
@@ -218,7 +240,9 @@ check(
 check('applies a declared default', planned.plan?.parameters.keyDescription?.length > 0)
 check('marks execution mode', planned.plan?.executionMode === 'templated')
 
-const needsInput = await createPlan('alert me when the purchase tag stops firing', {
+// No URL anywhere in the goal, and siteUrl is required — it must ask rather
+// than invent one, because Part 2 would type an invented URL into a real form.
+const needsInput = await createPlan('set up an audit that checks my tag rules', {
   forceLocal: true,
 })
 check(
@@ -234,7 +258,7 @@ check(
 const resumed = answerAndRetry(
   needsInput,
   'https://shop.example.com',
-  'alert me when the purchase tag stops firing',
+  'set up an audit that checks my tag rules',
 )
 check(
   'resumes into a plan once answered',
@@ -262,15 +286,14 @@ check(
 /* ---------------------------------------------------------------- */
 section('warnings')
 
-const alertPlan = answerAndRetry(
-  await createPlan('alert me when checkout breaks', { forceLocal: true }),
-  'example.com',
-  'alert me when checkout breaks',
+const auditPlan = await createPlan(
+  'set up an audit for https://www.example.com that checks my tag rules',
+  { forceLocal: true },
 )
 check(
   'flags unverified selectors so nobody debugs a ghost',
-  alertPlan.status === 'plan' && alertPlan.warnings.some(w => w.includes('unverified')),
-  JSON.stringify(alertPlan.warnings),
+  auditPlan.status === 'plan' && auditPlan.warnings.some(w => w.includes('unverified')),
+  JSON.stringify(auditPlan.warnings),
 )
 
 /* ---------------------------------------------------------------- */

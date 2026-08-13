@@ -1,0 +1,151 @@
+{
+  "recipeId": "audit_with_alerts",
+  "goal": "add alerts to my audit for https://www.example.com",
+  "summary": "We'll create an audit called \"Copilot audit\" against https://www.example.com and attach alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.",
+  "executionMode": "templated",
+  "parameters": {
+    "siteUrl": "https://www.example.com",
+    "auditName": "Copilot audit"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "navContext": "/data-sources",
+      "targetSelector": "#guide-create-new-data-src-btn",
+      "say": "Audits are created from Data Sources. Open the create menu.",
+      "targetFallback": {
+        "description": "the Create button on the Data Sources page"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "targetSelector": "#guide-create-new-audit",
+      "say": "Choose Web Audit.",
+      "targetFallback": {
+        "description": "the Web Audit item in the create menu"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".audit-setup-modal"
+      }
+    },
+    {
+      "id": "s3",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"audit-setup-name\"] input",
+      "say": "Naming it \"Copilot audit\".",
+      "action": {
+        "type": "fill_text",
+        "value": "Copilot audit"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s4",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
+      "say": "This is where the crawl starts. One URL per line if you want several.",
+      "action": {
+        "type": "fill_text",
+        "value": "https://www.example.com"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
+      "say": "Quick setup has no Standards section, so switch to Advanced Setup — that is where rules, consent categories and alerts are attached.",
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".op-audit-editor"
+      }
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": ".op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
+      "say": "Open the Standards tab.",
+      "targetFallback": {
+        "description": "the Standards tab in the audit editor"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".op-tabs.sub-menu"
+      }
+    },
+    {
+      "id": "s7",
+      "actor": "user",
+      "targetSelector": ".op-audit-editor .op-tabs.sub-menu .op-tab:nth-child(3)",
+      "say": "Alerts is the third sub-tab.",
+      "targetFallback": {
+        "description": "the \"Alerts\" sub-tab"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".op-standards-selector"
+      }
+    },
+    {
+      "id": "s8",
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .search-input",
+      "say": "Find the alerts you want on this audit.",
+      "targetFallback": {
+        "description": "the search box in the alerts picker"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      }
+    },
+    {
+      "id": "s9",
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .add-all-standards-btn",
+      "say": "Attach them. They evaluate against this audit's report data after each run — so expect the first notification only once a run has finished.",
+      "targetFallback": {
+        "description": "the \"add all\" button in the alerts picker"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s10",
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .create-new-btn",
+      "say": "No alert fits? Create one here. It is usually easier to run the audit once first and create the alert from the report widget you actually care about.",
+      "targetFallback": {
+        "description": "the \"Create New Alert\" button"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    }
+  ]
+}

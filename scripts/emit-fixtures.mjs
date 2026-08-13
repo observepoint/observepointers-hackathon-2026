@@ -19,12 +19,20 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures')
 mkdirSync(OUT, { recursive: true })
 
 const cases = [
-  { file: 'plan.create-api-key.json', goal: 'I need an API key called "CI bot"' },
-  { file: 'plan.add-rules-to-audit.json', goal: 'add rules to my audit "Q3 Production Audit"' },
   {
-    file: 'plan.alert-on-failure.json',
-    goal: 'I want to be alerted when checkout breaks on https://shop.example.com',
+    file: 'plan.audit-with-rules.json',
+    goal: 'set up an audit for https://www.example.com that checks my tag rules',
   },
+  {
+    file: 'plan.audit-with-consent-categories.json',
+    goal: 'audit https://www.example.com for GDPR consent compliance',
+  },
+  {
+    file: 'plan.audit-with-alerts.json',
+    goal: 'add alerts to my audit for https://www.example.com',
+  },
+  { file: 'plan.alert-from-report.json', goal: 'alert me when the purchase tag stops firing' },
+  { file: 'plan.create-api-key.json', goal: "I need an API key called 'CI bot'" },
 ]
 
 for (const { file, goal } of cases) {
@@ -33,7 +41,7 @@ for (const { file, goal } of cases) {
   // Some goals legitimately need one more answer; bake in a sample so the
   // fixture is a finished plan rather than a half-state.
   if (result.status === 'needs_input') {
-    result = answerAndRetry(result, 'https://shop.example.com', goal)
+    result = answerAndRetry(result, 'the purchase tag stops firing', goal)
   }
 
   if (result.status !== 'plan') {

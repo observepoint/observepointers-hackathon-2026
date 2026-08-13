@@ -72,7 +72,7 @@ export default {
     },
   ],
   summaryTemplate:
-    'Alerts in ObservePoint watch a number on a report widget, so we\'ll open the audit report, find the ' +
+    "Alerts in ObservePoint watch a number on a report widget, so we'll open the audit report, find the " +
     'widget that shows "{{parameters.conditionSummary}}", and create the alert from its bell icon — that ' +
     'pre-fills the metric and filters. Notifications go to {{parameters.notifyEmail}}.',
   steps: [

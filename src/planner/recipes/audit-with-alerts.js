@@ -69,7 +69,7 @@ export default {
       id: 's9',
       actor: 'user',
       targetSelector: SELECTORS.standardsAddAll,
-      say: 'Attach them. They evaluate against this audit\'s report data after each run — so expect the first notification only once a run has finished.',
+      say: "Attach them. They evaluate against this audit's report data after each run — so expect the first notification only once a run has finished.",
       targetFallback: { description: 'the "add all" button in the alerts picker' },
       unverified: true,
       completion: { type: 'dom_event', value: 'click' },

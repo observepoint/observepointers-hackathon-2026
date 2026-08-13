@@ -28,10 +28,15 @@ listen with the same code.
 real recipes, committed to the repo:
 
 ```
-fixtures/plan.create-api-key.json      7 steps, all selectors verified
-fixtures/plan.add-rules-to-audit.json  6 steps
-fixtures/plan.alert-on-failure.json    7 steps, mostly unverified selectors
+fixtures/plan.audit-with-rules.json               10 steps
+fixtures/plan.audit-with-consent-categories.json  10 steps
+fixtures/plan.audit-with-alerts.json              10 steps
+fixtures/plan.alert-from-report.json               6 steps
+fixtures/plan.create-api-key.json                  7 steps, fully verified
 ```
+
+Start with `plan.create-api-key.json` — it's the only one whose selectors are all
+confirmed, so if your runtime fails on it the bug is yours, not the plan's.
 
 `npm run fixtures` regenerates them. They come out of the live recipes on
 purpose — a hand-written fixture drifts the moment someone edits the schema, and
@@ -91,14 +96,14 @@ problem.
 
 ## For Part 3: what I found in moonbeam
 
-Two things that will save you a day.
+Four things that will save you a day each.
 
-**1. `op-selector` coverage is lopsided.** There are ~163, and they're
-concentrated in top-nav, api-keys, archived-items, and report tabs. **Alert and
-rule _creation_ screens have none.** Recipes touching those are marked
-`unverified: true` per step, and the plan carries a warning. Where you see one,
-the pointer will miss — fix it by adding an `op-selector` in moonbeam (one line)
-rather than by writing a fragile CSS path.
+**1. Half the `op-selector`s are invisible to grep.** A literal search for
+`op-selector="` finds ~163. But many are bound dynamically —
+`[attr.op-selector]="OP_SELECTORS.name"` — with the values in `*.constants.ts`
+enums. `EAuditSetupOpSelectors`, `QuickCreateOpSelectors`, `RuleSetupOpSelectors`
+and others only turn up if you grep the TypeScript too. Coverage is meaningfully
+better than it first looks.
 
 **2. `op-selector` sits on the wrapper, not the control.** ObservePoint's design
 system puts it on `op-text-input` / `op-button` / `op-textarea`, so:
@@ -109,9 +114,26 @@ click      →  [op-selector="api-keys-create-submit"] button
 ```
 
 `op-button` binds Angular's `(buttonClick)`, so a synthetic click on the host
-element does nothing. You have to hit the real `button` inside.
+element does nothing. You have to hit the real `button` inside. Recipes already
+follow this.
 
-Recipes already follow this convention.
+**3. The audit flows never change the URL.** Both audit setup screens are modals
+(`audit-setup-modal` → `op-audit-editor`), so every completion in those recipes
+is `dom_mutation` / `dom_event`. If you build URL-watching first, it will look
+like the walkthrough hangs.
+
+**4. Tabs can carry `op-selector` but currently don't.** `op-tabs` renders
+`[attr.op-selector]="tab.opSelector"`, and neither the audit editor nor the
+standards tab sets it. **Adding it is 4 lines and makes all three audit recipes
+verified** — worth doing before demo day:
+
+```ts
+// audit-editor.component.ts  generateTabs()
+{ name: …, path: EAuditTab.standards, opSelector: 'audit-tab-standards' }
+
+// standards-tab.component.ts  this.tabs = [ … ]
+opSelector: 'standards-tab-rules' | 'standards-tab-consent-categories' | 'standards-tab-alerts'
+```
 
 ---
 
@@ -120,7 +142,7 @@ Recipes already follow this convention.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 51 checks, no API key, no network
+npm test           # 59 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -163,9 +185,9 @@ this weekend; `src/planner/recipes/index.js` explains how.
 ### It asks rather than guesses
 
 ```
-> alert me when the purchase tag stops firing
-< The page or site to watch? For example: https://www.example.com/checkout
-> https://shop.example.com
+> set up an audit that checks my tag rules
+< The site or starting URL to audit? For example: https://www.example.com
+> https://www.example.com
 < [plan]
 ```
 
@@ -193,13 +215,46 @@ the tests use.
 
 ---
 
+## The recipe library
+
+Focused on audits and the three things you attach to them.
+
+| Recipe                          | Covers                                          |
+| ------------------------------- | ----------------------------------------------- |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                    |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)       |
+| `audit_with_alerts`             | Audit + Alerts                                  |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget  |
+| `create_api_key`                | Kept as the one fully verified reference recipe |
+
+The first three share `src/planner/recipes/_audit-standards.js`, because in
+moonbeam they aren't three flows — they're three sub-tabs of one Standards tab,
+all rendering the same `op-standards-selector`. Fix that shared path once and
+all three improve.
+
+### Two things the recipes encode that aren't obvious
+
+**Create → Web Audit does not open the audit editor.** It opens **Quick Audit**
+unless the user previously opted into advanced mode — and a new user, which is
+who this product is for, always lands there. Quick Audit has **no Standards
+section at all**, so every audit recipe walks through "Switch to Advanced Setup".
+Miss that and the walkthrough dead-ends on a screen that doesn't contain what it
+promised.
+
+**Alerts watch report widget data, not websites.** So an alert is only meaningful
+once the audit has run at least once, and the sane way to create one is the bell
+on the widget you care about (it pre-fills metric and filters) rather than the
+Alerts Library.
+
 ## Known gaps
 
-- **Only 3 recipes.** `create_api_key` is fully verified end to end. The other
-  two need a human to walk the flow and paste real selectors in.
-- **`alert_on_rule_failure` is the pitch and the weakest link.** It's the flow we
-  demo, and 5 of its 7 steps use guessed selectors. Highest-priority fix.
+- **Only `create_api_key` is fully verified.** The audit recipes are grounded in
+  source but nobody has clicked through them yet. Do that before demo day —
+  every step marked `unverified: true` is one the pointer may miss.
+- **Two positional selectors remain**, both tab strips. The 4-line moonbeam
+  change above removes them.
 - **No page awareness.** The planner doesn't know what screen the user is on, so
-  it always plans from the top. Part 2/3 could feed the current route back in.
+  it always plans from Data Sources. If Part 2/3 feed the current route back in,
+  recipes could skip steps the user has already done.
 - **One recipe per goal.** "Set up an audit _and_ alert me when it fails" needs
-  chaining, which isn't built.
+  chaining, which isn't built — today it picks whichever intent matched strongest.

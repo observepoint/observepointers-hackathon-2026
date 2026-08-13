@@ -1,0 +1,94 @@
+{
+  "recipeId": "alert_from_report",
+  "goal": "alert me when the purchase tag stops firing",
+  "summary": "Alerts in ObservePoint watch a number on a report widget, so we'll open the audit report, find the widget that shows \"the purchase tag stops firing\", and create the alert from its bell icon — that pre-fills the metric and filters. Notifications go to your account email.",
+  "executionMode": "templated",
+  "parameters": {
+    "conditionSummary": "the purchase tag stops firing",
+    "notifyEmail": "your account email",
+    "alertName": "Copilot alert"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "navContext": "/data-sources",
+      "targetSelector": "[op-selector=\"cards-view-container\"]",
+      "say": "Open the audit whose report you want to watch. It needs at least one completed run — alerts read report data, so there is nothing to threshold until then.",
+      "targetFallback": {
+        "description": "the audit card on the Data Sources page"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "url_change",
+        "value": "/audit"
+      }
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "targetSelector": ".create-new-alert-icon",
+      "say": "Find the widget showing \"the purchase tag stops firing\" and click its bell. Creating the alert from the widget means the metric and filters are filled in for you.",
+      "targetFallback": {
+        "description": "the bell icon on the report widget"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"quick-create-name\"]"
+      }
+    },
+    {
+      "id": "s3",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"quick-create-name\"] input",
+      "say": "Naming it \"Copilot alert\" — this is what appears in the notification, so make it obvious at 3am.",
+      "action": {
+        "type": "fill_text",
+        "value": "Copilot alert"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s4",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"quick-create-emails\"] input",
+      "say": "Sending notifications to your account email.",
+      "action": {
+        "type": "fill_text",
+        "value": "your account email"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"quick-create-customize-link\"]",
+      "say": "The default threshold is a sensible starting point. Customize it if \"the purchase tag stops firing\" needs a specific number rather than any change.",
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"quick-create-save-button\"] button",
+      "say": "Save it. It evaluates after each run of this audit from now on.",
+      "targetFallback": {
+        "description": "the save button in the alert quick-create dialog"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    }
+  ]
+}

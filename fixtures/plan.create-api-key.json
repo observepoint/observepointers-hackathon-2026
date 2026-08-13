@@ -1,6 +1,6 @@
 {
   "recipeId": "create_api_key",
-  "goal": "I need an API key called \"CI bot\"",
+  "goal": "I need an API key called 'CI bot'",
   "summary": "We'll open API Keys, start a new key called \"CI bot\", fill in the details, and create it. Copy the key when it appears — it is only shown once.",
   "executionMode": "templated",
   "parameters": {
