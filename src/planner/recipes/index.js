@@ -11,18 +11,38 @@
  * Adding one is the highest-value contribution to this project: coverage IS the
  * product. Whatever isn't authored, the assistant handles badly.
  *
+ * CURRENT FOCUS — audits, and the three things you attach to them:
+ *   audit_with_rules               Tag & Variable Rules
+ *   audit_with_consent_categories  Consent Categories (privacy)
+ *   audit_with_alerts              Alerts
+ *   alert_from_report              "alert me when X breaks", from a report widget
+ *   create_api_key                 kept as the one fully verified reference
+ *
+ * The first three share `_audit-standards.js`, because in moonbeam they are
+ * three sub-tabs of one screen rather than three separate flows.
+ *
  * To add a recipe:
  *   1. Walk the flow yourself with devtools open; copy the real selectors.
- *   2. Prefer [op-selector="..."] — those are stable and human-named. If the
- *      screen has none, add them to moonbeam; it's a one-line change.
- *   3. Mark `verified: true` only once you've clicked through every step.
+ *   2. Prefer [op-selector="..."] — stable and human-named. Note that many are
+ *      bound dynamically ([attr.op-selector]="OP_SELECTORS.x"), so grep the
+ *      *.constants.ts enums too, not just the templates.
+ *   3. Mark a step `unverified: true` until you have clicked it yourself, and
+ *      `verified: true` on the recipe only when every step is confirmed.
  */
 
+import auditWithRules from './audit-with-rules.js'
+import auditWithConsentCategories from './audit-with-consent-categories.js'
+import auditWithAlerts from './audit-with-alerts.js'
+import alertFromReport from './alert-from-report.js'
 import createApiKey from './create-api-key.js'
-import alertOnRuleFailure from './alert-on-rule-failure.js'
-import addRulesToAudit from './add-rules-to-audit.js'
 
-export const RECIPES = [createApiKey, alertOnRuleFailure, addRulesToAudit]
+export const RECIPES = [
+  auditWithRules,
+  auditWithConsentCategories,
+  auditWithAlerts,
+  alertFromReport,
+  createApiKey,
+]
 
 export const getRecipe = id => RECIPES.find(r => r.id === id) || null
 
