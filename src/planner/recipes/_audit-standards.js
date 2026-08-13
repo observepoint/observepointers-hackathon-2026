@@ -1,52 +1,62 @@
 /**
  * Shared building blocks for the audit Standards flows.
  *
- * WHAT I FOUND IN MOONBEAM (components/shared/components/standards-tab/)
- * Rules, Consent Categories and Alerts are not three separate destinations —
- * they are three sub-tabs of ONE "Standards" tab inside the audit editor:
+ * WHAT I FOUND IN MOONBEAM
  *
- *   Data Sources → Create/open an audit → Standards tab
- *       ├── Tag & Variable Rules (n)
- *       ├── Consent Categories (n)
- *       └── Alerts (n)
+ * 1. Rules, Consent Categories and Alerts are not three destinations — they are
+ *    three sub-tabs of ONE "Standards" tab in the audit editor
+ *    (components/shared/components/standards-tab/), all rendering the same
+ *    `op-standards-selector`: same search box, same "add all", same
+ *    "Create New". So the three recipes share almost everything, which is why
+ *    the path lives here rather than being copy-pasted and drifting.
  *
- * All three render the same `op-standards-selector` component — a two-column
- * picker with the same search box, the same "add all", the same "Create New".
- * So the three recipes share almost everything, which is why the steps live here
- * instead of being copy-pasted three times and drifting apart.
+ * 2. "Create → Web Audit" does NOT open the editor with the Standards tab.
+ *    manage-cards.component.ts::createWebAudit() opens **Quick Audit** unless
+ *    the user has previously opted into advanced mode — and a new user, which
+ *    is exactly who this product is for, always lands in Quick Audit. Quick
+ *    Audit has no Standards at all. Every one of these recipes therefore has to
+ *    walk through "Switch to Advanced Setup" or it dead-ends on a screen that
+ *    does not contain what we promised.
  *
- * The audit editor is a MODAL (openFixedSizeModal(AuditEditorComponent, …,
- * 'op-audit-editor')), not a route. Nothing about these flows changes the URL,
- * so `completion` uses dom_mutation / dom_event throughout — a `url_change`
- * step here would wait forever.
+ * 3. Both are modals, not routes (`audit-setup-modal` → `op-audit-editor`).
+ *    Nothing here changes the URL, so `completion` is dom_mutation / dom_event
+ *    throughout. A `url_change` step in these flows would wait forever.
  *
  * SELECTOR RELIABILITY
- *   Solid  : #guide-create-new-data-src-btn, #guide-create-new-audit
- *            (moonbeam already tags these for a guide tool — the `guide-`
- *            prefix is not ours, it was there waiting for us)
- *            .op-audit-editor, .audit-editor-form, .op-standards-selector classes
- *   Weak   : the tab strips. op-tabs renders [attr.op-selector]="tab.opSelector",
- *            but neither the audit editor nor the standards tab sets opSelector
- *            on its tab definitions, so nothing is emitted and we fall back to
- *            positional :nth-child.
+ *   Solid — sourced from moonbeam constants, not guessed:
+ *     EAuditSetupOpSelectors  (audit-setup-form.constants.ts)
+ *     'web-audit-switch-to-advanced-setup' — quick-audit.component.ts even does
+ *       document.querySelector('[op-selector="web-audit-switch-to-advanced-setup"]')
+ *       itself, so the attribute form is confirmed
+ *     #guide-create-new-data-src-btn / #guide-create-new-audit — moonbeam
+ *       already tags these for a guide tool; the `guide-` prefix isn't ours
+ *   Weak — positional:
+ *     the two tab strips. op-tabs renders [attr.op-selector]="tab.opSelector",
+ *     but neither audit-editor nor standards-tab sets opSelector on its tab
+ *     definitions, so nothing is emitted and we fall back to :nth-child.
  *
- * THE ONE MOONBEAM CHANGE WORTH MAKING (~8 lines, makes all three recipes solid):
- *   audit-editor.component.ts   generateTabs()  → add `opSelector: 'audit-tab-standards'` etc.
- *   standards-tab.component.ts  this.tabs = [ ] → add `opSelector: 'standards-tab-rules'`,
- *                                                     'standards-tab-consent-categories',
- *                                                     'standards-tab-alerts'
- * Then swap the positional selectors below for [op-selector="…"] and mark the
- * recipes verified.
+ * THE ONE MOONBEAM CHANGE WORTH MAKING (4 lines, makes all three recipes solid):
+ *   audit-editor.component.ts   generateTabs()  → opSelector: 'audit-tab-standards'
+ *   standards-tab.component.ts  this.tabs = []  → opSelector: 'standards-tab-rules'
+ *                                                 / 'standards-tab-consent-categories'
+ *                                                 / 'standards-tab-alerts'
+ * Then swap the positional selectors below and mark these recipes verified.
  */
 
 export const SELECTORS = {
+  // Data Sources page
   createDataSource: '#guide-create-new-data-src-btn',
   createWebAudit: '#guide-create-new-audit',
-  auditEditor: '.op-audit-editor',
-  auditEditorForm: '.audit-editor-form',
 
-  // Audit editor tabs: Scenario, URL Sources, Schedule, Standards,
-  // Pre-Audit Actions, On-Page Actions.
+  // Quick Audit (the default landing modal)
+  quickAuditModal: '.audit-setup-modal',
+  auditName: '[op-selector="audit-setup-name"] input',
+  startingUrls: '[op-selector="audit-setup-starting-urls-textarea"] textarea',
+  switchToAdvanced: '[op-selector="web-audit-switch-to-advanced-setup"]',
+
+  // Advanced audit editor
+  auditEditor: '.op-audit-editor',
+  // Tabs: Scenario, URL Sources, Schedule, Standards, Pre-Audit, On-Page.
   standardsTab: '.op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)',
 
   // Standards sub-tabs, in the order standards-tab.component.ts builds them.
@@ -58,12 +68,12 @@ export const SELECTORS = {
   standardsSearch: '.op-standards-selector .search-input',
   standardsCreateNew: '.op-standards-selector .create-new-btn',
   standardsAddAll: '.op-standards-selector .add-all-standards-btn',
-  standardsRemoveAll: '.op-standards-selector .remove-all-btn',
 }
 
 /**
- * Data Sources → new audit → Standards tab. Every one of the three recipes
- * starts here, so a fix to this path fixes all of them at once.
+ * Data Sources → name the audit → switch to Advanced → Standards tab.
+ * Every one of the three recipes starts here, so fixing this path fixes all
+ * three at once.
  */
 export function stepsToStandardsTab({ startId = 1 } = {}) {
   const id = n => `s${startId + n}`
@@ -87,14 +97,41 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
-        targetSelector: SELECTORS.auditEditor,
+        targetSelector: SELECTORS.quickAuditModal,
       },
     },
     {
       id: id(2),
+      actor: 'ai',
+      targetSelector: SELECTORS.auditName,
+      say: 'Naming it "{{parameters.auditName}}".',
+      action: { type: 'fill_text', value: '{{parameters.auditName}}' },
+      completion: { type: 'dom_event', value: 'change' },
+    },
+    {
+      id: id(3),
+      actor: 'ai',
+      targetSelector: SELECTORS.startingUrls,
+      say: 'This is where the crawl starts. One URL per line if you want several.',
+      action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
+      completion: { type: 'dom_event', value: 'change' },
+    },
+    {
+      id: id(4),
+      actor: 'user',
+      targetSelector: SELECTORS.switchToAdvanced,
+      say: 'Quick setup has no Standards section, so switch to Advanced Setup — that is where rules, consent categories and alerts are attached.',
+      completion: {
+        type: 'dom_mutation',
+        condition: 'visible',
+        targetSelector: SELECTORS.auditEditor,
+      },
+    },
+    {
+      id: id(5),
       actor: 'user',
       targetSelector: SELECTORS.standardsTab,
-      say: 'Rules, Consent Categories and Alerts all live behind the Standards tab.',
+      say: 'Open the Standards tab.',
       targetFallback: { description: 'the Standards tab in the audit editor' },
       unverified: true,
       completion: {
@@ -105,3 +142,19 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
     },
   ]
 }
+
+/** Every recipe here needs these two, described the same way. */
+export const AUDIT_PARAMETERS = [
+  {
+    name: 'siteUrl',
+    description: 'The site or starting URL to audit',
+    required: true,
+    example: 'https://www.example.com',
+  },
+  {
+    name: 'auditName',
+    description: 'A name for the audit',
+    required: false,
+    default: 'Copilot audit',
+  },
+]
