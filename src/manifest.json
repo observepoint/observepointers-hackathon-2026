@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Extension Skeleton",
-  "version": "1.0.0",
-  "description": "A modern Vite + CRXJS Chrome Extension Skeleton",
+  "name": "ObservePoint Copilot",
+  "version": "0.1.0",
+  "description": "Ask for what you want to achieve; get walked through the steps in the app.",
+  "minimum_chrome_version": "114",
   "action": {
-    "default_popup": "src/action/index.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -28,7 +28,8 @@
   "side_panel": {
     "default_path": "src/sidepanel/index.html"
   },
-  "permissions": ["storage", "activeTab", "sidePanel", "alarms", "contextMenus"],
+  "permissions": ["storage", "activeTab", "sidePanel", "tabs", "scripting"],
+  "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

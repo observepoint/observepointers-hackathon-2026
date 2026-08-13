@@ -1,0 +1,93 @@
+{
+  "recipeId": "create_api_key",
+  "goal": "I need an API key called \"CI bot\"",
+  "summary": "We'll open API Keys, start a new key called \"CI bot\", fill in the details, and create it. Copy the key when it appears — it is only shown once.",
+  "executionMode": "templated",
+  "parameters": {
+    "keyName": "CI bot",
+    "keyDescription": "Created with the ObservePoint Copilot"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "navContext": "/account/api-keys",
+      "targetSelector": "[op-selector=\"top-nav-api-keys\"]",
+      "say": "API keys live under your account menu. Open that page first.",
+      "completion": {
+        "type": "url_change",
+        "value": "/account/api-keys"
+      }
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"api-keys-create\"] button",
+      "say": "Start a new key here.",
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"api-keys-create-modal\"]"
+      }
+    },
+    {
+      "id": "s3",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"api-keys-create-name\"] input",
+      "say": "I'll name it \"CI bot\" so you can find it in the list later.",
+      "action": {
+        "type": "fill_text",
+        "value": "CI bot"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s4",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"api-keys-create-description\"] textarea",
+      "say": "A short description saves you guessing what this key was for in six months.",
+      "action": {
+        "type": "fill_text",
+        "value": "Created with the ObservePoint Copilot"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"api-keys-create-expiration\"]",
+      "say": "Pick how long the key should last. Shorter is safer — you can always make another.",
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"api-keys-create-submit\"] button",
+      "say": "Create the key. The next screen shows it once and never again, so copy it straight away.",
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"api-keys-reveal-modal\"]"
+      }
+    },
+    {
+      "id": "s7",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"api-keys-reveal-copy\"] button",
+      "say": "Copy it now and paste it somewhere safe — this is the only time it is shown.",
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    }
+  ]
+}

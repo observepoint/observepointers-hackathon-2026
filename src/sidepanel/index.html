@@ -3,18 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Side Panel</title>
-    <style>
-      body {
-        padding: 1rem;
-        font-family: sans-serif;
-      }
-    </style>
+    <title>ObservePoint Copilot</title>
+    <link rel="stylesheet" href="./style.css" />
   </head>
 
   <body>
-    <h2>Side Panel</h2>
-    <p>This is a side panel demo.</p>
+    <header>
+      <h1>ObservePoint Copilot</h1>
+      <span id="status" class="status"></span>
+    </header>
+
+    <main id="transcript" aria-live="polite"></main>
+
+    <!-- Owned by input.js — the whole input layer lives behind one contract. -->
+    <footer id="input-root"></footer>
+
     <script type="module" src="./main.js"></script>
   </body>
 </html>

@@ -1,6 +1,8 @@
 import { storage } from '../shared/utils.js'
 
-const colorSelect = document.getElementById('color-select')
+const KEY = 'geminiApiKey'
+
+const input = document.getElementById('api-key')
 const saveBtn = document.getElementById('save')
 const status = document.getElementById('status')
 
@@ -10,26 +12,27 @@ function setStatus(message, isError = false) {
 }
 
 storage.sync
-  .get('color')
-  .then(color => {
-    if (color) colorSelect.value = color
+  .get(KEY)
+  .then(key => {
+    if (key) input.value = key
   })
   .catch(error => {
-    setStatus(`Unable to load options: ${error.message}`, true)
+    setStatus(`Unable to load settings: ${error.message}`, true)
     saveBtn.disabled = true
   })
 
 saveBtn.addEventListener('click', async () => {
-  const color = colorSelect.value
+  const key = input.value.trim()
 
   try {
-    await storage.sync.set('color', color)
-    setStatus('Options saved.')
-
+    await storage.sync.set(KEY, key)
+    setStatus(
+      key ? 'Saved. The Copilot will use Gemini.' : 'Cleared. Falling back to keyword matching.',
+    )
     setTimeout(() => {
       status.textContent = ''
-    }, 750)
+    }, 1500)
   } catch (error) {
-    setStatus(`Unable to save options: ${error.message}`, true)
+    setStatus(`Unable to save: ${error.message}`, true)
   }
 })

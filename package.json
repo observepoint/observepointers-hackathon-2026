@@ -1,7 +1,7 @@
 {
-  "name": "chrome-extension-skeleton",
+  "name": "observepoint-copilot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ask for an outcome; get walked through it in the app.",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "node test/planner.test.mjs",
+    "fixtures": "node scripts/emit-fixtures.mjs"
   },
   "keywords": [],
   "author": "",

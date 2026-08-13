@@ -1,0 +1,80 @@
+{
+  "recipeId": "add_rules_to_audit",
+  "goal": "add rules to my audit \"Q3 Production Audit\"",
+  "summary": "Open \"Q3 Production Audit\", switch to its Rules tab, and add the rules you want it to evaluate on every run.",
+  "executionMode": "templated",
+  "parameters": {
+    "auditName": "Q3 Production Audit"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "navContext": "/data-sources",
+      "targetSelector": "[op-selector=\"top-nav-search-trigger\"]",
+      "say": "Find \"Q3 Production Audit\" — search is faster than browsing the folder tree.",
+      "targetFallback": {
+        "description": "the global search box in the top nav"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s2",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"top-nav-search-input\"] input",
+      "say": "Searching for it.",
+      "action": {
+        "type": "fill_text",
+        "value": "Q3 Production Audit"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"top-nav-search-result\"]"
+      }
+    },
+    {
+      "id": "s3",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"top-nav-search-result\"]",
+      "say": "Open it.",
+      "completion": {
+        "type": "url_change",
+        "value": "/audit"
+      }
+    },
+    {
+      "id": "s4",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rules-tab\"]",
+      "say": "The Rules tab is where an audit's rule set lives.",
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"add-rules-to-configuration-btn\"]",
+      "say": "Add rules here. Anything you attach gets evaluated on every run of this audit from now on.",
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"add-btn\"]",
+      "say": "Pick the rules you want, then add them. Start narrow — you can always attach more later.",
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    }
+  ]
+}

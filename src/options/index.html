@@ -3,24 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Extension Options</title>
+    <title>ObservePoint Copilot — Options</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
 
   <body>
     <div class="container">
-      <h1>Extension Options</h1>
+      <h1>ObservePoint Copilot</h1>
+
       <label>
-        Preferred Color:
-        <select id="color-select">
-          <option value="#f9f9f9">Default (Light)</option>
-          <option value="#e0f7fa">Cyan</option>
-          <option value="#fff3e0">Orange</option>
-          <option value="#f3e5f5">Purple</option>
-        </select>
+        Gemini API key
+        <input id="api-key" type="password" placeholder="AIza…" autocomplete="off" />
       </label>
+
+      <p class="help">
+        Free key from
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer"
+          >Google AI Studio</a
+        >. Without one the Copilot still works, matching your question against known walkthroughs on
+        keywords alone — good enough for common phrasings, and it costs nothing.
+      </p>
+
+      <p class="warn">
+        The key is stored in <code>chrome.storage.sync</code>, which is fine for a hackathon build
+        everyone runs locally. Do not ship it this way: anyone can unpack a published extension and
+        read it. Move to a backend proxy first.
+      </p>
+
       <div id="status"></div>
-      <button id="save">Save Settings</button>
+      <button id="save">Save</button>
     </div>
     <script type="module" src="./main.js"></script>
   </body>
