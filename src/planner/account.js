@@ -37,7 +37,9 @@ function send(message) {
 export async function status() {
   const reply = await send({ type: 'OP_ACCOUNT_STATUS' })
 
-  if (reply.ok) return { connected: true, environment: reply.environment }
+  if (reply.ok) {
+    return { connected: true, environment: reply.environment, hostname: reply.hostname }
+  }
 
   // Distinguish the three reasons, because the fix is different for each and
   // "couldn't read your account" on its own is useless to the user.
@@ -81,14 +83,24 @@ export async function probeApi() {
   const results = []
   for (const path of candidates) {
     const reply = await send({ type: 'OP_API_GET', path })
-    results.push({
-      path,
-      ok: Boolean(reply.ok),
-      status: reply.status ?? (reply.ok ? 200 : '—'),
-      contentType: (reply.contentType ?? (reply.ok ? 'application/json' : '')).split(';')[0],
-      error: reply.error ?? '',
-      finalUrl: reply.finalUrl ?? '',
-    })
+
+    if (reply.ok) {
+      results.push({ path, base: reply.base, ok: true, status: 200, detail: 'application/json' })
+      continue
+    }
+
+    // One row per host tried, so it's obvious whether the path is wrong or the
+    // host is.
+    const attempts = reply.attempts?.length ? reply.attempts : [reply]
+    for (const attempt of attempts) {
+      results.push({
+        path,
+        base: attempt.base ?? '—',
+        ok: false,
+        status: attempt.status ?? '—',
+        detail: (attempt.contentType || attempt.error || '').split(';')[0],
+      })
+    }
   }
   return results
 }

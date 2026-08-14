@@ -207,7 +207,11 @@ async function showAccount() {
       'not-signed-in':
         "You're on ObservePoint but not signed in, so I can't read your account yet.",
     }
-    addMessage('note', why[state.reason] ?? `Can't read your account: ${state.reason}`)
+    addMessage(
+      'note',
+      why[state.reason] ??
+        `Can't read your account: ${state.reason}${state.hostname ? ` (${state.hostname})` : ''}`,
+    )
     return
   }
 
@@ -215,8 +219,8 @@ async function showAccount() {
     const categories = await listConsentCategories()
     const line =
       categories.length === 0
-        ? `Connected to ${state.environment}. No consent categories in this account yet — I'll walk you through creating one when you need it.`
-        : `Connected to ${state.environment}. ${categories.length} consent categor${categories.length === 1 ? 'y' : 'ies'} found: ${categories
+        ? `Connected to ${state.environment} (${state.hostname}). No consent categories in this account yet — I'll walk you through creating one when you need it.`
+        : `Connected to ${state.environment} (${state.hostname}). ${categories.length} consent categor${categories.length === 1 ? 'y' : 'ies'} found: ${categories
             .slice(0, 4)
             .map(c => c.name)
             .join(', ')}${categories.length > 4 ? '…' : ''}`
@@ -225,7 +229,7 @@ async function showAccount() {
   } catch (error) {
     addMessage(
       'note',
-      `Connected to ${state.environment}, but the category lookup failed: ${error.message}\nProbing which API paths this host actually serves…`,
+      `Connected to ${state.environment} (${state.hostname}), but the category lookup failed: ${error.message}\nProbing which API paths and hosts actually answer…`,
     )
 
     // Probe automatically. This only runs when something is already broken, and
@@ -235,7 +239,7 @@ async function showAccount() {
     addMessage(
       'note',
       results
-        .map(r => `${r.ok ? '✓' : '✗'} ${r.path}\n     ${r.status} ${r.contentType || r.error}`)
+        .map(r => `${r.ok ? '✓' : '✗'} ${r.base}${r.path}\n     ${r.status} ${r.detail}`)
         .join('\n'),
     )
     console.table(results)

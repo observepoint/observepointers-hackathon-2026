@@ -1,15 +1,23 @@
 /**
- * Background service worker — the router.
+ * Background service worker — router, and the one place that talks to the API.
  *
- * The side panel can't message a tab directly, so everything between it and the
- * page hops through here:
+ * WHY THE FETCH LIVES HERE
+ * The first attempt made the call from the content script, on the app's own
+ * origin. Every /api/* path came back 200 text/html, which means that host
+ * serves the SPA for anything it doesn't recognise — the API is on a different
+ * host. A content script's cross-origin fetch obeys the *page's* CORS policy;
+ * the service worker's obeys the extension's host_permissions, which is why the
+ * call has to happen here.
  *
- *   PLAN_READY          panel → page   (Part 2 picks it up)
- *   OP_API_GET          panel → page   (account reads, see content/index.js)
- *   OP_ACCOUNT_STATUS   panel → page   ("can I read the account right now?")
+ *   panel ──OP_API_GET──▶ background ──OP_AUTH_CONTEXT──▶ content script
+ *                              │                              (reads token)
+ *                              └──── fetch(apiBase + path) ───▶ API
+ *
+ * The token goes content script → background and no further. The panel only
+ * ever receives JSON.
  */
 
-const TO_ACTIVE_TAB = new Set(['PLAN_READY', 'OP_API_GET', 'OP_ACCOUNT_STATUS'])
+const FORWARD_TO_TAB = new Set(['PLAN_READY', 'OP_ACCOUNT_STATUS'])
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
@@ -26,35 +34,121 @@ async function activeTab() {
 
 /**
  * Tabs open before the extension loaded have no content script. Ping, and
- * inject on failure, so nobody has to be told to reload the page.
- *
- * The file path has to come from the runtime manifest, not from source: the
- * build renames content scripts (`assets/index.js-<hash>.js`), so a hardcoded
- * `src/content/index.js` works in dev and silently 404s in a built extension.
+ * inject on failure. The file path must come from the runtime manifest: the
+ * build renames content scripts, so a hardcoded src/ path 404s once built.
  */
 async function ensureContentScript(tabId) {
   try {
     await chrome.tabs.sendMessage(tabId, { type: 'OP_ACCOUNT_STATUS' })
     return
   } catch {
-    /* not there yet — inject below */
+    /* not attached yet */
   }
 
   const files = chrome.runtime.getManifest().content_scripts?.[0]?.js ?? []
   try {
     await chrome.scripting.executeScript({ target: { tabId }, files })
   } catch (error) {
-    // Bundled content scripts are ES modules and can refuse programmatic
-    // injection. Reloading the tab is the reliable fix, so say that plainly
-    // rather than failing with a module-resolution error.
     throw new Error(`Reload the ObservePoint tab so the Copilot can attach. (${error.message})`, {
       cause: error,
     })
   }
 }
 
+/**
+ * Hosts to try, in order. The tab's own origin first — if it ever does proxy
+ * /api, that is the correct answer and needs no special case. Then the canonical
+ * app host for the same environment, which is what moonbeam's environment.*.ts
+ * files point at.
+ */
+function apiBasesFor(origin, hostname) {
+  const canonical = hostname.includes('observepointstaging')
+    ? 'https://app.observepointstaging.com'
+    : 'https://app.observepoint.com'
+
+  return canonical === origin ? [origin] : [origin, canonical]
+}
+
+async function fetchJson(base, path, token) {
+  const url = new URL(path, base).toString()
+
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      credentials: 'include',
+    })
+
+    const contentType = response.headers.get('content-type') ?? ''
+    const body = await response.text()
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        base,
+        status: response.status,
+        contentType,
+        error: `http-${response.status}`,
+        snippet: body.slice(0, 160),
+      }
+    }
+    // 200 + HTML means we hit an SPA catch-all, not the API.
+    if (!contentType.includes('json')) {
+      return {
+        ok: false,
+        base,
+        status: response.status,
+        contentType,
+        error: 'not-json',
+        snippet: body.slice(0, 160),
+      }
+    }
+
+    try {
+      return { ok: true, base, data: JSON.parse(body) }
+    } catch {
+      return { ok: false, base, status: response.status, contentType, error: 'bad-json' }
+    }
+  } catch (error) {
+    return { ok: false, base, error: error.message }
+  }
+}
+
+async function apiGet(path) {
+  const tab = await activeTab()
+  await ensureContentScript(tab.id)
+
+  const auth = await chrome.tabs.sendMessage(tab.id, { type: 'OP_AUTH_CONTEXT' })
+  if (!auth?.ok) return { ok: false, error: auth?.error || 'no-auth-context' }
+
+  const attempts = []
+  for (const base of apiBasesFor(auth.origin, auth.hostname)) {
+    const result = await fetchJson(base, path, auth.token)
+    attempts.push(result)
+    if (result.ok) return { ok: true, data: result.data, base, environment: auth.environment }
+  }
+
+  // Every base failed — hand all of them back, since which ones failed and how
+  // is the whole diagnosis.
+  const last = attempts.at(-1) ?? {}
+  return {
+    ok: false,
+    error: last.error || 'unreachable',
+    status: last.status,
+    contentType: last.contentType,
+    attempts,
+    hostname: auth.hostname,
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!TO_ACTIVE_TAB.has(message?.type)) return false
+  if (message?.type === 'OP_API_GET') {
+    apiGet(message.path)
+      .then(sendResponse)
+      .catch(error => sendResponse({ ok: false, error: error.message }))
+    return true
+  }
+
+  if (!FORWARD_TO_TAB.has(message?.type)) return false
   ;(async () => {
     try {
       const tab = await activeTab()
@@ -65,5 +159,5 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
   })()
 
-  return true // async response
+  return true
 })

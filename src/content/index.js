@@ -49,66 +49,34 @@ function environmentName() {
   return location.hostname.includes('observepointstaging') ? 'staging' : 'production'
 }
 
-async function apiGet(path) {
+/**
+ * Hands the session token to the background worker, which makes the actual
+ * call.
+ *
+ * This used to fetch from here, which was nicer — the credential never left the
+ * page's own context. It doesn't work: every /api/* path on this origin returns
+ * the SPA's index.html, so the API is served from a different host, and a
+ * content script's cross-origin fetch is subject to the page's CORS policy. The
+ * background worker has the extension's host permissions and isn't, so the call
+ * has to happen there.
+ *
+ * The token therefore crosses one boundary, from this script to our own service
+ * worker. It never reaches the side panel and never leaves the extension.
+ */
+function authContext() {
   if (!OP_HOST.test(location.hostname)) {
     return { ok: false, error: 'not-on-observepoint', hostname: location.hostname }
   }
 
   const token = readAuthToken()
-  if (!token) return { ok: false, error: 'not-signed-in' }
+  if (!token) return { ok: false, error: 'not-signed-in', hostname: location.hostname }
 
-  // Paths arrive relative ("/api/v3/consent-categories/library") and resolve
-  // against this tab's origin, so staging and prod are handled by whichever tab
-  // you happen to be on rather than by configuration.
-  const url = new URL(path, location.origin).toString()
-
-  try {
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      credentials: 'include',
-    })
-
-    const contentType = response.headers.get('content-type') ?? ''
-    const body = await response.text()
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        error: `http-${response.status}`,
-        status: response.status,
-        contentType,
-        finalUrl: response.url,
-        snippet: body.slice(0, 160),
-      }
-    }
-
-    // A 200 that returns HTML means the request never reached the API — the
-    // host served the SPA's index.html for an unmatched path. Reporting that as
-    // "Unexpected token '<'" tells you nothing, so name it.
-    if (!contentType.includes('json')) {
-      return {
-        ok: false,
-        error: 'not-json',
-        status: response.status,
-        contentType,
-        finalUrl: response.url,
-        snippet: body.slice(0, 160),
-      }
-    }
-
-    try {
-      return { ok: true, data: JSON.parse(body), environment: environmentName() }
-    } catch {
-      return {
-        ok: false,
-        error: 'bad-json',
-        contentType,
-        finalUrl: response.url,
-        snippet: body.slice(0, 160),
-      }
-    }
-  } catch (err) {
-    return { ok: false, error: err?.message || String(err) }
+  return {
+    ok: true,
+    token,
+    origin: location.origin,
+    hostname: location.hostname,
+    environment: environmentName(),
   }
 }
 
@@ -157,9 +125,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false
   }
 
-  if (message?.type === 'OP_API_GET') {
-    apiGet(message.path).then(sendResponse)
-    return true // async reply
+  if (message?.type === 'OP_AUTH_CONTEXT') {
+    sendResponse(authContext())
+    return false
   }
 
   if (message?.type === 'OP_ACCOUNT_STATUS') {
