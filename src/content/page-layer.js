@@ -148,7 +148,10 @@
 //
 // ============================================================================
 
+import { matchesNavContext, onRouteChange } from './navigation.js'
+
 const callbacks = { onState: null, onCompleted: null }
+let activeElement = null
 
 /** Wired at boot by content/index.js. You don't need to call this. */
 export function registerHostCallbacks({ onState, onCompleted }) {
@@ -180,7 +183,7 @@ export function reportCompleted(recipeId) {
  *
  * @param {Array<object>} plans  hydrated, validated plans — run in order
  */
-export function startWalkthrough(plans) {
+export async function startWalkthrough(plans) {
   // TODO(person-3): walk plans[0].steps, then plans[1], and so on. Call reportState() as
   // you go so the status bar tracks you, and reportCompleted(plan.recipeId) as each one
   // finishes.
@@ -193,19 +196,96 @@ export function startWalkthrough(plans) {
     })),
   })
 
-  // Shows the status bar so the handoff is visibly wired end to end. Replace this with
-  // real per-step reporting.
-  const [first] = plans
+  const plan = plans[0]
 
-  if (first)
+  for (const [stepIndex, step] of plan.steps.entries()) {
+    // make sure we are starting on the right page
+    console.log(`Page navigation: ${step.navContext}`)
+    if (!matchesNavContext(step.navContext)) {
+      await new Promise(resolve => {
+        const unsub = onRouteChange(() => {
+          if (matchesNavContext(step.navContext)) {
+            unsub()
+            resolve()
+          }
+        })
+      })
+    }
+    // get the target selector now
+    console.log(`Target Selector: ${step.targetSelector}`)
+    const findVisible = selector => {
+      const candidates = document.querySelectorAll(selector)
+      return Array.from(candidates).find(el => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+    }
+
+    let element = findVisible(step.targetSelector)
+
+    if (!element) {
+      await new Promise(r => setTimeout(r, 1500))
+      element = findVisible(step.targetSelector)
+    }
+
+    if (!element && step.optional) {
+      continue
+    }
+
+    if (!element) {
+      console.warn(`Could not find element: ${step.targetSelector}`)
+      continue
+    }
+
+    // element found — highlight it and show message
+    element.style.outline = '3px solid #ffd700'
+    element.style.outlineOffset = '2px'
+
+    // update the state with the step 'say'
     reportState({
       status: 'running',
-      goal: first.goal,
-      currentStepIndex: 0,
-      totalSteps: first.steps.length,
-      say: `Page layer not implemented yet. First step would be: ${first.steps[0]?.say ?? '—'}`,
-      queued: plans.length - 1,
+      goal: plan.goal,
+      currentStepIndex: stepIndex,
+      totalSteps: plan.steps.length,
+      say: step.say,
     })
+    // wait for the user to click on the button
+    await waitForCompletion(step)
+    //cleanup
+    element.style.outline = ''
+    element.style.outlineOffset = ''
+    activeElement = null
+  }
+
+  reportCompleted(plan.recipeId)
+  reportState({ status: 'idle' })
+}
+
+/**
+ * Wait for a user to act
+ *
+ * @param {Array<object>} step
+ */
+function waitForCompletion(step) {
+  const completion = step.completion
+  if (!completion) return Promise.resolve()
+
+  const watchSelector = completion.targetSelector ?? step.targetSelector
+
+  if (completion.type === 'click') {
+    return new Promise(resolve => {
+      const target = document.querySelector(watchSelector)
+      if (!target) return resolve()
+
+      const handler = () => {
+        target.removeEventListener('click', handler, true)
+        resolve()
+      }
+      target.addEventListener('click', handler, { capture: true })
+    })
+  }
+
+  return Promise.resolve()
 }
 
 /**
@@ -214,8 +294,12 @@ export function startWalkthrough(plans) {
  * @param {string} reason 'user' | 'complete' | 'error'
  */
 export function endWalkthrough(reason) {
-  // TODO(person-3): dispose highlights, tooltips, observers, listeners, stored session.
-  console.log('[op-walkthroughs] page layer stub — end walkthrough', reason)
+  console.log('[op-walkthroughs] end walkthrough', reason)
+  if (activeElement) {
+    activeElement.style.outline = ''
+    activeElement.style.outlineOffset = ''
+    activeElement = null
+  }
   reportState({ status: 'idle' })
 }
 
