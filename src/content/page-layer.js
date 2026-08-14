@@ -153,6 +153,15 @@ import { matchesNavContext, onRouteChange } from './navigation.js'
 const callbacks = { onState: null, onCompleted: null }
 let activeElement = null
 
+// ---------------------------------------------------------------------------
+// Selector compatibility tables
+//
+// The app occasionally renders a different element than what the recipe
+// selector targets. Add entries here rather than touching recipes or selectors.
+// ---------------------------------------------------------------------------
+
+// recipe selector → actual DOM selector
+// Used when the app renders a different element than what op-selector targets.
 const SELECTOR_OVERRIDES = {
   '[op-selector="audit-setup-name"]': 'audit-editor-header-name-control',
 }
@@ -161,6 +170,9 @@ function resolveSelector(selector) {
   return SELECTOR_OVERRIDES[selector] ?? selector
 }
 
+// Journey tab selectors in recipes target mat-tab host elements that never
+// render in the DOM. The real clickable labels are div.mat-mdc-tab elements
+// matched by their visible text (counts like "(28)" are excluded via includes()).
 const JOURNEY_TAB_MAP = {
   'mat-tab[op-selector="details-tab"]': 'Action Details',
   'mat-tab[op-selector="tag-comparison-tab"]': 'Tag Presence',
@@ -179,9 +191,10 @@ function findJourneyTab(selector) {
   )
 }
 
-// After a step's completion watcher fires, auto-click a button before moving on.
+// After a step's completion watcher fires, auto-click a button before the
+// next step starts. Needed when the app requires a tab switch between steps.
 // Key format: 'recipeId:stepId'
-// Value: a CSS selector string, or { selector, text } to match by visible text.
+// Value: CSS selector string, or { selector, text } for text-based matching.
 const POST_STEP_ACTIONS = {
   'create-first-audit:name-the-audit': { selector: '.op-tab', text: 'URL Sources' },
   'create-first-audit:page-limit': { selector: '.op-tab', text: 'Schedule' },
@@ -198,6 +211,24 @@ async function runPostStepAction(recipeId, stepId) {
     target.click()
     await new Promise(r => setTimeout(r, 500))
   }
+}
+
+// ---------------------------------------------------------------------------
+// Element finding
+// ---------------------------------------------------------------------------
+
+// Returns the first visible element matching selector, handling the two known
+// edge cases: journey tab hosts (invisible mat-tab elements) and selector
+// overrides where the app renders a different element than the recipe expects.
+function findVisible(selector) {
+  const journeyTab = findJourneyTab(selector)
+  if (journeyTab) return journeyTab
+  const candidates = Array.from(document.querySelectorAll(resolveSelector(selector)))
+  const visible = candidates.find(el => {
+    const rect = el.getBoundingClientRect()
+    return rect.width > 0 && rect.height > 0
+  })
+  return visible ?? null
 }
 
 /** Wired at boot by content/index.js. You don't need to call this. */
@@ -222,100 +253,69 @@ export function reportCompleted(recipeId) {
 }
 
 // ---------------------------------------------------------------------------
-// STUBS — replace the bodies below
+// Walkthrough runner
 // ---------------------------------------------------------------------------
 
-/**
- * Run an ordered sequence of walkthroughs.
- *
- * @param {Array<object>} plans  hydrated, validated plans — run in order
- */
 export async function startWalkthrough(plans) {
-  // TODO(person-3): walk plans[0].steps, then plans[1], and so on. Call reportState() as
-  // you go so the status bar tracks you, and reportCompleted(plan.recipeId) as each one
-  // finishes.
-  console.log('[op-walkthroughs] page layer stub — received plans', {
-    count: plans.length,
-    plans: plans.map(plan => ({
-      recipeId: plan.recipeId,
-      goal: plan.goal,
-      steps: plan.steps.length,
-    })),
-  })
-
-  const plan = plans[0]
-
-  for (const [stepIndex, step] of plan.steps.entries()) {
-    // make sure we are starting on the right page
-    console.log(`Page navigation: ${step.navContext}`)
-    if (!matchesNavContext(step.navContext)) {
-      await new Promise(resolve => {
-        const unsub = onRouteChange(() => {
-          if (matchesNavContext(step.navContext)) {
-            unsub()
-            resolve()
-          }
+  for (const plan of plans) {
+    for (const [stepIndex, step] of plan.steps.entries()) {
+      if (!matchesNavContext(step.navContext)) {
+        await new Promise(resolve => {
+          const unsub = onRouteChange(() => {
+            if (matchesNavContext(step.navContext)) {
+              unsub()
+              resolve()
+            }
+          })
         })
+      }
+
+      // Some flows (new-user audit creation) intercept with a quick-setup modal.
+      // Auto-click through to the advanced form so recipe selectors resolve correctly.
+      await new Promise(r => setTimeout(r, 500))
+      const advancedBtn = document.querySelector(
+        '[op-selector="web-audit-switch-to-advanced-setup"]',
+      )
+      if (advancedBtn) {
+        advancedBtn.click()
+        await new Promise(r => setTimeout(r, 2000))
+      }
+
+      const element = findVisible(step.targetSelector)
+
+      if (!element && step.optional) continue
+
+      if (!element) {
+        console.warn(`[op-walkthroughs] could not find element: ${step.targetSelector}`)
+        continue
+      }
+
+      activeElement = element
+      element.style.outline = '3px solid #ffd700'
+      element.style.outlineOffset = '2px'
+
+      reportState({
+        status: 'running',
+        goal: plan.goal,
+        currentStepIndex: stepIndex,
+        totalSteps: plan.steps.length,
+        say: step.say,
       })
-    }
-    // get the target selector now
-    console.log(`Target Selector: ${step.targetSelector}`)
-    const findVisible = selector => {
-      const journeyTab = findJourneyTab(selector)
-      if (journeyTab) return journeyTab
-      const candidates = document.querySelectorAll(resolveSelector(selector))
-      return Array.from(candidates).find(el => {
-        const rect = el.getBoundingClientRect()
-        return rect.width > 0 && rect.height > 0
-      })
+
+      await waitForCompletion(step)
+      await runPostStepAction(plan.recipeId, step.id)
+
+      element.style.outline = ''
+      element.style.outlineOffset = ''
+      activeElement = null
     }
 
-    await new Promise(r => setTimeout(r, 500))
-    const advancedBtn = document.querySelector('[op-selector="web-audit-switch-to-advanced-setup"]')
-    if (advancedBtn) {
-      advancedBtn.click()
-      await new Promise(r => setTimeout(r, 2000))
-    }
-
-    let element = findVisible(step.targetSelector)
-
-    if (!element && step.optional) {
-      continue
-    }
-
-    if (!element) {
-      console.warn(`Could not find element: ${step.targetSelector}`)
-      continue
-    }
-
-    // element found — highlight it and show message
-    element.style.outline = '3px solid #ffd700'
-    element.style.outlineOffset = '2px'
-
-    // update the state with the step 'say'
-    reportState({
-      status: 'running',
-      goal: plan.goal,
-      currentStepIndex: stepIndex,
-      totalSteps: plan.steps.length,
-      say: step.say,
-    })
-    await waitForCompletion(step)
-    await runPostStepAction(plan.recipeId, step.id)
-    element.style.outline = ''
-    element.style.outlineOffset = ''
-    activeElement = null
+    reportCompleted(plan.recipeId)
   }
 
-  reportCompleted(plan.recipeId)
   reportState({ status: 'idle' })
 }
 
-/**
- * Wait for a user to act
- *
- * @param {Array<object>} step
- */
 function waitForCompletion(step) {
   const completion = step.completion
   if (!completion) return Promise.resolve()
