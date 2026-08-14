@@ -78,7 +78,7 @@
     {
       "id": "s6",
       "actor": "user",
-      "targetSelector": ".op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
+      "targetSelector": "[op-selector=\"audit-tab-standards\"]",
       "say": "Open the Standards tab.",
       "targetFallback": {
         "description": "the Standards tab in the audit editor"
@@ -93,7 +93,7 @@
     {
       "id": "s7",
       "actor": "user",
-      "targetSelector": ".op-audit-editor .op-tabs.sub-menu .op-tab:nth-child(2)",
+      "targetSelector": "[op-selector=\"standards-tab-consent-categories\"]",
       "say": "Open Consent Categories.",
       "targetFallback": {
         "description": "the \"Consent Categories\" sub-tab"

@@ -62,6 +62,13 @@ async function ensureContentScript(tabId) {
  * files point at.
  */
 function apiBasesFor(origin, hostname) {
+  // A locally-served moonbeam has no local API. Its dev environment.ts points
+  // apiUrl at app.observepointstaging.com, so that is where account reads go —
+  // don't waste a round trip on localhost first.
+  if (/^(localhost|127\.0\.0\.1)$/i.test(hostname)) {
+    return ['https://app.observepointstaging.com']
+  }
+
   const canonical = hostname.includes('observepointstaging')
     ? 'https://app.observepointstaging.com'
     : 'https://app.observepoint.com'

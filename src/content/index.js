@@ -18,7 +18,10 @@
  *    its first step resolves on this page.
  */
 
-const OP_HOST = /(^|\.)observepoint(staging)?\.com$/i
+// Local moonbeam (`npm start` → localhost:4200) counts: it is the same app,
+// and its dev environment.ts points at the staging API, so everything else
+// works unchanged.
+const OP_HOST = /(^|\.)observepoint(staging)?\.com$|^localhost$|^127\.0\.0\.1$/i
 
 /* ---------------------------------------------------------------------- *
  * Account bridge
@@ -46,6 +49,7 @@ function readAuthToken() {
 }
 
 function environmentName() {
+  if (/^(localhost|127\.0\.0\.1)$/i.test(location.hostname)) return 'local'
   return location.hostname.includes('observepointstaging') ? 'staging' : 'production'
 }
 

@@ -58,13 +58,26 @@ export const SELECTORS = {
 
   // Advanced audit editor
   auditEditor: '.op-audit-editor',
-  // Tabs: Scenario, URL Sources, Schedule, Standards, Pre-Audit, On-Page.
-  standardsTab: '.op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)',
 
-  // Standards sub-tabs, in the order standards-tab.component.ts builds them.
-  subTabRules: '.op-audit-editor .op-tabs.sub-menu .op-tab:nth-child(1)',
-  subTabConsentCategories: '.op-audit-editor .op-tabs.sub-menu .op-tab:nth-child(2)',
-  subTabAlerts: '.op-audit-editor .op-tabs.sub-menu .op-tab:nth-child(3)',
+  // These four need the moonbeam change described at the top of this file.
+  // Until it lands they resolve to nothing and Part 3 falls back to
+  // targetFallback.description, which matches the tab's visible text.
+  //
+  // They replaced :nth-child() selectors, and it is worth knowing why rather
+  // than reinventing them. standards-tab.component.ts::createTabs() builds the
+  // list with unshift():
+  //     tabs = [Rules]
+  //     if (privacyEnabled)      unshift(ConsentCategories)
+  //     if (productType===AUDIT) unshift(Alerts)
+  // so the rendered order is Alerts, Consent Categories, Rules — the reverse of
+  // the reading order in the file. Two of the three positional selectors here
+  // pointed at the wrong tab. Worse, the order is conditional: without privacy
+  // there is no Consent tab and every index shifts. Positional selectors were
+  // never going to survive that.
+  standardsTab: '[op-selector="audit-tab-standards"]',
+  subTabRules: '[op-selector="standards-tab-rules"]',
+  subTabConsentCategories: '[op-selector="standards-tab-consent-categories"]',
+  subTabAlerts: '[op-selector="standards-tab-alerts"]',
 
   // op-standards-selector — identical markup for all three standard types.
   standardsSearch: '.op-standards-selector .search-input',
