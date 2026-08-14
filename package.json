@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "node test/planner.test.mjs",
-    "fixtures": "node scripts/emit-fixtures.mjs"
+    "fixtures": "node scripts/emit-fixtures.mjs",
+    "plan": "node scripts/plan.mjs"
   },
   "keywords": [],
   "author": "",
