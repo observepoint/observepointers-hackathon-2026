@@ -1,11 +1,11 @@
 {
   "recipeId": "audit_with_consent_categories",
   "goal": "audit https://www.example.com for GDPR consent compliance",
-  "summary": "We'll create an audit called \"Copilot audit\" against https://www.example.com and attach Consent Categories under Standards. Without one attached, a privacy audit runs but reports nothing — the category is what defines \"approved\".",
+  "summary": "We'll create an audit called \"example.com — Consent & privacy\" against https://www.example.com and attach Consent Categories under Standards. Without one attached, a privacy audit runs but reports nothing — the category is what defines \"approved\".",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
-    "auditName": "Copilot audit"
+    "auditName": "example.com — Consent & privacy"
   },
   "steps": [
     {
@@ -40,10 +40,10 @@
       "id": "s3",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-name\"] input",
-      "say": "Naming it \"Copilot audit\".",
+      "say": "Naming it \"example.com — Consent & privacy\".",
       "action": {
         "type": "fill_text",
-        "value": "Copilot audit"
+        "value": "example.com — Consent & privacy"
       },
       "completion": {
         "type": "dom_event",

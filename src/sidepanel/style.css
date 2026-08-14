@@ -1,20 +1,86 @@
+/**
+ * ObservePoint theme.
+ *
+ * Values copied from the design tokens, not eyeballed:
+ *   op-component-library/tokens/build/theme-light.css
+ *   op-component-library/tokens/build/theme-dark.css
+ * Names match theirs, so a token change there is a find-and-replace here. Only
+ * the tokens this panel actually uses are copied.
+ *
+ * Dark mode follows the OS by default AND honours a `.dark-theme` class on
+ * <html>, which is the convention moonbeam itself uses — so if we later mirror
+ * the app's own theme toggle, it already works.
+ */
+
 :root {
-  --bg: #ffffff;
-  --fg: #0f172a;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --accent: #2f6df6;
-  --bubble: #f1f5f9;
+  --op-background: #ffffff;
+  --op-surface: #f7f7f7;
+  --op-surface-raised: #ffffff;
+  --op-text-primary: #333333;
+  --op-text-secondary: #777777;
+  --op-text-muted: #b0b0b0;
+  --op-border-default: #dadada;
+  --op-border-light: #ececec;
+  --op-primary-default: #f2cd14;
+  --op-primary-dark: #d5a900;
+  --op-primary-light: #faeb9d;
+  --op-accent: #11a6d4;
+  --op-success: #50bc77;
+  --op-error: #f34146;
+  --op-warning: #ec7d0f;
+  --op-button-filled-bg: #f2cd14;
+  --op-button-filled-text: #333333;
+  --op-button-filled-hover-bg: #d5a900;
+  --op-button-filled-hover-text: #f7f7f7;
+  --op-input-bg: #ffffff;
+  --op-input-border: #dadada;
+  --op-input-focus-border: #f2cd14;
+  --op-input-placeholder: #b0b0b0;
+
+  /* Panel-only: a tinted error surface, since the tokens ship only the hue. */
+  --panel-error-bg: #fdecec;
+  --panel-error-text: #a3282c;
+  --panel-warning-text: #8a4a09;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f172a;
-    --fg: #e2e8f0;
-    --muted: #94a3b8;
-    --line: #1e293b;
-    --bubble: #1e293b;
+  :root:not(.light-theme) {
+    --op-background: #333333;
+    --op-surface: #2e2e2e;
+    --op-surface-raised: #3e3e3e;
+    --op-text-primary: #ffffff;
+    --op-text-secondary: #b0b0b0;
+    --op-text-muted: #777777;
+    --op-border-default: #4a4a4a;
+    --op-border-light: #3e3e3e;
+    --op-primary-light: #645a2b;
+    --op-input-bg: #2e2e2e;
+    --op-input-border: #4a4a4a;
+    --op-input-placeholder: #777777;
+
+    --panel-error-bg: #4a2a2b;
+    --panel-error-text: #f5a3a5;
+    --panel-warning-text: #f0b46a;
   }
+}
+
+:root.dark-theme {
+  --op-background: #333333;
+  --op-surface: #2e2e2e;
+  --op-surface-raised: #3e3e3e;
+  --op-text-primary: #ffffff;
+  --op-text-secondary: #b0b0b0;
+  --op-text-muted: #777777;
+  --op-border-default: #4a4a4a;
+  --op-border-light: #3e3e3e;
+  --op-primary-light: #645a2b;
+  --op-input-bg: #2e2e2e;
+  --op-input-border: #4a4a4a;
+  --op-input-placeholder: #777777;
+
+  --panel-error-bg: #4a2a2b;
+  --panel-error-text: #f5a3a5;
+  --panel-warning-text: #f0b46a;
 }
 
 * {
@@ -26,8 +92,8 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--op-background);
+  color: var(--op-text-primary);
   font:
     14px/1.5 -apple-system,
     BlinkMacSystemFont,
@@ -37,10 +103,19 @@ body {
 
 header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--op-border-default);
+}
+
+/* The brand mark: OP leads with the yellow, so the panel should too. */
+header::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--op-primary-default);
 }
 
 h1 {
@@ -51,14 +126,14 @@ h1 {
 
 .status {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--op-text-secondary);
   margin-left: auto;
 }
 .status.live {
-  color: #16a34a;
+  color: var(--op-success);
 }
 .status.local {
-  color: #d97706;
+  color: var(--op-warning);
 }
 
 #transcript {
@@ -80,59 +155,71 @@ h1 {
 
 .msg.user {
   align-self: flex-end;
-  background: var(--accent);
-  color: #fff;
+  background: var(--op-primary-default);
+  color: #333333; /* fixed: yellow needs dark text in both themes */
 }
 .msg.assistant {
   align-self: flex-start;
-  background: var(--bubble);
+  background: var(--op-surface);
+  border: 1px solid var(--op-border-light);
 }
 .msg.system,
 .msg.note {
   align-self: stretch;
   max-width: 100%;
   background: transparent;
-  border: 1px dashed var(--line);
-  color: var(--muted);
+  border: 1px dashed var(--op-border-default);
+  color: var(--op-text-secondary);
   font-size: 12px;
 }
 .msg.error {
   align-self: stretch;
   max-width: 100%;
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--panel-error-bg);
+  color: var(--panel-error-text);
 }
 
 .plan {
   align-self: stretch;
   max-width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: var(--op-surface-raised);
+  border: 1px solid var(--op-border-default);
+  border-left: 3px solid var(--op-primary-default);
+  border-radius: 8px;
+  padding: 12px 14px;
 }
 .plan h2 {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 13px;
+  line-height: 1.45;
+  font-weight: 600;
 }
 .plan ol {
   margin: 8px 0 0;
   padding-left: 18px;
 }
 .plan li {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-size: 13px;
 }
+.plan li::marker {
+  color: var(--op-text-muted);
+}
 .plan .actor {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--op-primary-light);
+  color: var(--op-text-primary);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--muted);
-  margin-left: 6px;
 }
 .plan .warn {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 11px;
-  color: #b45309;
+  color: var(--panel-warning-text);
 }
 
 .chips {
@@ -142,20 +229,21 @@ h1 {
   margin-top: 8px;
 }
 .chip {
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--fg);
+  border: 1px solid var(--op-border-default);
+  background: var(--op-background);
+  color: var(--op-text-primary);
   border-radius: 999px;
   padding: 5px 10px;
   font-size: 12px;
   cursor: pointer;
 }
 .chip:hover {
-  border-color: var(--accent);
+  border-color: var(--op-primary-default);
+  background: var(--op-primary-light);
 }
 
 footer {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--op-border-default);
   padding: 10px;
 }
 
@@ -171,44 +259,102 @@ textarea {
   min-height: 38px;
   max-height: 120px;
   padding: 9px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--fg);
+  border: 1px solid var(--op-input-border);
+  border-radius: 8px;
+  background: var(--op-input-bg);
+  color: var(--op-text-primary);
   font: inherit;
+}
+textarea::placeholder {
+  color: var(--op-input-placeholder);
+}
+textarea:focus {
+  outline: none;
+  border-color: var(--op-input-focus-border);
 }
 
 button {
-  border: 1px solid var(--line);
-  background: var(--bubble);
-  color: var(--fg);
-  border-radius: 10px;
+  border: 1px solid var(--op-border-default);
+  background: var(--op-surface);
+  color: var(--op-text-primary);
+  border-radius: 8px;
   height: 38px;
   padding: 0 12px;
   font: inherit;
   cursor: pointer;
 }
 button:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--op-primary-default);
 }
 button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 button.primary {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+  background: var(--op-button-filled-bg);
+  color: var(--op-button-filled-text);
+  border-color: var(--op-button-filled-bg);
+  font-weight: 600;
+}
+button.primary:hover:not(:disabled) {
+  background: var(--op-button-filled-hover-bg);
+  color: var(--op-button-filled-hover-text);
+  border-color: var(--op-button-filled-hover-bg);
 }
 button.recording {
-  background: #dc2626;
-  color: #fff;
-  border-color: #dc2626;
+  background: var(--op-error);
+  color: #ffffff;
+  border-color: var(--op-error);
 }
 
 .hint {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--op-text-secondary);
   margin-top: 6px;
   min-height: 14px;
+}
+
+/* ---------------------------------------------------------------------- *
+ * DEBUG — outgoing plan viewer. Styles for src/sidepanel/debug-plan.js.
+ * Safe to delete this whole block along with that file.
+ * ---------------------------------------------------------------------- */
+
+.debug-plan {
+  align-self: stretch;
+  max-width: 100%;
+  border: 1px dashed var(--op-accent);
+  border-radius: 8px;
+  background: var(--op-surface);
+  font-size: 11px;
+}
+.debug-plan > summary {
+  cursor: pointer;
+  padding: 7px 10px;
+  color: var(--op-accent);
+  font-weight: 600;
+  user-select: none;
+}
+.debug-plan pre {
+  margin: 0;
+  padding: 0 10px 10px;
+  max-height: 320px;
+  overflow: auto;
+  font:
+    11px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  color: var(--op-text-primary);
+  white-space: pre;
+}
+.debug-plan .debug-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+.debug-plan button {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: 6px;
 }

@@ -12,6 +12,8 @@
  */
 
 import { mountInput } from './input.js'
+// DEBUG — delete this import and the renderOutgoingPlan() call below to remove.
+import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
 import { getStoredApiKey } from '../planner/llm.js'
 
@@ -105,9 +107,11 @@ function handleResult(result) {
   switch (result.status) {
     case 'plan':
       pendingQuestion = null
-      addMessage('assistant', result.plan.summary)
+      // The summary is the plan card's heading — adding it as a message too
+      // printed it twice.
       renderPlan(result)
       emitPlan(result.plan)
+      renderOutgoingPlan(transcript, result.plan) // DEBUG — delete to remove
       window.dispatchEvent(
         new CustomEvent('copilot:assistant-text', { detail: result.plan.summary }),
       )

@@ -1,11 +1,11 @@
 {
   "recipeId": "audit_with_rules",
   "goal": "set up an audit for https://www.example.com that checks my tag rules",
-  "summary": "We'll create an audit called \"Copilot audit\" against https://www.example.com, then attach your Tag & Variable Rules under Standards so every run reports pass/fail against them.",
+  "summary": "We'll create an audit called \"example.com — Tag & variable rules\" against https://www.example.com, then attach your Tag & Variable Rules under Standards so every run reports pass/fail against them.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
-    "auditName": "Copilot audit"
+    "auditName": "example.com — Tag & variable rules"
   },
   "steps": [
     {
@@ -40,10 +40,10 @@
       "id": "s3",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-name\"] input",
-      "say": "Naming it \"Copilot audit\".",
+      "say": "Naming it \"example.com — Tag & variable rules\".",
       "action": {
         "type": "fill_text",
-        "value": "Copilot audit"
+        "value": "example.com — Tag & variable rules"
       },
       "completion": {
         "type": "dom_event",

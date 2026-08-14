@@ -6,7 +6,7 @@
   "parameters": {
     "conditionSummary": "the purchase tag stops firing",
     "notifyEmail": "your account email",
-    "alertName": "Copilot alert"
+    "alertName": "Alert: The purchase tag stops firing"
   },
   "steps": [
     {
@@ -43,10 +43,10 @@
       "id": "s3",
       "actor": "ai",
       "targetSelector": "[op-selector=\"quick-create-name\"] input",
-      "say": "Naming it \"Copilot alert\" — this is what appears in the notification, so make it obvious at 3am.",
+      "say": "Naming it \"Alert: The purchase tag stops firing\" — this is what appears in the notification, so make it obvious at 3am.",
       "action": {
         "type": "fill_text",
-        "value": "Copilot alert"
+        "value": "Alert: The purchase tag stops firing"
       },
       "completion": {
         "type": "dom_event",

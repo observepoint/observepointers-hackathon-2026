@@ -1,4 +1,4 @@
-import { SELECTORS, stepsToStandardsTab, AUDIT_PARAMETERS } from './_audit-standards.js'
+import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 
 /**
  * The bread-and-butter flow: an audit that checks tag & variable rules on every
@@ -32,7 +32,7 @@ export default {
       'new audit',
     ],
   },
-  parameters: AUDIT_PARAMETERS,
+  parameters: auditParameters('Tag & variable rules'),
   summaryTemplate:
     'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}}, then attach ' +
     'your Tag & Variable Rules under Standards so every run reports pass/fail against them.',

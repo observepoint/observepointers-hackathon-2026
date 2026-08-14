@@ -1,4 +1,4 @@
-import { SELECTORS, stepsToStandardsTab, AUDIT_PARAMETERS } from './_audit-standards.js'
+import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 
 /**
  * Attach existing alerts to an audit, so a run that goes out of compliance
@@ -37,7 +37,7 @@ export default {
       'alert me',
     ],
   },
-  parameters: AUDIT_PARAMETERS,
+  parameters: auditParameters('Alerting'),
   summaryTemplate:
     'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and attach ' +
     'alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.',

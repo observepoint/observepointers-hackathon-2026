@@ -21,6 +21,8 @@ export default [
         navigator: 'readonly',
         fetch: 'readonly',
         CustomEvent: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {

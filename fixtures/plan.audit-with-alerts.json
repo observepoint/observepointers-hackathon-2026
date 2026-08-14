@@ -1,11 +1,11 @@
 {
   "recipeId": "audit_with_alerts",
   "goal": "add alerts to my audit for https://www.example.com",
-  "summary": "We'll create an audit called \"Copilot audit\" against https://www.example.com and attach alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.",
+  "summary": "We'll create an audit called \"example.com — Alerting\" against https://www.example.com and attach alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
-    "auditName": "Copilot audit"
+    "auditName": "example.com — Alerting"
   },
   "steps": [
     {
@@ -40,10 +40,10 @@
       "id": "s3",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-name\"] input",
-      "say": "Naming it \"Copilot audit\".",
+      "say": "Naming it \"example.com — Alerting\".",
       "action": {
         "type": "fill_text",
-        "value": "Copilot audit"
+        "value": "example.com — Alerting"
       },
       "completion": {
         "type": "dom_event",

@@ -21,6 +21,8 @@
  *   Weak  — .create-new-alert-icon, the bell on op-widget-bell. Class only, no
  *           op-selector; and there is one bell per widget, so which one matters.
  */
+import { alertNameFrom } from '../naming.js'
+
 export default {
   id: 'alert_from_report',
   title: 'Get alerted when something breaks',
@@ -68,7 +70,7 @@ export default {
       name: 'alertName',
       description: 'A name for the alert',
       required: false,
-      default: 'Copilot alert',
+      derive: alertNameFrom,
     },
   ],
   summaryTemplate:

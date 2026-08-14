@@ -1,4 +1,4 @@
-import { SELECTORS, stepsToStandardsTab, AUDIT_PARAMETERS } from './_audit-standards.js'
+import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 
 /**
  * Privacy / consent compliance. Consent Categories are how ObservePoint decides
@@ -46,7 +46,7 @@ export default {
       'cmp',
     ],
   },
-  parameters: AUDIT_PARAMETERS,
+  parameters: auditParameters('Consent & privacy'),
   summaryTemplate:
     'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and attach ' +
     'Consent Categories under Standards. Without one attached, a privacy audit runs but reports nothing — ' +

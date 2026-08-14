@@ -25,12 +25,22 @@ import { GeminiClient, getStoredApiKey } from './llm.js'
 
 const MIN_CONFIDENCE = 0.35
 
-/** Fill in declared defaults for anything the user didn't supply. */
+/**
+ * Fill in defaults for anything the user didn't supply.
+ *
+ * `derive(parameters)` beats a static `default` — that's how audit names get to
+ * mention the site ("gap.com — Consent & privacy") instead of being a generic
+ * label. Derived values are computed fresh on every call rather than stored,
+ * which matters: if we cached one before the user told us the URL, the name
+ * would keep the empty-host fallback forever.
+ */
 function applyDefaults(recipe, parameters) {
   const merged = { ...parameters }
   for (const param of recipe.parameters) {
     const missing = merged[param.name] === undefined || merged[param.name] === ''
-    if (missing && param.default !== undefined) merged[param.name] = param.default
+    if (!missing) continue
+    if (param.derive) merged[param.name] = param.derive(merged)
+    else if (param.default !== undefined) merged[param.name] = param.default
   }
   return merged
 }
@@ -59,7 +69,9 @@ export function buildPlan(recipe, goal, rawParameters) {
       status: 'needs_input',
       recipeId: recipe.id,
       missing,
-      draftParameters: parameters,
+      // Only what the user actually gave us. Persisting the filled-in defaults
+      // would freeze a derived name computed before we knew the site.
+      draftParameters: rawParameters,
       question: questionFor(recipe, missing),
     }
   }

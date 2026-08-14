@@ -11,6 +11,7 @@ import { validatePlan } from '../src/planner/schema.js'
 import { render, placeholdersIn } from '../src/planner/template.js'
 import { matchDeterministic } from '../src/planner/match.js'
 import { rankModels } from '../src/planner/llm.js'
+import { hostFrom, auditNameFor, alertNameFrom } from '../src/planner/naming.js'
 import { RECIPES } from '../src/planner/recipes/index.js'
 
 let failures = 0
@@ -294,6 +295,57 @@ check(
   'flags unverified selectors so nobody debugs a ghost',
   auditPlan.status === 'plan' && auditPlan.warnings.some(w => w.includes('unverified')),
   JSON.stringify(auditPlan.warnings),
+)
+
+/* ---------------------------------------------------------------- */
+section('naming')
+
+check('strips protocol and www', hostFrom('https://www.gap.com') === 'gap.com')
+check('strips path, query and fragment', hostFrom('https://gap.com/checkout?a=1#x') === 'gap.com')
+check('strips a port', hostFrom('http://localhost:4200/x') === 'localhost')
+check('leaves a bare host alone', hostFrom('gap.com') === 'gap.com')
+check('lowercases', hostFrom('HTTPS://WWW.GAP.COM') === 'gap.com')
+check('survives an empty value', hostFrom('') === '')
+
+check(
+  'audit names lead with the site and say what they check',
+  auditNameFor('Consent & privacy')({ siteUrl: 'https://www.gap.com/x' }) ===
+    'gap.com — Consent & privacy',
+)
+check(
+  'audit names degrade sensibly with no site',
+  auditNameFor('Consent & privacy')({}) === 'Consent & privacy audit',
+)
+check(
+  'alert names carry the condition',
+  alertNameFrom({ conditionSummary: 'the purchase tag stops firing' }) ===
+    'Alert: The purchase tag stops firing',
+)
+check(
+  'alert names truncate rather than run on',
+  alertNameFrom({ conditionSummary: 'x'.repeat(80) }).length < 60,
+  alertNameFrom({ conditionSummary: 'x'.repeat(80) }),
+)
+
+// The trap: a derived name computed BEFORE the user supplied the URL must not
+// be frozen into the final plan. Only user-supplied values may persist.
+const derivedLate = answerAndRetry(
+  await createPlan('check our site for privacy compliance', { forceLocal: true }),
+  'gap.com',
+  'check our site for privacy compliance',
+)
+check(
+  'recomputes a derived name after a clarifying answer',
+  derivedLate.plan?.parameters.auditName === 'gap.com — Consent & privacy',
+  derivedLate.plan?.parameters.auditName,
+)
+check(
+  'a user-supplied name still wins over the derived one',
+  buildPlan(
+    RECIPES.find(r => r.id === 'audit_with_consent_categories'),
+    'g',
+    { siteUrl: 'gap.com', auditName: 'Q3 privacy sweep' },
+  ).plan.parameters.auditName === 'Q3 privacy sweep',
 )
 
 /* ---------------------------------------------------------------- */

@@ -43,6 +43,8 @@
  * Then swap the positional selectors below and mark these recipes verified.
  */
 
+import { auditNameFor } from '../naming.js'
+
 export const SELECTORS = {
   // Data Sources page
   createDataSource: '#guide-create-new-data-src-btn',
@@ -143,8 +145,12 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
   ]
 }
 
-/** Every recipe here needs these two, described the same way. */
-export const AUDIT_PARAMETERS = [
+/**
+ * Every recipe here needs these two. `purpose` is what the audit name says it
+ * checks — the point of a default name is to be recognisable in a long list, so
+ * it leads with the site and names the thing: "gap.com — Consent & privacy".
+ */
+export const auditParameters = purpose => [
   {
     name: 'siteUrl',
     description: 'The site or starting URL to audit',
@@ -155,6 +161,6 @@ export const AUDIT_PARAMETERS = [
     name: 'auditName',
     description: 'A name for the audit',
     required: false,
-    default: 'Copilot audit',
+    derive: auditNameFor(purpose),
   },
 ]
