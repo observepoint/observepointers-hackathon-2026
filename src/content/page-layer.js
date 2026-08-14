@@ -161,6 +161,24 @@ function resolveSelector(selector) {
   return SELECTOR_OVERRIDES[selector] ?? selector
 }
 
+const JOURNEY_TAB_MAP = {
+  'mat-tab[op-selector="details-tab"]': 'Action Details',
+  'mat-tab[op-selector="tag-comparison-tab"]': 'Tag Presence',
+  'mat-tab[op-selector="tags-tab"]': 'Variable Summary',
+  'mat-tab[op-selector="cookies-tab"]': 'Cookies',
+  'mat-tab[op-selector="rules-tab"]': 'Rules',
+}
+
+function findJourneyTab(selector) {
+  const text = JOURNEY_TAB_MAP[selector]
+  if (!text) return null
+  return (
+    Array.from(document.querySelectorAll('mat-tab-header div.mat-mdc-tab')).find(el =>
+      el.textContent.includes(text),
+    ) ?? null
+  )
+}
+
 // After a step's completion watcher fires, auto-click a button before moving on.
 // Key format: 'recipeId:stepId'
 // Value: a CSS selector string, or { selector, text } to match by visible text.
@@ -243,6 +261,8 @@ export async function startWalkthrough(plans) {
     // get the target selector now
     console.log(`Target Selector: ${step.targetSelector}`)
     const findVisible = selector => {
+      const journeyTab = findJourneyTab(selector)
+      if (journeyTab) return journeyTab
       const candidates = document.querySelectorAll(resolveSelector(selector))
       return Array.from(candidates).find(el => {
         const rect = el.getBoundingClientRect()
@@ -300,11 +320,12 @@ function waitForCompletion(step) {
   const completion = step.completion
   if (!completion) return Promise.resolve()
 
-  const watchSelector = resolveSelector(completion.targetSelector ?? step.targetSelector)
+  const rawSelector = completion.targetSelector ?? step.targetSelector
+  const watchSelector = resolveSelector(rawSelector)
 
   if (completion.type === 'click') {
     return new Promise(resolve => {
-      const target = document.querySelector(watchSelector)
+      const target = findJourneyTab(rawSelector) ?? document.querySelector(watchSelector)
       if (!target) return resolve()
 
       const handler = () => {
