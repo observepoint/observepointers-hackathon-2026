@@ -160,6 +160,7 @@ import {
 
 const callbacks = { onState: null, onCompleted: null }
 let activeElement = null
+let abortController = null
 
 // ---------------------------------------------------------------------------
 // Selector compatibility tables
@@ -266,6 +267,9 @@ export function reportCompleted(recipeId) {
 // ---------------------------------------------------------------------------
 
 export async function startWalkthrough(plans) {
+  abortController = new AbortController()
+  const { signal } = abortController
+
   for (const plan of plans) {
     for (const [stepIndex, step] of plan.steps.entries()) {
       if (!matchesNavContext(step.navContext)) {
@@ -276,8 +280,18 @@ export async function startWalkthrough(plans) {
               resolve()
             }
           })
+          signal.addEventListener(
+            'abort',
+            () => {
+              unsub()
+              resolve()
+            },
+            { once: true },
+          )
         })
       }
+
+      if (signal.aborted) return
 
       // Some flows (new-user audit creation) intercept with a quick-setup modal.
       // Auto-click through to the advanced form so recipe selectors resolve correctly.
@@ -289,6 +303,8 @@ export async function startWalkthrough(plans) {
         advancedBtn.click()
         await new Promise(r => setTimeout(r, 2000))
       }
+
+      if (signal.aborted) return
 
       const element = findVisible(step.targetSelector)
 
@@ -305,7 +321,10 @@ export async function startWalkthrough(plans) {
 
       reportState({ status: 'running', goal: plan.goal })
 
-      await waitForCompletion(step)
+      await waitForCompletion(step, signal)
+
+      if (signal.aborted) return
+
       await runPostStepAction(plan.recipeId, step.id)
 
       removeTooltip()
@@ -322,7 +341,7 @@ export async function startWalkthrough(plans) {
   reportState({ status: 'idle' })
 }
 
-function waitForCompletion(step) {
+function waitForCompletion(step, signal) {
   const completion = step.completion
   if (!completion) return Promise.resolve()
 
@@ -339,6 +358,14 @@ function waitForCompletion(step) {
         resolve()
       }
       target.addEventListener('click', handler, { capture: true })
+      signal?.addEventListener(
+        'abort',
+        () => {
+          target.removeEventListener('click', handler, true)
+          resolve()
+        },
+        { once: true },
+      )
     })
   }
 
@@ -350,6 +377,14 @@ function waitForCompletion(step) {
           resolve()
         }
       })
+      signal?.addEventListener(
+        'abort',
+        () => {
+          unsub()
+          resolve()
+        },
+        { once: true },
+      )
     })
   }
 
@@ -368,6 +403,14 @@ function waitForCompletion(step) {
         characterData: true,
         attributes: true,
       })
+      signal?.addEventListener(
+        'abort',
+        () => {
+          observer.disconnect()
+          resolve()
+        },
+        { once: true },
+      )
     })
   }
 
@@ -381,6 +424,8 @@ function waitForCompletion(step) {
  */
 export function endWalkthrough(reason) {
   console.log('[op-walkthroughs] end walkthrough', reason)
+  abortController?.abort()
+  abortController = null
   removeTooltip()
   if (activeElement) {
     unhighlightElement(activeElement)
@@ -406,11 +451,71 @@ export function endWalkthrough(reason) {
  *   tag: string, selector: string, text: string, type?: string, role?: string }> }}
  */
 export function simplifyDom() {
-  // TODO(person-3)
+  const candidates = document.querySelectorAll(
+    [
+      'button',
+      'a[href]',
+      'input',
+      'textarea',
+      'select',
+      '[op-selector]',
+      '[id^="guide-"]',
+      'div.op-tab',
+      'div.mat-mdc-tab',
+    ].join(','),
+  )
+
+  const seen = new Set()
+  const elements = []
+
+  for (const el of candidates) {
+    if (elements.length >= 150) break
+
+    const rect = el.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) continue
+
+    const opSel = el.getAttribute('op-selector')
+    const guideId = el.id?.startsWith('guide-') ? el.id : null
+
+    let selector
+    if (opSel) {
+      selector = `[op-selector="${opSel}"]`
+    } else if (guideId) {
+      selector = `#${guideId}`
+    } else {
+      selector = el.tagName.toLowerCase()
+    }
+
+    const text = (
+      el.getAttribute('aria-label') ||
+      el.textContent?.trim().replace(/\s+/g, ' ').slice(0, 80) ||
+      el.getAttribute('placeholder') ||
+      el.getAttribute('title') ||
+      ''
+    ).trim()
+
+    // No stable selector and no text means the AI can't reference or describe it
+    if (!opSel && !guideId && !text) continue
+
+    // Deduplicate: catches the mobile/desktop sidebar duplication where the same
+    // op-selector and label appear twice in the DOM (one hidden by media query)
+    const key = `${selector}::${text}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const entry = { tag: el.tagName.toLowerCase(), selector, text }
+    const type = el.getAttribute('type')
+    const role = el.getAttribute('role')
+    if (type) entry.type = type
+    if (role) entry.role = role
+
+    elements.push(entry)
+  }
+
   return {
     url: window.location.href,
     path: window.location.pathname,
     title: document.title,
-    elements: [],
+    elements,
   }
 }
