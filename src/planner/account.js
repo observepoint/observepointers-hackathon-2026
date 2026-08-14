@@ -197,3 +197,16 @@ export function rankForSite(categories, host) {
     })
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
 }
+
+/**
+ * Ask the page which of a plan's selectors resolve right now. Used to turn
+ * `unverified: true` into something evidence-based rather than a guess.
+ */
+export async function checkSelectors(steps) {
+  const reply = await send({
+    type: 'OP_CHECK_SELECTORS',
+    selectors: steps.map(s => ({ id: s.id, selector: s.targetSelector })),
+  })
+  if (!reply.ok) throw new Error(reply.error || 'could not check selectors')
+  return reply.results
+}

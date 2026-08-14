@@ -17,7 +17,7 @@
  * ever receives JSON.
  */
 
-const FORWARD_TO_TAB = new Set(['PLAN_READY', 'OP_ACCOUNT_STATUS'])
+const FORWARD_TO_TAB = new Set(['PLAN_READY', 'OP_ACCOUNT_STATUS', 'OP_CHECK_SELECTORS'])
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)

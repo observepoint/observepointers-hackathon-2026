@@ -16,7 +16,12 @@ import { mountInput } from './input.js'
 import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
 import { getStoredApiKey } from '../planner/llm.js'
-import { status as accountStatus, listConsentCategories, probeApi } from '../planner/account.js'
+import {
+  status as accountStatus,
+  listConsentCategories,
+  probeApi,
+  checkSelectors,
+} from '../planner/account.js'
 
 const transcript = document.getElementById('transcript')
 const statusEl = document.getElementById('status')
@@ -85,8 +90,47 @@ function renderPlan(result) {
     card.appendChild(w)
   }
 
+  // Verification affordance: stand on the relevant screen, press this, and the
+  // page says which of the plan's selectors actually resolve. That is what
+  // clears an `unverified: true` flag honestly.
+  const check = document.createElement('button')
+  check.className = 'chip'
+  check.textContent = 'Check selectors on this screen'
+  check.addEventListener('click', () => runSelectorCheck(plan, card, check))
+  card.appendChild(check)
+
   transcript.appendChild(card)
   transcript.scrollTop = transcript.scrollHeight
+}
+
+async function runSelectorCheck(plan, card, button) {
+  button.disabled = true
+  button.textContent = 'Checking…'
+
+  try {
+    const results = await checkSelectors(plan.steps)
+    const output = document.createElement('pre')
+    output.className = 'selector-check'
+    output.textContent = results
+      .map(r => {
+        const mark = r.visible ? '✓' : r.found ? '·' : '✗'
+        const note = r.visible
+          ? r.text
+            ? `visible — "${r.text}"`
+            : 'visible'
+          : r.found
+            ? 'in DOM but hidden (wrong screen?)'
+            : (r.error ?? 'not found')
+        return `${mark} ${r.id}  ${note}\n   ${r.selector}`
+      })
+      .join('\n')
+    card.appendChild(output)
+
+    const visible = results.filter(r => r.visible).length
+    button.textContent = `${visible}/${results.length} resolve here`
+  } catch (error) {
+    button.textContent = `Check failed: ${error.message}`
+  }
 }
 
 /* ---------------------------------------------------------------------- *

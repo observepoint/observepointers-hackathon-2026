@@ -84,6 +84,41 @@ function authContext() {
   }
 }
 
+/**
+ * Does each of these selectors resolve on the screen in front of you?
+ *
+ * This is how a step earns `verified`. Every recipe currently carries
+ * `unverified: true` on the steps nobody has clicked through, and the only
+ * honest way to clear that flag is to stand on the screen and look. Doing it by
+ * hand means pasting selectors into devtools one at a time; this checks the
+ * whole plan at once.
+ *
+ * Found-but-hidden is reported separately from missing, because they mean
+ * different things: hidden usually means "right selector, wrong screen — you
+ * haven't opened the modal yet", while missing means the selector is wrong.
+ */
+function checkSelectors(selectors) {
+  return selectors.map(({ id, selector }) => {
+    let element
+    try {
+      element = document.querySelector(selector)
+    } catch {
+      return { id, selector, found: false, visible: false, error: 'invalid-selector' }
+    }
+
+    if (!element) return { id, selector, found: false, visible: false }
+
+    const rect = element.getBoundingClientRect()
+    return {
+      id,
+      selector,
+      found: true,
+      visible: rect.width > 1 && rect.height > 1 && element.offsetParent !== null,
+      text: (element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+    }
+  })
+}
+
 /* ---------------------------------------------------------------------- *
  * PART 2 territory — replace handlePlan() with the real runtime.
  * ---------------------------------------------------------------------- */
@@ -126,6 +161,11 @@ function handlePlan(plan) {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'PLAN_READY') {
     handlePlan(message.plan)
+    return false
+  }
+
+  if (message?.type === 'OP_CHECK_SELECTORS') {
+    sendResponse({ ok: true, results: checkSelectors(message.selectors ?? []) })
     return false
   }
 
