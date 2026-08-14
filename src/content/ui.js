@@ -152,3 +152,44 @@ export function showCompletionPopup(goal) {
   document.getElementById('op-wt-close-popup').addEventListener('click', () => popup.remove())
   setTimeout(() => popup.remove(), 6000)
 }
+
+export function showPrerequisitePopup(goal, instruction) {
+  const popup = document.createElement('div')
+  popup.id = 'op-wt-prereq-popup'
+  popup.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2147483004;
+    background: #1a1a2e;
+    border: 2px solid #ffd700;
+    border-radius: 12px;
+    padding: 32px 40px;
+    text-align: center;
+    font-family: sans-serif;
+    color: #fff;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    min-width: 320px;
+    max-width: 400px;
+  `
+  popup.innerHTML = `
+    <div style="font-size:28px;margin-bottom:12px;">👋</div>
+    <div style="font-size:16px;font-weight:700;color:#ffd700;margin-bottom:8px;">Before you begin</div>
+    <div style="font-size:13px;color:#aaa;margin-bottom:12px;">To start <em>${goal}</em>, you first need to:</div>
+    <div style="font-size:14px;color:#fff;line-height:1.5;margin-bottom:24px;">${instruction}</div>
+    <button id="op-wt-prereq-close" style="
+      background: #ffd700;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    ">Got it</button>
+  `
+  document.body.appendChild(popup)
+  document.getElementById('op-wt-prereq-close').addEventListener('click', () => popup.remove())
+  setTimeout(() => popup.remove(), 10000)
+}

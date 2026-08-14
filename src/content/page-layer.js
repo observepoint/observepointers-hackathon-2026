@@ -156,6 +156,7 @@ import {
   removeTooltip,
   showConfetti,
   showCompletionPopup,
+  showPrerequisitePopup,
 } from './ui.js'
 
 const callbacks = { onState: null, onCompleted: null }
@@ -200,27 +201,74 @@ function findJourneyTab(selector) {
   )
 }
 
-// After a step's completion watcher fires, auto-click a button before the
-// next step starts. Needed when the app requires a tab switch between steps.
+// After a step's completion watcher fires, run a sequence of clicks before the
+// next step starts. Needed when the app requires a tab switch or modal dismiss.
+//
 // Key format: 'recipeId:stepId'
-// Value: CSS selector string, or { selector, text } for text-based matching.
+// Value: array of actions, each with:
+//   selector    — CSS selector to find the target element
+//   text        — optional text to narrow to a specific element among matches
+//   waitBefore  — ms to wait before clicking (default 0)
+//   waitAfter   — ms to wait after clicking (default 0)
 const POST_STEP_ACTIONS = {
-  'orientation-left-nav:nav-create-new': '[op-selector="close-btn"]',
-  'create-first-audit:name-the-audit': { selector: '.op-tab', text: 'URL Sources' },
-  'create-first-audit:page-limit': { selector: '.op-tab', text: 'Schedule' },
+  'orientation-left-nav:nav-create-new': [
+    { selector: '[op-selector="close-btn"]', waitBefore: 1000, waitAfter: 500 },
+  ],
+  'create-first-audit:name-the-audit': [
+    { selector: '.op-tab', text: 'URL Sources', waitBefore: 0, waitAfter: 500 },
+  ],
+  'create-first-audit:page-limit': [
+    { selector: '.op-tab', text: 'Schedule', waitBefore: 0, waitAfter: 500 },
+  ],
 }
 
 async function runPostStepAction(recipeId, stepId) {
-  const action = POST_STEP_ACTIONS[`${recipeId}:${stepId}`]
-  if (!action) return
-  const selector = typeof action === 'string' ? action : action.selector
-  const text = typeof action === 'string' ? null : action.text
-  const candidates = Array.from(document.querySelectorAll(selector))
-  const target = text ? candidates.find(el => el.textContent.includes(text)) : candidates[0]
-  if (target) {
-    target.click()
-    await new Promise(r => setTimeout(r, 500))
+  const actions = POST_STEP_ACTIONS[`${recipeId}:${stepId}`]
+  if (!actions) return
+  for (const action of actions) {
+    if (action.waitBefore) await new Promise(r => setTimeout(r, action.waitBefore))
+    const candidates = Array.from(document.querySelectorAll(action.selector))
+    const target = action.text
+      ? candidates.find(el => el.textContent.includes(action.text))
+      : candidates[0]
+    if (target) {
+      target.click()
+      if (action.waitAfter) await new Promise(r => setTimeout(r, action.waitAfter))
+    }
   }
+}
+
+// ---------------------------------------------------------------------------
+// AI step execution
+// ---------------------------------------------------------------------------
+
+// Performs the action declared on an actor:'ai' step automatically.
+// Angular inputs need value + bubbled input/change events, otherwise
+// ControlValueAccessor never sees the change and the form stays pristine.
+async function executeAiAction(element, action) {
+  if (!action) return
+
+  switch (action.type) {
+    case 'click':
+      element.click()
+      break
+
+    case 'input': {
+      const input = element.querySelector('input, textarea, select') ?? element
+      input.focus()
+      input.value = action.value ?? ''
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      break
+    }
+
+    case 'scrollIntoView':
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      break
+  }
+
+  // Brief pause so the user can see what the AI just did before moving on.
+  await new Promise(r => setTimeout(r, 800))
 }
 
 // ---------------------------------------------------------------------------
@@ -311,6 +359,10 @@ export async function startWalkthrough(plans) {
       if (!element && step.optional) continue
 
       if (!element) {
+        if (stepIndex === 0) {
+          showPrerequisitePopup(plan.goal, step.say)
+          return
+        }
         console.warn(`[op-walkthroughs] could not find element: ${step.targetSelector}`)
         continue
       }
@@ -318,10 +370,13 @@ export async function startWalkthrough(plans) {
       activeElement = element
       highlightElement(element)
       showTooltip(element, step.say, stepIndex, plan.steps.length)
-
       reportState({ status: 'running', goal: plan.goal })
 
-      await waitForCompletion(step, signal)
+      if (step.actor === 'ai') {
+        await executeAiAction(element, step.action)
+      } else {
+        await waitForCompletion(step, signal)
+      }
 
       if (signal.aborted) return
 
