@@ -50,8 +50,47 @@ export async function status() {
 
 async function get(path) {
   const reply = await send({ type: 'OP_API_GET', path })
-  if (!reply.ok) throw new Error(reply.error || 'request failed')
+  if (!reply.ok) {
+    const detail = [reply.status && `HTTP ${reply.status}`, reply.contentType]
+      .filter(Boolean)
+      .join(', ')
+    throw new Error(`${reply.error}${detail ? ` (${detail})` : ''}`)
+  }
   return reply.data
+}
+
+/**
+ * When a lookup fails, one probe beats five rounds of guessing.
+ *
+ * A 200 that returns HTML means the host served the SPA index for a path its
+ * API proxy doesn't match — so the question is always "which path does reach
+ * the API from *this* origin". Staging is served from several hostnames
+ * (app.observepointstaging.com, plus per-environment ones like
+ * ua1.observepointstaging.com), and they don't necessarily all proxy /api the
+ * same way. This asks rather than assumes.
+ */
+export async function probeApi() {
+  const candidates = [
+    '/api/v3/consent-categories/library',
+    '/api/v2/consent-categories/library',
+    '/api/v3/consent-categories',
+    '/api/v2/users/me',
+    '/api/v2/accounts',
+  ]
+
+  const results = []
+  for (const path of candidates) {
+    const reply = await send({ type: 'OP_API_GET', path })
+    results.push({
+      path,
+      ok: Boolean(reply.ok),
+      status: reply.status ?? (reply.ok ? 200 : '—'),
+      contentType: (reply.contentType ?? (reply.ok ? 'application/json' : '')).split(';')[0],
+      error: reply.error ?? '',
+      finalUrl: reply.finalUrl ?? '',
+    })
+  }
+  return results
 }
 
 /**

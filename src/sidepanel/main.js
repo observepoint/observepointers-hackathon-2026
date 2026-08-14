@@ -17,7 +17,12 @@ import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
 import { hostFrom } from '../planner/naming.js'
 import { getStoredApiKey } from '../planner/llm.js'
-import { status as accountStatus, listConsentCategories, rankForSite } from '../planner/account.js'
+import {
+  status as accountStatus,
+  listConsentCategories,
+  rankForSite,
+  probeApi,
+} from '../planner/account.js'
 
 const transcript = document.getElementById('transcript')
 const statusEl = document.getElementById('status')
@@ -220,8 +225,20 @@ async function showAccount() {
   } catch (error) {
     addMessage(
       'note',
-      `Connected to ${state.environment}, but the category lookup failed: ${error.message}`,
+      `Connected to ${state.environment}, but the category lookup failed: ${error.message}\nProbing which API paths this host actually serves…`,
     )
+
+    // Probe automatically. This only runs when something is already broken, and
+    // "which path reaches the API from this origin" is the first thing anyone
+    // would want to know — guessing it one round-trip at a time is worse.
+    const results = await probeApi()
+    addMessage(
+      'note',
+      results
+        .map(r => `${r.ok ? '✓' : '✗'} ${r.path}\n     ${r.status} ${r.contentType || r.error}`)
+        .join('\n'),
+    )
+    console.table(results)
   }
 }
 

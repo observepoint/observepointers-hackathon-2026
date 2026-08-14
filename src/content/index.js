@@ -68,10 +68,45 @@ async function apiGet(path) {
       credentials: 'include',
     })
 
+    const contentType = response.headers.get('content-type') ?? ''
+    const body = await response.text()
+
     if (!response.ok) {
-      return { ok: false, error: `http-${response.status}`, status: response.status }
+      return {
+        ok: false,
+        error: `http-${response.status}`,
+        status: response.status,
+        contentType,
+        finalUrl: response.url,
+        snippet: body.slice(0, 160),
+      }
     }
-    return { ok: true, data: await response.json(), environment: environmentName() }
+
+    // A 200 that returns HTML means the request never reached the API — the
+    // host served the SPA's index.html for an unmatched path. Reporting that as
+    // "Unexpected token '<'" tells you nothing, so name it.
+    if (!contentType.includes('json')) {
+      return {
+        ok: false,
+        error: 'not-json',
+        status: response.status,
+        contentType,
+        finalUrl: response.url,
+        snippet: body.slice(0, 160),
+      }
+    }
+
+    try {
+      return { ok: true, data: JSON.parse(body), environment: environmentName() }
+    } catch {
+      return {
+        ok: false,
+        error: 'bad-json',
+        contentType,
+        finalUrl: response.url,
+        snippet: body.slice(0, 160),
+      }
+    }
   } catch (err) {
     return { ok: false, error: err?.message || String(err) }
   }
