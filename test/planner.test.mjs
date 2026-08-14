@@ -11,7 +11,7 @@ import { validatePlan } from '../src/planner/schema.js'
 import { render, placeholdersIn } from '../src/planner/template.js'
 import { matchDeterministic } from '../src/planner/match.js'
 import { rankModels } from '../src/planner/llm.js'
-import { hostFrom, auditNameFor, alertNameFrom } from '../src/planner/naming.js'
+import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
 import { rankForSite } from '../src/planner/account.js'
 import { RECIPES } from '../src/planner/recipes/index.js'
 
@@ -374,6 +374,66 @@ check(
   'does not match on a two-letter fragment',
   rankForSite([{ id: 9, name: 'EU cookies', labels: [] }], 'eu.com').every(c => !c.matches),
 )
+
+/* ---------------------------------------------------------------- */
+section('state-aware planning')
+
+const RECIPE = RECIPES.find(r => r.id === 'audit_with_consent_categories')
+const withAccount = categories =>
+  buildPlan(RECIPE, 'g', { siteUrl: 'gap.com' }, { account: { consentCategories: categories } })
+
+// Blind: the plan has to hedge, and the hedge is the three-step branch.
+const blind = buildPlan(RECIPE, 'g', { siteUrl: 'gap.com' })
+check('falls back to generic steps with no account', blind.status === 'plan')
+check(
+  'generic plan still searches rather than naming a category',
+  blind.plan.steps.some(s => s.say.includes('Search for the category')),
+)
+
+// A match: name it, and drop the branch entirely.
+const matched = withAccount([
+  { id: 1, name: 'Gap EU — GDPR', labels: [], cmpDomain: 'gap.com' },
+  { id: 2, name: 'Unrelated', labels: [], cmpDomain: 'other.com' },
+])
+check('names the matching category in the summary', matched.plan.summary.includes('Gap EU — GDPR'))
+check(
+  'fills the search box with the real name',
+  matched.plan.steps.some(s => s.action?.value === 'Gap EU — GDPR'),
+)
+check(
+  'drops the "or create one instead" branch when something matches',
+  !matched.plan.steps.some(s => s.say.includes('Create')),
+  JSON.stringify(matched.plan.steps.map(s => s.say)),
+)
+
+// No match: creating one becomes the plan, not a footnote.
+const unmatched = withAccount([{ id: 3, name: 'Unrelated', labels: [], cmpDomain: 'other.com' }])
+check(
+  'says up front that nothing covers the site',
+  unmatched.plan.summary.includes('Nothing in your account'),
+)
+check(
+  'makes creating a category the actual path',
+  unmatched.plan.steps.some(s => s.say.includes('create one here')),
+)
+check(
+  'never emits duplicate step ids across branches',
+  new Set(unmatched.plan.steps.map(s => s.id)).size === unmatched.plan.steps.length,
+)
+
+/* ---------------------------------------------------------------- */
+section('url normalisation')
+
+check('adds a scheme', normalizeSiteUrl('Gap.com') === 'https://gap.com')
+check(
+  'lowercases the host only',
+  normalizeSiteUrl('HTTPS://WWW.Gap.com/Checkout') === 'https://www.gap.com/Checkout',
+)
+check(
+  'leaves a good url alone',
+  normalizeSiteUrl('https://shop.example.com') === 'https://shop.example.com',
+)
+check('survives nonsense', normalizeSiteUrl('') === '')
 
 /* ---------------------------------------------------------------- */
 section('gemini model ranking')

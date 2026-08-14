@@ -38,9 +38,14 @@ function applyDefaults(recipe, parameters) {
   const merged = { ...parameters }
   for (const param of recipe.parameters) {
     const missing = merged[param.name] === undefined || merged[param.name] === ''
-    if (!missing) continue
-    if (param.derive) merged[param.name] = param.derive(merged)
-    else if (param.default !== undefined) merged[param.name] = param.default
+    if (missing) {
+      if (param.derive) merged[param.name] = param.derive(merged)
+      else if (param.default !== undefined) merged[param.name] = param.default
+    } else if (param.normalize) {
+      // Applies to user-supplied values too: someone typing "Gap.com" should
+      // not end up with "Gap.com" pasted into a starting-URL field.
+      merged[param.name] = param.normalize(merged[param.name])
+    }
   }
   return merged
 }
@@ -59,8 +64,17 @@ function questionFor(recipe, missing) {
   return `${param.description}?${eg}`
 }
 
-/** Turn a matched recipe + parameters into a validated Plan. */
-export function buildPlan(recipe, goal, rawParameters) {
+/**
+ * Turn a matched recipe + parameters into a validated Plan.
+ *
+ * `context` carries whatever we know about the live account. A recipe may
+ * expose buildSteps(context) / buildSummary(context) to plan against it — that
+ * is what lets a plan say "attach Gap EU — GDPR" instead of "search for the
+ * category that covers this site, or create one if none does". Recipes without
+ * those hooks, or a context with no account, fall back to the static template,
+ * so nothing breaks when the account can't be read.
+ */
+export function buildPlan(recipe, goal, rawParameters, context = {}) {
   const parameters = applyDefaults(recipe, rawParameters)
 
   const missing = missingRequired(recipe, parameters)
@@ -77,8 +91,15 @@ export function buildPlan(recipe, goal, rawParameters) {
   }
 
   const scope = { parameters }
-  const { value: steps, missing: unresolvedSteps } = render(recipe.steps, scope)
-  const { value: summary } = render(recipe.summaryTemplate, scope)
+  const planningContext = { ...context, parameters }
+
+  const rawSteps = recipe.buildSteps ? recipe.buildSteps(planningContext) : recipe.steps
+  const rawSummary = recipe.buildSummary
+    ? recipe.buildSummary(planningContext)
+    : recipe.summaryTemplate
+
+  const { value: steps, missing: unresolvedSteps } = render(rawSteps, scope)
+  const { value: summary } = render(rawSummary, scope)
 
   const plan = {
     recipeId: recipe.id,
@@ -103,10 +124,10 @@ export function buildPlan(recipe, goal, rawParameters) {
   if (unresolvedSteps.length) {
     warnings.push(`Unfilled placeholders defaulted: ${unresolvedSteps.join(', ')}`)
   }
-  const unverified = recipe.steps.filter(s => s.unverified).length
+  const unverified = steps.filter(s => s.unverified).length
   if (unverified) {
     warnings.push(
-      `${unverified} of ${recipe.steps.length} steps use unverified selectors — the pointer may miss on those.`,
+      `${unverified} of ${steps.length} steps use unverified selectors — the pointer may miss on those.`,
     )
   }
 
@@ -118,6 +139,7 @@ export function buildPlan(recipe, goal, rawParameters) {
  * @param {object} [options]
  * @param {string} [options.apiKey]      overrides the stored key
  * @param {boolean} [options.forceLocal] skip the model entirely (tests, demos, no quota)
+ * @param {object} [options.account]    live account state, e.g. { consentCategories }
  */
 export async function createPlan(goal, options = {}) {
   if (!goal || !goal.trim()) {
@@ -161,7 +183,7 @@ export async function createPlan(goal, options = {}) {
     }
   }
 
-  const result = buildPlan(recipe, goal, match.parameters)
+  const result = buildPlan(recipe, goal, match.parameters, { account: options.account })
   if (result.status === 'plan') {
     result.confidence = match.confidence
     result.matchedBy = match.matchedBy
@@ -175,12 +197,12 @@ export async function createPlan(goal, options = {}) {
 }
 
 /** Resume after a `needs_input` answer, without re-running intent matching. */
-export function answerAndRetry(pending, answer, goal) {
+export function answerAndRetry(pending, answer, goal, context = {}) {
   const recipe = getRecipe(pending.recipeId)
   if (!recipe) return { status: 'error', message: `Unknown recipe ${pending.recipeId}` }
 
   const parameters = { ...pending.draftParameters, [pending.missing[0]]: answer.trim() }
-  return buildPlan(recipe, goal, parameters)
+  return buildPlan(recipe, goal, parameters, context)
 }
 
 /** What the assistant can actually do — shown when nothing matches. */

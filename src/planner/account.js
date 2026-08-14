@@ -106,6 +106,35 @@ export async function probeApi() {
 }
 
 /**
+ * Real accounts contain categories synced from a CMP, and OneTrust names arrive
+ * as raw HTML fragments — one live example runs to several hundred characters
+ * of <span style="color:black"><strong>… markup. Printing that verbatim is
+ * unreadable, so strip the tags and fall back to the CMP group's domain and geo,
+ * which is what the name was trying to say anyway.
+ */
+function cleanText(value) {
+  return String(value ?? '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function displayName(row) {
+  const cleaned = cleanText(row.name)
+  const cmp = row.cmpData
+
+  if ((cleaned.length > 70 || !cleaned) && cmp?.oneTrustCookieGroupDomain) {
+    const geo = cleanText(cmp.oneTrustCookieGroupGeo)
+    return geo ? `${cmp.oneTrustCookieGroupDomain} — ${geo}` : String(cmp.oneTrustCookieGroupDomain)
+  }
+  if (!cleaned) return `Consent category ${row.id}`
+  return cleaned.length > 70 ? `${cleaned.slice(0, 67)}…` : cleaned
+}
+
+/**
  * The library endpoint takes every filter as optional, so no argument lists
  * everything. Shapes vary by endpoint version, hence the defensive unwrap.
  */
@@ -116,11 +145,18 @@ export async function listConsentCategories({ name } = {}) {
   const rows = Array.isArray(data)
     ? data
     : (data?.consentCategories ?? data?.items ?? data?.data ?? [])
+
   return rows.map(row => ({
     id: row.id,
-    name: row.name,
+    name: displayName(row),
     type: row.type,
-    labels: row.labels ?? [],
+    // labels are ILabel objects, not strings — joining them raw produced
+    // "[object Object]" and quietly broke every label match.
+    labels: (row.labels ?? []).map(l => (typeof l === 'string' ? l : l?.name)).filter(Boolean),
+    // The strongest signal available: for CMP-synced categories this is
+    // literally the domain the group belongs to.
+    cmpDomain: row.cmpData?.oneTrustCookieGroupDomain ?? null,
+    auditCount: row.auditCount ?? 0,
   }))
 }
 
@@ -134,15 +170,30 @@ export async function listConsentCategories({ name } = {}) {
  * which is a later refinement.
  */
 export function rankForSite(categories, host) {
-  if (!host) return categories.map(c => ({ ...c, matches: false }))
+  if (!host) return categories.map(c => ({ ...c, matches: false, score: 0 }))
 
-  const domain = host.split('.').slice(-2, -1)[0] || host // "gap" from "gap.com"
-  const needles = [host.toLowerCase(), domain.toLowerCase()].filter(Boolean)
+  const lowerHost = host.toLowerCase()
+  const domain = (lowerHost.split('.').slice(-2, -1)[0] || lowerHost).toLowerCase()
 
   return categories
     .map(category => {
-      const haystack = `${category.name} ${category.labels.join(' ')}`.toLowerCase()
-      return { ...category, matches: needles.some(n => n.length > 2 && haystack.includes(n)) }
+      const cmp = (category.cmpDomain ?? '').toLowerCase()
+      const text = `${category.name} ${category.labels.join(' ')}`.toLowerCase()
+
+      // An exact CMP domain match is evidence; a name containing the word is a
+      // guess. Scoring them differently keeps a real match at the top even when
+      // a dozen categories happen to mention the brand.
+      let score = 0
+      if (
+        cmp &&
+        (cmp === lowerHost || cmp.endsWith(`.${lowerHost}`) || lowerHost.endsWith(`.${cmp}`))
+      ) {
+        score = 3
+      } else if (cmp && cmp.includes(domain)) score = 2
+      else if (text.includes(lowerHost)) score = 1
+      else if (domain.length > 2 && text.includes(domain)) score = 1
+
+      return { ...category, score, matches: score > 0 }
     })
-    .sort((a, b) => Number(b.matches) - Number(a.matches) || a.name.localeCompare(b.name))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
 }

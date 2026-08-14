@@ -1,7 +1,7 @@
 {
   "recipeId": "audit_with_consent_categories",
   "goal": "audit https://www.example.com for GDPR consent compliance",
-  "summary": "We'll create an audit called \"example.com — Consent & privacy\" against https://www.example.com and attach Consent Categories under Standards. Without one attached, a privacy audit runs but reports nothing — the category is what defines \"approved\".",
+  "summary": "We'll create an audit called \"example.com — Consent & privacy\" against https://www.example.com and attach Consent Categories under Standards. Without one attached, a privacy audit runs but reports nothing.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
@@ -126,20 +126,6 @@
       "say": "Attach it.",
       "targetFallback": {
         "description": "the \"add all\" button in the consent categories picker"
-      },
-      "unverified": true,
-      "completion": {
-        "type": "dom_event",
-        "value": "click"
-      }
-    },
-    {
-      "id": "s10",
-      "actor": "user",
-      "targetSelector": ".op-standards-selector .create-new-btn",
-      "say": "Nothing matched? Create a category here instead.",
-      "targetFallback": {
-        "description": "the \"Create New Consent Category\" button"
       },
       "unverified": true,
       "completion": {

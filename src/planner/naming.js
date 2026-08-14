@@ -44,3 +44,22 @@ export function alertNameFrom(parameters) {
   const trimmed = condition.length > 48 ? `${condition.slice(0, 45).trimEnd()}…` : condition
   return `Alert: ${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`
 }
+
+/**
+ * A starting URL gets typed into a real form, so tidy it: lowercase the host and
+ * add a scheme if the user didn't. "Gap.com" is not a URL a crawler should be
+ * handed.
+ */
+export function normalizeSiteUrl(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return raw
+
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`
+  try {
+    const url = new URL(withScheme)
+    url.hostname = url.hostname.toLowerCase()
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return raw
+  }
+}

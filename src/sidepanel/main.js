@@ -15,14 +15,8 @@ import { mountInput } from './input.js'
 // DEBUG — delete this import and the renderOutgoingPlan() call below to remove.
 import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
-import { hostFrom } from '../planner/naming.js'
 import { getStoredApiKey } from '../planner/llm.js'
-import {
-  status as accountStatus,
-  listConsentCategories,
-  rankForSite,
-  probeApi,
-} from '../planner/account.js'
+import { status as accountStatus, listConsentCategories, probeApi } from '../planner/account.js'
 
 const transcript = document.getElementById('transcript')
 const statusEl = document.getElementById('status')
@@ -118,7 +112,6 @@ function handleResult(result) {
       // The summary is the plan card's heading — adding it as a message too
       // printed it twice.
       renderPlan(result)
-      renderCategoryMatches(result.plan)
       emitPlan(result.plan)
       renderOutgoingPlan(transcript, result.plan) // DEBUG — delete to remove
       window.dispatchEvent(
@@ -144,6 +137,11 @@ function handleResult(result) {
   }
 }
 
+/** Whatever we managed to read from the account, for state-aware recipes. */
+function accountContext() {
+  return { account: lastCategories.length ? { consentCategories: lastCategories } : null }
+}
+
 async function ask(text) {
   addMessage('user', text)
   controller.setBusy(true)
@@ -151,10 +149,10 @@ async function ask(text) {
 
   try {
     if (pendingQuestion) {
-      handleResult(answerAndRetry(pendingQuestion, text, lastGoal))
+      handleResult(answerAndRetry(pendingQuestion, text, lastGoal, accountContext()))
     } else {
       lastGoal = text
-      handleResult(await createPlan(text))
+      handleResult(await createPlan(text, { account: accountContext().account }))
     }
   } catch (err) {
     addMessage('error', err.message || String(err))
@@ -167,29 +165,6 @@ async function ask(text) {
 /* ---------------------------------------------------------------------- *
  * Boot
  * ---------------------------------------------------------------------- */
-
-/**
- * A first taste of planning against real account state: once we know the site,
- * say which of the user's actual consent categories cover it.
- *
- * This is the shape the state-aware flow will take — the difference between
- * "find the category that matches this site" and "Gap EU — GDPR covers
- * gap.com". Today it annotates the plan; next it will replace those steps.
- */
-function renderCategoryMatches(plan) {
-  if (plan.recipeId !== 'audit_with_consent_categories' || !lastCategories.length) return
-
-  const host = hostFrom(plan.parameters.siteUrl)
-  const ranked = rankForSite(lastCategories, host)
-  const matches = ranked.filter(c => c.matches)
-
-  addMessage(
-    'note',
-    matches.length
-      ? `In your account, ${matches.map(c => c.name).join(' and ')} look${matches.length === 1 ? 's' : ''} like ${matches.length === 1 ? 'a match' : 'matches'} for ${host}.`
-      : `None of your ${lastCategories.length} consent categories mention ${host} — you'll likely need to create one.`,
-  )
-}
 
 /**
  * Proves the account bridge end to end: reads the session token from the

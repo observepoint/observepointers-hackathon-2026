@@ -43,7 +43,7 @@
  * Then swap the positional selectors below and mark these recipes verified.
  */
 
-import { auditNameFor } from '../naming.js'
+import { auditNameFor, normalizeSiteUrl } from '../naming.js'
 
 export const SELECTORS = {
   // Data Sources page
@@ -156,6 +156,7 @@ export const auditParameters = purpose => [
     description: 'The site or starting URL to audit',
     required: true,
     example: 'https://www.example.com',
+    normalize: normalizeSiteUrl,
   },
   {
     name: 'auditName',
