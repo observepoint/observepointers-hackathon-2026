@@ -335,9 +335,11 @@ export async function startWalkthrough(plans) {
     reportCompleted(plan.recipeId)
   }
 
-  const lastGoal = plans[plans.length - 1].goal
-  showConfetti()
-  showCompletionPopup(lastGoal)
+  const lastPlan = plans[plans.length - 1]
+  if (lastPlan.executionMode === 'templated') {
+    showConfetti()
+    showCompletionPopup(lastPlan.goal)
+  }
   reportState({ status: 'idle' })
 }
 
