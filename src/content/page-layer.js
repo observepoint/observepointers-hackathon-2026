@@ -153,6 +153,35 @@ import { matchesNavContext, onRouteChange } from './navigation.js'
 const callbacks = { onState: null, onCompleted: null }
 let activeElement = null
 
+const SELECTOR_OVERRIDES = {
+  '[op-selector="audit-setup-name"]': 'audit-editor-header-name-control',
+}
+
+function resolveSelector(selector) {
+  return SELECTOR_OVERRIDES[selector] ?? selector
+}
+
+// After a step's completion watcher fires, auto-click a button before moving on.
+// Key format: 'recipeId:stepId'
+// Value: a CSS selector string, or { selector, text } to match by visible text.
+const POST_STEP_ACTIONS = {
+  'create-first-audit:name-the-audit': { selector: '.op-tab', text: 'URL Sources' },
+  'create-first-audit:page-limit': { selector: '.op-tab', text: 'Schedule' },
+}
+
+async function runPostStepAction(recipeId, stepId) {
+  const action = POST_STEP_ACTIONS[`${recipeId}:${stepId}`]
+  if (!action) return
+  const selector = typeof action === 'string' ? action : action.selector
+  const text = typeof action === 'string' ? null : action.text
+  const candidates = Array.from(document.querySelectorAll(selector))
+  const target = text ? candidates.find(el => el.textContent.includes(text)) : candidates[0]
+  if (target) {
+    target.click()
+    await new Promise(r => setTimeout(r, 500))
+  }
+}
+
 /** Wired at boot by content/index.js. You don't need to call this. */
 export function registerHostCallbacks({ onState, onCompleted }) {
   callbacks.onState = onState
@@ -214,19 +243,21 @@ export async function startWalkthrough(plans) {
     // get the target selector now
     console.log(`Target Selector: ${step.targetSelector}`)
     const findVisible = selector => {
-      const candidates = document.querySelectorAll(selector)
+      const candidates = document.querySelectorAll(resolveSelector(selector))
       return Array.from(candidates).find(el => {
         const rect = el.getBoundingClientRect()
         return rect.width > 0 && rect.height > 0
       })
     }
 
-    let element = findVisible(step.targetSelector)
-
-    if (!element) {
-      await new Promise(r => setTimeout(r, 1500))
-      element = findVisible(step.targetSelector)
+    await new Promise(r => setTimeout(r, 500))
+    const advancedBtn = document.querySelector('[op-selector="web-audit-switch-to-advanced-setup"]')
+    if (advancedBtn) {
+      advancedBtn.click()
+      await new Promise(r => setTimeout(r, 2000))
     }
+
+    let element = findVisible(step.targetSelector)
 
     if (!element && step.optional) {
       continue
@@ -249,9 +280,8 @@ export async function startWalkthrough(plans) {
       totalSteps: plan.steps.length,
       say: step.say,
     })
-    // wait for the user to click on the button
     await waitForCompletion(step)
-    //cleanup
+    await runPostStepAction(plan.recipeId, step.id)
     element.style.outline = ''
     element.style.outlineOffset = ''
     activeElement = null
@@ -270,7 +300,7 @@ function waitForCompletion(step) {
   const completion = step.completion
   if (!completion) return Promise.resolve()
 
-  const watchSelector = completion.targetSelector ?? step.targetSelector
+  const watchSelector = resolveSelector(completion.targetSelector ?? step.targetSelector)
 
   if (completion.type === 'click') {
     return new Promise(resolve => {
@@ -282,6 +312,35 @@ function waitForCompletion(step) {
         resolve()
       }
       target.addEventListener('click', handler, { capture: true })
+    })
+  }
+
+  if (completion.type === 'url_change') {
+    return new Promise(resolve => {
+      const unsub = onRouteChange(({ path }) => {
+        if (path.startsWith(completion.value)) {
+          unsub()
+          resolve()
+        }
+      })
+    })
+  }
+
+  if (completion.type === 'dom_mutation') {
+    return new Promise(resolve => {
+      const target = document.querySelector(watchSelector)
+      if (!target) return resolve()
+
+      const observer = new MutationObserver(() => {
+        observer.disconnect()
+        resolve()
+      })
+      observer.observe(target, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+      })
     })
   }
 
