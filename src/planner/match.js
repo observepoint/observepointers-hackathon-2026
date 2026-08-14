@@ -211,10 +211,27 @@ export async function matchWithModel(goal, llm) {
   const raw = await llm.generateJson(buildPrompt(goal, catalogue), MATCH_SCHEMA)
 
   const recipeId = raw?.recipeId && getRecipe(raw.recipeId) ? raw.recipeId : null
+  const parameters =
+    raw?.parameters && typeof raw.parameters === 'object' ? { ...raw.parameters } : {}
+
+  // Backfill anything the model left empty.
+  //
+  // Observed failure: "check our site for privacy compliance. gap.com" came
+  // back with no siteUrl and a clarifying question asking for the URL — which
+  // was right there in the sentence. The prompt tells the model never to invent
+  // a URL, and it over-applied that to a bare host with no protocol. The regex
+  // has no such doubt, so let it fill the gaps. Model values always win where
+  // they exist; this only touches blanks.
+  const recipe = getRecipe(recipeId)
+  if (recipe) {
+    for (const [key, value] of Object.entries(extractParameters(goal, recipe))) {
+      if (parameters[key] === undefined || parameters[key] === '') parameters[key] = value
+    }
+  }
 
   return {
     recipeId,
-    parameters: raw?.parameters && typeof raw.parameters === 'object' ? raw.parameters : {},
+    parameters,
     confidence: typeof raw?.confidence === 'number' ? raw.confidence : 0,
     clarifyingQuestion: raw?.clarifyingQuestion || null,
     reasonIfNoMatch: raw?.reasonIfNoMatch || null,

@@ -15,13 +15,16 @@ import { mountInput } from './input.js'
 // DEBUG — delete this import and the renderOutgoingPlan() call below to remove.
 import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
+import { hostFrom } from '../planner/naming.js'
 import { getStoredApiKey } from '../planner/llm.js'
+import { status as accountStatus, listConsentCategories, rankForSite } from '../planner/account.js'
 
 const transcript = document.getElementById('transcript')
 const statusEl = document.getElementById('status')
 
 let controller = null
 let pendingQuestion = null // a `needs_input` result awaiting an answer
+let lastCategories = [] // account state, for the state-aware flow being built on this
 let lastGoal = ''
 
 /* ---------------------------------------------------------------------- *
@@ -110,6 +113,7 @@ function handleResult(result) {
       // The summary is the plan card's heading — adding it as a message too
       // printed it twice.
       renderPlan(result)
+      renderCategoryMatches(result.plan)
       emitPlan(result.plan)
       renderOutgoingPlan(transcript, result.plan) // DEBUG — delete to remove
       window.dispatchEvent(
@@ -159,6 +163,68 @@ async function ask(text) {
  * Boot
  * ---------------------------------------------------------------------- */
 
+/**
+ * A first taste of planning against real account state: once we know the site,
+ * say which of the user's actual consent categories cover it.
+ *
+ * This is the shape the state-aware flow will take — the difference between
+ * "find the category that matches this site" and "Gap EU — GDPR covers
+ * gap.com". Today it annotates the plan; next it will replace those steps.
+ */
+function renderCategoryMatches(plan) {
+  if (plan.recipeId !== 'audit_with_consent_categories' || !lastCategories.length) return
+
+  const host = hostFrom(plan.parameters.siteUrl)
+  const ranked = rankForSite(lastCategories, host)
+  const matches = ranked.filter(c => c.matches)
+
+  addMessage(
+    'note',
+    matches.length
+      ? `In your account, ${matches.map(c => c.name).join(' and ')} look${matches.length === 1 ? 's' : ''} like ${matches.length === 1 ? 'a match' : 'matches'} for ${host}.`
+      : `None of your ${lastCategories.length} consent categories mention ${host} — you'll likely need to create one.`,
+  )
+}
+
+/**
+ * Proves the account bridge end to end: reads the session token from the
+ * ObservePoint tab and makes a real authenticated call. This is the foundation
+ * state-aware recipes will be built on, so it is worth showing plainly whether
+ * it is working rather than discovering later that it never was.
+ */
+async function showAccount() {
+  const state = await accountStatus()
+
+  if (!state.connected) {
+    const why = {
+      'not-on-observepoint':
+        'Open an ObservePoint tab and I can read your account — then I can name the consent categories you actually have instead of guessing.',
+      'not-signed-in':
+        "You're on ObservePoint but not signed in, so I can't read your account yet.",
+    }
+    addMessage('note', why[state.reason] ?? `Can't read your account: ${state.reason}`)
+    return
+  }
+
+  try {
+    const categories = await listConsentCategories()
+    const line =
+      categories.length === 0
+        ? `Connected to ${state.environment}. No consent categories in this account yet — I'll walk you through creating one when you need it.`
+        : `Connected to ${state.environment}. ${categories.length} consent categor${categories.length === 1 ? 'y' : 'ies'} found: ${categories
+            .slice(0, 4)
+            .map(c => c.name)
+            .join(', ')}${categories.length > 4 ? '…' : ''}`
+    addMessage('note', line)
+    lastCategories = categories
+  } catch (error) {
+    addMessage(
+      'note',
+      `Connected to ${state.environment}, but the category lookup failed: ${error.message}`,
+    )
+  }
+}
+
 async function showMode() {
   const key = await getStoredApiKey()
   statusEl.textContent = key ? 'Gemini' : 'offline matching'
@@ -179,3 +245,4 @@ addMessage(
 )
 addSuggestions(suggestions())
 showMode()
+showAccount()

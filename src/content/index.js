@@ -1,19 +1,90 @@
 /**
- * Content script — PART 2's territory.
+ * Content script. Two jobs.
  *
- * Right now this is a receipt: it proves the Part 1 → Part 2 handoff works and
- * gives you something to see while the walkthrough runtime is being built.
- * Open devtools on the page (not the side panel) and ask the Copilot for
- * something — the plan arrives here.
+ * 1. ACCOUNT BRIDGE — the piece that lets the Copilot plan against what is
+ *    actually in your account instead of guessing.
  *
- * Part 2: replace the body of handlePlan() with the real runtime. The message
- * contract is the only thing you have to keep.
+ *    moonbeam does NOT authenticate with cookies. Its auth-request interceptor
+ *    reads a bearer token out of localStorage and sets an Authorization header
+ *    (core/interceptors/auth-request.interceptor.ts), so `credentials: 'include'`
+ *    on its own gets you a 401. A content script shares the page's origin for
+ *    storage, so it can read that same token and make the same authenticated
+ *    call the app makes.
+ *
+ *    The token never leaves this file. The side panel asks for a path and gets
+ *    back JSON; it never sees the credential, so a bug up there can't leak it.
+ *
+ * 2. PLAN_READY receipt — Part 2's placeholder. Logs the plan and flags whether
+ *    its first step resolves on this page.
  */
+
+const OP_HOST = /(^|\.)observepoint(staging)?\.com$/i
+
+/* ---------------------------------------------------------------------- *
+ * Account bridge
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Impersonation is checked first because that is the order moonbeam itself
+ * uses — a support user acting as a customer must read the customer's account,
+ * not their own.
+ */
+function readAuthToken() {
+  const sources = [
+    () => sessionStorage.getItem('authImpersonate'),
+    () => localStorage.getItem('authorization'),
+  ]
+  for (const read of sources) {
+    try {
+      const parsed = JSON.parse(read() ?? 'null')
+      if (parsed?.token) return parsed.token
+    } catch {
+      /* malformed entry — try the next source */
+    }
+  }
+  return null
+}
+
+function environmentName() {
+  return location.hostname.includes('observepointstaging') ? 'staging' : 'production'
+}
+
+async function apiGet(path) {
+  if (!OP_HOST.test(location.hostname)) {
+    return { ok: false, error: 'not-on-observepoint', hostname: location.hostname }
+  }
+
+  const token = readAuthToken()
+  if (!token) return { ok: false, error: 'not-signed-in' }
+
+  // Paths arrive relative ("/api/v3/consent-categories/library") and resolve
+  // against this tab's origin, so staging and prod are handled by whichever tab
+  // you happen to be on rather than by configuration.
+  const url = new URL(path, location.origin).toString()
+
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      return { ok: false, error: `http-${response.status}`, status: response.status }
+    }
+    return { ok: true, data: await response.json(), environment: environmentName() }
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) }
+  }
+}
+
+/* ---------------------------------------------------------------------- *
+ * PART 2 territory — replace handlePlan() with the real runtime.
+ * ---------------------------------------------------------------------- */
 
 function handlePlan(plan) {
   console.groupCollapsed(
     `%c[copilot] PLAN_READY %c${plan.recipeId} — ${plan.steps.length} steps`,
-    'color:#2f6df6;font-weight:bold',
+    'color:#d5a900;font-weight:bold',
     'color:inherit',
   )
   console.log('goal:', plan.goal)
@@ -26,25 +97,48 @@ function handlePlan(plan) {
       target: s.targetSelector,
       action: s.action?.type ?? '—',
       completion: s.completion.type,
-      say: s.say.length > 60 ? `${s.say.slice(0, 57)}…` : s.say,
+      say: s.say,
     })),
   )
 
-  // A cheap reality check while authoring recipes: does this plan's first step
-  // actually exist on the page you're looking at?
   const first = plan.steps[0]
   const found = document.querySelector(first.targetSelector)
   console.log(
     found
       ? `%c✓ step ${first.id} resolves on this page`
       : `%c✗ step ${first.id} does NOT resolve here (${first.targetSelector})`,
-    `color:${found ? '#16a34a' : '#dc2626'}`,
+    `color:${found ? '#50bc77' : '#f34146'}`,
   )
   console.groupEnd()
 }
 
-chrome.runtime.onMessage.addListener(message => {
-  if (message?.type === 'PLAN_READY') handlePlan(message.plan)
+/* ---------------------------------------------------------------------- *
+ * Message routing
+ * ---------------------------------------------------------------------- */
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'PLAN_READY') {
+    handlePlan(message.plan)
+    return false
+  }
+
+  if (message?.type === 'OP_API_GET') {
+    apiGet(message.path).then(sendResponse)
+    return true // async reply
+  }
+
+  if (message?.type === 'OP_ACCOUNT_STATUS') {
+    sendResponse({
+      ok: OP_HOST.test(location.hostname) && Boolean(readAuthToken()),
+      onObservePoint: OP_HOST.test(location.hostname),
+      signedIn: Boolean(readAuthToken()),
+      environment: environmentName(),
+      hostname: location.hostname,
+    })
+    return false
+  }
+
+  return false
 })
 
-console.log('[copilot] content script ready — waiting for PLAN_READY')
+console.log('[copilot] content script ready')

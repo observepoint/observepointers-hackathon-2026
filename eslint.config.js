@@ -23,6 +23,10 @@ export default [
         CustomEvent: 'readonly',
         Blob: 'readonly',
         URL: 'readonly',
+        // Content script: reads the app's own origin and session storage.
+        location: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
       },
     },
     rules: {

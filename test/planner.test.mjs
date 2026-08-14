@@ -12,6 +12,7 @@ import { render, placeholdersIn } from '../src/planner/template.js'
 import { matchDeterministic } from '../src/planner/match.js'
 import { rankModels } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom } from '../src/planner/naming.js'
+import { rankForSite } from '../src/planner/account.js'
 import { RECIPES } from '../src/planner/recipes/index.js'
 
 let failures = 0
@@ -346,6 +347,32 @@ check(
     'g',
     { siteUrl: 'gap.com', auditName: 'Q3 privacy sweep' },
   ).plan.parameters.auditName === 'Q3 privacy sweep',
+)
+
+/* ---------------------------------------------------------------- */
+section('account state — matching categories to a site')
+
+const cats = [
+  { id: 1, name: 'Gap EU — GDPR', labels: [] },
+  { id: 2, name: 'Marketing approved', labels: ['gap.com'] },
+  { id: 3, name: 'Old Navy US', labels: [] },
+]
+
+const rankedCats = rankForSite(cats, 'gap.com')
+check('flags a name match', rankedCats.find(c => c.id === 1).matches === true)
+check('flags a label match', rankedCats.find(c => c.id === 2).matches === true)
+check('leaves unrelated categories unflagged', rankedCats.find(c => c.id === 3).matches === false)
+check('sorts matches first', rankedCats[0].matches === true && rankedCats.at(-1).matches === false)
+// Returning everything, flagged, rather than filtering: a user may know the
+// right category even when its name says nothing about the domain.
+check('returns every category, not just matches', rankedCats.length === cats.length)
+check(
+  'handles an unknown host without throwing',
+  rankForSite(cats, '').every(c => !c.matches),
+)
+check(
+  'does not match on a two-letter fragment',
+  rankForSite([{ id: 9, name: 'EU cookies', labels: [] }], 'eu.com').every(c => !c.matches),
 )
 
 /* ---------------------------------------------------------------- */

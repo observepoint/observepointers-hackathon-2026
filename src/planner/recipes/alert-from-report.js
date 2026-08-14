@@ -74,16 +74,17 @@ export default {
     },
   ],
   summaryTemplate:
-    "Alerts in ObservePoint watch a number on a report widget, so we'll open the audit report, find the " +
-    'widget that shows "{{parameters.conditionSummary}}", and create the alert from its bell icon — that ' +
-    'pre-fills the metric and filters. Notifications go to {{parameters.notifyEmail}}.',
+    'Alerts watch a number on a report widget, so the audit needs at least one completed run first. ' +
+    'We\'ll open its report, find the widget showing "{{parameters.conditionSummary}}", and create the ' +
+    'alert from its bell — that pre-fills the metric and filters. Notifications go to ' +
+    '{{parameters.notifyEmail}}.',
   steps: [
     {
       id: 's1',
       actor: 'user',
       navContext: '/data-sources',
       targetSelector: '[op-selector="cards-view-container"]',
-      say: 'Open the audit whose report you want to watch. It needs at least one completed run — alerts read report data, so there is nothing to threshold until then.',
+      say: 'Open the audit you want to watch.',
       targetFallback: { description: 'the audit card on the Data Sources page' },
       unverified: true,
       completion: { type: 'url_change', value: '/audit' },
@@ -92,7 +93,7 @@ export default {
       id: 's2',
       actor: 'user',
       targetSelector: '.create-new-alert-icon',
-      say: 'Find the widget showing "{{parameters.conditionSummary}}" and click its bell. Creating the alert from the widget means the metric and filters are filled in for you.',
+      say: 'Click the bell on the widget showing "{{parameters.conditionSummary}}".',
       targetFallback: { description: 'the bell icon on the report widget' },
       unverified: true,
       completion: {
@@ -105,7 +106,7 @@ export default {
       id: 's3',
       actor: 'ai',
       targetSelector: '[op-selector="quick-create-name"] input',
-      say: 'Naming it "{{parameters.alertName}}" — this is what appears in the notification, so make it obvious at 3am.',
+      say: 'Naming it "{{parameters.alertName}}".',
       action: { type: 'fill_text', value: '{{parameters.alertName}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
@@ -113,7 +114,7 @@ export default {
       id: 's4',
       actor: 'ai',
       targetSelector: '[op-selector="quick-create-emails"] input',
-      say: 'Sending notifications to {{parameters.notifyEmail}}.',
+      say: 'Notifying {{parameters.notifyEmail}}.',
       action: { type: 'fill_text', value: '{{parameters.notifyEmail}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
@@ -121,14 +122,14 @@ export default {
       id: 's5',
       actor: 'user',
       targetSelector: '[op-selector="quick-create-customize-link"]',
-      say: 'The default threshold is a sensible starting point. Customize it if "{{parameters.conditionSummary}}" needs a specific number rather than any change.',
+      say: 'Adjust the threshold if you need a specific number.',
       completion: { type: 'dom_event', value: 'click' },
     },
     {
       id: 's6',
       actor: 'user',
       targetSelector: '[op-selector="quick-create-save-button"] button',
-      say: 'Save it. It evaluates after each run of this audit from now on.',
+      say: 'Save it.',
       targetFallback: { description: 'the save button in the alert quick-create dialog' },
       completion: { type: 'dom_event', value: 'click' },
     },

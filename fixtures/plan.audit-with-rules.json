@@ -13,7 +13,7 @@
       "actor": "user",
       "navContext": "/data-sources",
       "targetSelector": "#guide-create-new-data-src-btn",
-      "say": "Audits are created from Data Sources. Open the create menu.",
+      "say": "Open the create menu.",
       "targetFallback": {
         "description": "the Create button on the Data Sources page"
       },
@@ -54,7 +54,7 @@
       "id": "s4",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
-      "say": "This is where the crawl starts. One URL per line if you want several.",
+      "say": "Setting the starting URL.",
       "action": {
         "type": "fill_text",
         "value": "https://www.example.com"
@@ -68,7 +68,7 @@
       "id": "s5",
       "actor": "user",
       "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
-      "say": "Quick setup has no Standards section, so switch to Advanced Setup — that is where rules, consent categories and alerts are attached.",
+      "say": "Switch to Advanced Setup — Standards lives there.",
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
@@ -94,7 +94,7 @@
       "id": "s7",
       "actor": "user",
       "targetSelector": ".op-audit-editor .op-tabs.sub-menu .op-tab:nth-child(1)",
-      "say": "Tag & Variable Rules is the first sub-tab. This is what makes an audit check things rather than just crawl.",
+      "say": "Open Tag & Variable Rules.",
       "targetFallback": {
         "description": "the \"Tag & Variable Rules\" sub-tab"
       },
@@ -109,7 +109,7 @@
       "id": "s8",
       "actor": "user",
       "targetSelector": ".op-standards-selector .search-input",
-      "say": "Search your rule library for the ones you want. Start narrow — a few rules you trust beats every rule you own, because a noisy audit gets ignored.",
+      "say": "Search your rule library.",
       "targetFallback": {
         "description": "the search box in the rules picker"
       },
@@ -123,7 +123,7 @@
       "id": "s9",
       "actor": "user",
       "targetSelector": ".op-standards-selector .add-all-standards-btn",
-      "say": "Add the ones you found. Anything on the right-hand side is evaluated on every run of this audit.",
+      "say": "Add the rules you want.",
       "targetFallback": {
         "description": "the \"add all\" button in the rules picker"
       },
@@ -137,7 +137,7 @@
       "id": "s10",
       "actor": "user",
       "targetSelector": ".op-standards-selector .create-new-btn",
-      "say": "If no existing rule covers https://www.example.com, create one from here — you will not lose this audit.",
+      "say": "Nothing fits? Create a rule here instead.",
       "targetFallback": {
         "description": "the \"Create New Rule\" button"
       },
