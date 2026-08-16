@@ -13,7 +13,7 @@ import { matchDeterministic } from '../src/planner/match.js'
 import { rankModels } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
 import { rankForSite } from '../src/planner/account.js'
-import { RECIPES } from '../src/planner/recipes/index.js'
+import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
 
 let failures = 0
 function check(name, condition, detail) {
@@ -514,6 +514,29 @@ check(
   normalizeSiteUrl('https://shop.example.com') === 'https://shop.example.com',
 )
 check('survives nonsense', normalizeSiteUrl('') === '')
+
+/* ---------------------------------------------------------------- */
+section('selector catalogue')
+
+const catalogue = allKnownSelectors()
+check('collects selectors from every recipe', catalogue.length > 20, String(catalogue.length))
+check(
+  'deduplicates the shared audit path',
+  new Set(catalogue.map(c => c.selector)).size === catalogue.length,
+)
+check(
+  'labels each with its recipe and step',
+  catalogue.every(c => /^[a-z_]+\/s\d+$/.test(c.id)),
+  catalogue.find(c => !/^[a-z_]+\/s\d+$/.test(c.id))?.id,
+)
+check(
+  'reaches recipes that build steps dynamically',
+  catalogue.some(c => c.id.startsWith('audit_with_consent_categories/')),
+)
+check(
+  'every entry carries a selector',
+  catalogue.every(c => c.selector),
+)
 
 /* ---------------------------------------------------------------- */
 section('gemini model ranking')

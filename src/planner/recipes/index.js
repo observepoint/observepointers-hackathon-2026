@@ -60,3 +60,37 @@ export const recipeCatalogue = () =>
       example: p.example,
     })),
   }))
+
+/**
+ * Every distinct selector across the library, for verifying a screen without
+ * first asking a question.
+ *
+ * Recipes that build their steps from account state are asked for their
+ * no-account form — that is the shape with the widest selector coverage, which
+ * is what a verification sweep wants.
+ */
+export function allKnownSelectors() {
+  const seen = new Map()
+
+  for (const recipe of RECIPES) {
+    let steps = recipe.steps
+    if (!steps && recipe.buildSteps) {
+      try {
+        steps = recipe.buildSteps({ parameters: {} })
+      } catch {
+        steps = []
+      }
+    }
+
+    for (const step of steps ?? []) {
+      if (!step.targetSelector || seen.has(step.targetSelector)) continue
+      seen.set(step.targetSelector, {
+        id: `${recipe.id}/${step.id}`,
+        selector: step.targetSelector,
+        say: step.say,
+      })
+    }
+  }
+
+  return [...seen.values()]
+}

@@ -15,6 +15,7 @@ import { mountInput } from './input.js'
 // DEBUG — delete this import and the renderOutgoingPlan() call below to remove.
 import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
+import { allKnownSelectors } from '../planner/recipes/index.js'
 import { getStoredApiKey } from '../planner/llm.js'
 import {
   status as accountStatus,
@@ -30,6 +31,7 @@ let controller = null
 let pendingQuestion = null // a `needs_input` result awaiting an answer
 let lastCategories = [] // account state, for the state-aware flow being built on this
 let lastGoal = ''
+let lastPlan = null // so the screen can be re-checked without asking again
 
 /* ---------------------------------------------------------------------- *
  * Rendering
@@ -96,44 +98,86 @@ function renderPlan(result) {
   const check = document.createElement('button')
   check.className = 'chip'
   check.textContent = 'Check selectors on this screen'
-  check.addEventListener('click', () => runSelectorCheck(plan, card, check))
+  check.addEventListener('click', () =>
+    runSelectorCheck(plan.steps, card, check, 'Check selectors on this screen'),
+  )
   card.appendChild(check)
 
   transcript.appendChild(card)
   transcript.scrollTop = transcript.scrollHeight
 }
 
-async function runSelectorCheck(plan, card, button) {
+function renderCheck(results, page, target) {
+  const output = document.createElement('pre')
+  output.className = 'selector-check'
+
+  // Found-first: on a sweep of every selector we ship, the handful that resolve
+  // are the answer and the rest are noise.
+  const sorted = [...results].sort(
+    (a, b) => Number(b.visible) - Number(a.visible) || Number(b.found) - Number(a.found),
+  )
+
+  const body = sorted
+    .map(r => {
+      const mark = r.visible ? '✓' : r.found ? '·' : '✗'
+      const note = r.visible
+        ? r.text
+          ? `visible — "${r.text}"`
+          : 'visible'
+        : r.found
+          ? 'in DOM but hidden'
+          : (r.error ?? 'not found')
+      return `${mark} ${r.id}  ${note}\n   ${r.selector}`
+    })
+    .join('\n')
+
+  // Lead with where we looked. Without it, "0/9" reads as "the selectors are
+  // wrong" when the real answer is almost always "wrong screen".
+  output.textContent = `on ${page?.screen ?? 'unknown'} — ${page?.url ?? ''}\n\n${body}`
+  target.appendChild(output)
+  transcript.scrollTop = transcript.scrollHeight
+}
+
+async function runSelectorCheck(steps, card, button, label) {
+  const original = label ?? button.textContent
   button.disabled = true
   button.textContent = 'Checking…'
 
   try {
-    const { results, page } = await checkSelectors(plan.steps)
-    const output = document.createElement('pre')
-    output.className = 'selector-check'
-    output.textContent = results
-      .map(r => {
-        const mark = r.visible ? '✓' : r.found ? '·' : '✗'
-        const note = r.visible
-          ? r.text
-            ? `visible — "${r.text}"`
-            : 'visible'
-          : r.found
-            ? 'in DOM but hidden (wrong screen?)'
-            : (r.error ?? 'not found')
-        return `${mark} ${r.id}  ${note}\n   ${r.selector}`
-      })
-      .join('\n')
-    // Lead with where we looked. Without it, "0/9" reads as "the selectors are
-    // wrong" when the real answer is almost always "wrong screen".
-    output.textContent = `on ${page?.screen ?? 'unknown'} — ${page?.url ?? ''}\n\n${output.textContent}`
-    card.appendChild(output)
-
+    const { results, page } = await checkSelectors(steps)
+    renderCheck(results, page, card)
     const visible = results.filter(r => r.visible).length
-    button.textContent = `${visible}/${results.length} resolve on ${page?.screen ?? 'this screen'}`
+    button.textContent = `${visible}/${results.length} on ${page?.screen ?? 'this screen'}`
   } catch (error) {
-    button.textContent = `Check failed: ${error.message}`
+    button.textContent = `Failed: ${error.message}`
+  } finally {
+    button.disabled = false
+    setTimeout(() => (button.textContent = original), 6000)
   }
+}
+
+/**
+ * Header button: verify a screen at any time, with or without a plan.
+ *
+ * Requiring a question first made this useless for the job it exists for —
+ * walking the app and recording which selectors resolve where. With a plan in
+ * play it checks that plan; otherwise it sweeps every selector in the library,
+ * which is what you want when standing on a screen asking "what do we know
+ * about this one?".
+ */
+async function checkCurrentScreen(button) {
+  const steps = lastPlan
+    ? lastPlan.steps
+    : allKnownSelectors().map(s => ({ id: s.id, targetSelector: s.selector }))
+
+  const holder = document.createElement('div')
+  holder.className = 'msg note'
+  holder.textContent = lastPlan
+    ? `Checking the ${lastPlan.recipeId} plan against this screen.`
+    : `Checking all ${steps.length} known selectors against this screen.`
+  transcript.appendChild(holder)
+
+  await runSelectorCheck(steps, holder, button, 'Check screen')
 }
 
 /* ---------------------------------------------------------------------- *
@@ -158,6 +202,7 @@ function handleResult(result) {
       pendingQuestion = null
       // The summary is the plan card's heading — adding it as a message too
       // printed it twice.
+      lastPlan = result.plan
       renderPlan(result)
       emitPlan(result.plan)
       renderOutgoingPlan(transcript, result.plan) // DEBUG — delete to remove
@@ -279,6 +324,9 @@ async function showMode() {
     )
   }
 }
+
+const checkScreenButton = document.getElementById('check-screen')
+checkScreenButton.addEventListener('click', () => checkCurrentScreen(checkScreenButton))
 
 controller = mountInput(document.getElementById('input-root'), { onSubmit: ask })
 

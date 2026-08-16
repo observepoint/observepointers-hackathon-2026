@@ -375,3 +375,17 @@ button.recording {
   overflow-wrap: anywhere;
   color: var(--op-text-secondary);
 }
+
+/* Persistent verification control in the header. */
+button.ghost {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--op-text-secondary);
+}
+button.ghost:hover:not(:disabled) {
+  color: var(--op-text-primary);
+  border-color: var(--op-primary-default);
+}
