@@ -82,7 +82,7 @@ export default {
     {
       id: 's1',
       actor: 'user',
-      navContext: '/data-sources',
+      navContext: '/sources',
       targetSelector: '[op-selector="cards-view-container"]',
       say: 'Open the audit you want to watch.',
       targetFallback: { description: 'the audit card on the Data Sources page' },
