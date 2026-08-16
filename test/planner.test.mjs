@@ -14,6 +14,13 @@ import { rankModels } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
 import { rankForSite } from '../src/planner/account.js'
 import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
+import {
+  ONBOARDING_QUESTION,
+  onboardingOptions,
+  loadOnboarding,
+  saveOnboarding,
+  biasSuggestions,
+} from '../src/planner/onboarding.js'
 
 let failures = 0
 function check(name, condition, detail) {
@@ -625,6 +632,226 @@ check(
 check(
   'every entry carries a selector',
   catalogue.every(c => c.selector),
+)
+
+/* ---------------------------------------------------------------- */
+section('first-run onboarding')
+
+const optionsFor = account => onboardingOptions(account === undefined ? {} : { account })
+const byId = (opts, id) => opts.find(o => o.id === id)
+
+const blindOptions = optionsFor(undefined)
+check('asks one question', ONBOARDING_QUESTION.length > 0)
+check('offers four answers', blindOptions.length === 4, String(blindOptions.length))
+check(
+  'every answer carries a label and a hint',
+  blindOptions.every(o => o.label && o.hint),
+)
+check(
+  '"not sure" deliberately maps to no recipe',
+  byId(blindOptions, 'browse').recipeId === null && byId(blindOptions, 'browse').goal === null,
+)
+check(
+  'never leaks the emptyAccount branch to the UI',
+  blindOptions.every(o => o.emptyAccount === undefined),
+)
+
+// The property that keeps onboarding honest: an option is just a sentence, and
+// that sentence has to reach the recipe the option claims. Without this, a
+// reworded label silently starts planning something else.
+for (const option of blindOptions.filter(o => o.recipeId)) {
+  check(
+    `"${option.label}" reaches ${option.recipeId}`,
+    matchDeterministic(option.goal).recipeId === option.recipeId,
+    matchDeterministic(option.goal).recipeId,
+  )
+}
+
+const emptyAccount = optionsFor({ consentCategories: [], rules: [] })
+check(
+  'empty rule library retargets to create_first_rule',
+  byId(emptyAccount, 'tags').recipeId === 'create_first_rule',
+)
+check(
+  'empty consent library retargets to create_first_consent_category',
+  byId(emptyAccount, 'privacy').recipeId === 'create_first_consent_category',
+)
+check(
+  'a retargeted option says why',
+  byId(emptyAccount, 'tags').retargeted && byId(emptyAccount, 'tags').hint.includes('empty'),
+)
+check(
+  'retargeted goals reach their retargeted recipes',
+  emptyAccount
+    .filter(o => o.retargeted)
+    .every(o => matchDeterministic(o.goal).recipeId === o.recipeId),
+)
+check(
+  'alerts has nothing to retarget to, so it never does',
+  byId(emptyAccount, 'alerts').recipeId === 'audit_with_alerts',
+)
+
+const fullAccount = optionsFor({ consentCategories: [{ id: 1, name: 'x' }], rules: [{ id: 1 }] })
+check(
+  'a populated account keeps the audit recipes',
+  byId(fullAccount, 'tags').recipeId === 'audit_with_rules' &&
+    byId(fullAccount, 'privacy').recipeId === 'audit_with_consent_categories',
+)
+
+// The dangerous direction: unread must never be mistaken for empty, or someone
+// with a full library gets sent off to build a duplicate.
+const unreadable = optionsFor({ advancedAuditMode: true })
+check(
+  'an unread account does not retarget',
+  unreadable.every(o => !o.retargeted),
+)
+check(
+  'a partial read only retargets the half it read',
+  (() => {
+    const half = optionsFor({ consentCategories: [] })
+    return byId(half, 'privacy').retargeted && !byId(half, 'tags').retargeted
+  })(),
+)
+
+/* ---------------------------------------------------------------- */
+section('onboarding memory')
+
+const fakeStore = () => {
+  const cells = new Map()
+  return { get: k => cells.get(k), set: (k, v) => void cells.set(k, v), cells }
+}
+
+const store = fakeStore()
+check('first run has nothing stored', (await loadOnboarding(store)) === null)
+
+const saved = await saveOnboarding(byId(blindOptions, 'privacy'), store)
+check('remembers which option was picked', saved.optionId === 'privacy')
+check('remembers the recipe behind it', saved.recipeId === 'audit_with_consent_categories')
+check('stamps when', typeof saved.at === 'string' && saved.at.includes('T'))
+check('reads back on the next run', (await loadOnboarding(store)).optionId === 'privacy')
+
+const allSuggestions = suggestions()
+const biased = biasSuggestions(allSuggestions, saved)
+check('leads with what they came for', biased[0].recipeId === 'audit_with_consent_categories')
+check('reorders without dropping anything', biased.length === allSuggestions.length)
+check(
+  'keeps every recipe reachable',
+  new Set(biased.map(s => s.recipeId)).size === allSuggestions.length,
+)
+check(
+  'a "not sure" answer changes nothing',
+  biasSuggestions(allSuggestions, { recipeId: null })[0].recipeId === allSuggestions[0].recipeId,
+)
+
+/* ---------------------------------------------------------------- */
+section('starter recipes for an empty account')
+
+for (const [id, parameters] of [
+  ['create_first_rule', { ruleSubject: 'Google Analytics fires on every page' }],
+  ['create_first_consent_category', { siteUrl: 'gap.com' }],
+]) {
+  const recipe = RECIPES.find(r => r.id === id)
+  const built = buildPlan(recipe, 'g', parameters)
+  check(`${id} builds a valid plan`, built.status === 'plan', built.message)
+
+  const steps = built.plan?.steps ?? []
+  check(
+    `${id} opens the sidebar section before its link`,
+    steps[0]?.targetSelector === '[op-selector="sidebar-standards"]',
+    steps[0]?.targetSelector,
+  )
+  check(
+    `${id} waits on a real route, since libraries are routes`,
+    steps[1]?.completion.type === 'url_change',
+  )
+  check(
+    `${id} names the thing but leaves the policy to the user`,
+    steps.filter(s => s.actor === 'ai').length === 1,
+  )
+  check(
+    `${id} gives every unverified step a text fallback`,
+    steps.filter(s => s.unverified).every(s => s.targetFallback?.description),
+  )
+}
+
+check(
+  'a rule name reads as the assertion, not a label',
+  buildPlan(
+    RECIPES.find(r => r.id === 'create_first_rule'),
+    'g',
+    {
+      ruleSubject: 'the purchase tag fires on checkout',
+    },
+  ).plan.parameters.ruleName === 'The purchase tag fires on checkout',
+)
+check(
+  'a consent category is named after its site',
+  buildPlan(
+    RECIPES.find(r => r.id === 'create_first_consent_category'),
+    'g',
+    {
+      siteUrl: 'https://www.gap.com/x',
+    },
+  ).plan.parameters.categoryName === 'gap.com — Approved',
+)
+
+// The whole reason these exist: "create a rule" must not land on the audit
+// recipe, which would walk someone to a picker with nothing in it.
+check(
+  '"create a rule" reaches the starter, not the audit',
+  matchDeterministic('create a rule').recipeId === 'create_first_rule',
+  matchDeterministic('create a rule').recipeId,
+)
+check(
+  '"create a consent category" reaches the starter',
+  matchDeterministic('create a consent category').recipeId === 'create_first_consent_category',
+  matchDeterministic('create a consent category').recipeId,
+)
+// …and the audit phrasings must still reach the audit recipes.
+check(
+  '"set up an audit that checks my tag rules" still reaches the audit',
+  matchDeterministic('set up an audit that checks my tag rules').recipeId === 'audit_with_rules',
+  matchDeterministic('set up an audit that checks my tag rules').recipeId,
+)
+check(
+  '"check our site for privacy compliance" still reaches the audit',
+  matchDeterministic('check our site for privacy compliance').recipeId ===
+    'audit_with_consent_categories',
+  matchDeterministic('check our site for privacy compliance').recipeId,
+)
+
+/* ---------------------------------------------------------------- */
+section('an empty consent library is not an unread one')
+
+const emptyLibraryPlan = buildPlan(
+  RECIPES.find(r => r.id === 'audit_with_consent_categories'),
+  'g',
+  { siteUrl: 'gap.com' },
+  { account: { consentCategories: [], advancedAuditMode: true } },
+).plan
+
+check(
+  'an empty library plans to create one',
+  emptyLibraryPlan.steps.at(-2).targetSelector.includes('create-new-btn'),
+  emptyLibraryPlan.steps.at(-2).targetSelector,
+)
+check(
+  'and says so in the summary',
+  emptyLibraryPlan.summary.includes('Nothing in your account'),
+  emptyLibraryPlan.summary,
+)
+
+const unreadLibraryPlan = buildPlan(
+  RECIPES.find(r => r.id === 'audit_with_consent_categories'),
+  'g',
+  { siteUrl: 'gap.com' },
+  { account: { advancedAuditMode: true } },
+).plan
+
+check(
+  'an unread library keeps the generic hedge',
+  unreadLibraryPlan.steps.at(-1).targetSelector.includes('add-all-standards-btn'),
+  unreadLibraryPlan.steps.at(-1).targetSelector,
 )
 
 /* ---------------------------------------------------------------- */

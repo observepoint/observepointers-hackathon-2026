@@ -20,6 +20,14 @@
  * The first three share `_audit-standards.js`, because in moonbeam they are
  * three sub-tabs of one screen rather than three separate flows.
  *
+ * PLUS the empty-account pair, sharing `_standards-library.js`:
+ *   create_first_rule                 fill the rule library
+ *   create_first_consent_category     fill the consent category library
+ *
+ * Those exist because the three audit recipes all end in "pick from your
+ * library", which is a dead end on an account whose library is empty — which
+ * is every account on its first day, i.e. exactly the user this is built for.
+ *
  * To add a recipe:
  *   1. Walk the flow yourself with devtools open; copy the real selectors.
  *   2. Prefer [op-selector="..."] — stable and human-named. Note that many are
@@ -33,12 +41,16 @@ import auditWithRules from './audit-with-rules.js'
 import auditWithConsentCategories from './audit-with-consent-categories.js'
 import auditWithAlerts from './audit-with-alerts.js'
 import alertFromReport from './alert-from-report.js'
+import createFirstRule from './create-first-rule.js'
+import createFirstConsentCategory from './create-first-consent-category.js'
 
 export const RECIPES = [
   auditWithRules,
   auditWithConsentCategories,
   auditWithAlerts,
   alertFromReport,
+  createFirstRule,
+  createFirstConsentCategory,
 ]
 
 export const getRecipe = id => RECIPES.find(r => r.id === id) || null

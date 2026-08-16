@@ -127,8 +127,15 @@ export function matchDeterministic(goal) {
     const recipe = getRecipe(meta.recipeId)
     let score = 0
 
+    // Longer keyword, stronger evidence. A flat score for every phrase made the
+    // matcher blind to specificity: "create a consent category" matched the
+    // starter recipe's four-word keyword and the audit recipe's two-word one for
+    // the same 5 points, and the audit recipe won on incidental prose overlap —
+    // sending someone with an empty library to a picker with nothing in it.
     for (const keyword of recipe.intent.keywords) {
-      if (lower.includes(keyword.toLowerCase())) score += keyword.includes(' ') ? 5 : 3
+      if (!lower.includes(keyword.toLowerCase())) continue
+      const words = keyword.trim().split(/\s+/).length
+      score += words === 1 ? 3 : 2 + 2 * words
     }
 
     const haystack = new Set(tokens(`${meta.title} ${meta.description} ${meta.examples.join(' ')}`))

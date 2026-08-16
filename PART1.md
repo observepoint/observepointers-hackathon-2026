@@ -52,25 +52,42 @@ Matches the design you specified. `src/planner/schema.js` is the source of
 truth and every plan is validated against it before it leaves — a malformed plan
 would fail inside your runtime and look like your bug.
 
+Real output, trimmed to two steps:
+
 ```jsonc
 {
-  "recipeId": "create_api_key",
-  "goal": "I need an API key called \"CI bot\"", // user's words, verbatim
-  "summary": "We'll open API Keys, start a new key…", // one line for the chat
+  "recipeId": "create_first_rule",
+  "goal": "create a rule that checks Google Analytics fires", // user's words, verbatim
+  "summary": "A rule defines what \"correct\" looks like…", // one line for the chat
   "executionMode": "templated",
-  "parameters": { "keyName": "CI bot" },
+  "parameters": { "ruleSubject": "…", "ruleName": "Google Analytics fires on every page" },
   "steps": [
     {
       "id": "s1",
       "actor": "user", // "user" | "ai"
-      "navContext": "/account/api-keys", // optional
-      "targetSelector": "[op-selector=\"top-nav-api-keys\"]",
-      "say": "API keys live under your account menu.",
-      "completion": { "type": "url_change", "value": "/account/api-keys" },
+      "targetSelector": "[op-selector=\"sidebar-standards\"]",
+      "say": "Open Standards in the sidebar.",
+      "targetFallback": { "description": "the \"Standards\" section in the left sidebar" },
+      // Standards is a mat-expansion-panel; its children don't exist until it opens.
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
+      },
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "navContext": "/sources", // optional
+      "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
+      "say": "Go to Tag & Variable Rules.",
+      "completion": { "type": "url_change", "value": "/rules/library" },
     },
   ],
 }
 ```
+
+`npm run plan -- "your goal here"` prints one of these for any goal.
 
 Guarantees the validator enforces, so you don't have to defend against them:
 
@@ -182,6 +199,32 @@ Everything else — the steps, the order, the selectors — is authored by us.
 handles badly. Adding a recipe is the highest-value contribution anyone can make
 this weekend; `src/planner/recipes/index.js` explains how.
 
+### First run asks one question
+
+An empty chat box assumes you already know what ObservePoint can do — which is
+the exact problem this project exists to fix. So the first thing a new user sees
+is a question with four answers, and picking one goes **straight to a plan**. No
+recommendation screen, no tour, no settings page.
+
+`src/planner/onboarding.js`. Two properties worth preserving:
+
+- **An option is just a sentence.** Each carries a `goal` string that is fed
+  into `createPlan()` exactly as if it had been typed, so onboarding shares one
+  planning path with everything else. A test asserts every option's goal still
+  reaches the recipe it claims — reword a label and you find out immediately.
+- **It retargets on an empty account.** Three of the audit recipes end in "pick
+  from your library". On a fresh account those libraries are empty and the
+  walkthrough dead-ends, so when we can see there is nothing there, the option
+  silently switches to the recipe that creates the first one. An account we
+  _couldn't read_ never counts as empty — that direction would send someone with
+  a full library off to build a duplicate.
+
+The answer is stored in `chrome.storage.local` under `onboarding` and biases the
+suggestion chips on later runs (reorder, never filter).
+
+**Seam:** Part 1 owns the question and the stored answer. If Part 2 wants a
+guided tour of the app itself, it reads the same key and decides for itself.
+
 ### It asks rather than guesses
 
 ```
@@ -217,44 +260,56 @@ the tests use.
 
 ## The recipe library
 
-Focused on audits and the three things you attach to them.
+Focused on audits and the three things you attach to them, plus the two starter
+flows for an account that has none of them yet.
 
-| Recipe                          | Covers                                          |
-| ------------------------------- | ----------------------------------------------- |
-| `audit_with_rules`              | Audit + Tag & Variable Rules                    |
-| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)       |
-| `audit_with_alerts`             | Audit + Alerts                                  |
-| `alert_from_report`             | "Alert me when X breaks", from a report widget  |
-| `create_api_key`                | Kept as the one fully verified reference recipe |
+| Recipe                          | Covers                                         | Verified            |
+| ------------------------------- | ---------------------------------------------- | ------------------- |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps        |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps        |
+| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps        |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 2 steps unswept  |
+| `create_first_rule`             | Fill an empty rule library                     | ⚠️ needs a sweep    |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 3 steps unswept  |
 
-The first three share `src/planner/recipes/_audit-standards.js`, because in
-moonbeam they aren't three flows — they're three sub-tabs of one Standards tab,
-all rendering the same `op-standards-selector`. Fix that shared path once and
-all three improve.
+The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
+in moonbeam they aren't three flows — they're three sub-tabs of one Standards
+tab, all rendering the same `op-standards-selector`. Fix that shared path once
+and all three improve. The two starters share `_standards-library.js`.
 
-### Two things the recipes encode that aren't obvious
+"Verified" means somebody stood on the screen and pressed **Check screen**, not
+that the selector was read out of moonbeam source. Every step still marked
+`unverified: true` is one the pointer may miss.
 
-**Create → Web Audit does not open the audit editor.** It opens **Quick Audit**
-unless the user previously opted into advanced mode — and a new user, which is
-who this product is for, always lands there. Quick Audit has **no Standards
-section at all**, so every audit recipe walks through "Switch to Advanced Setup".
-Miss that and the walkthrough dead-ends on a screen that doesn't contain what it
-promised.
+### Three things the recipes encode that aren't obvious
+
+**Advanced is the default, not Quick Audit.** `storage.service.ts` returns
+`value ?? true`, so Create → Web Audit opens the advanced editor unless the user
+explicitly turned advanced mode off (or the account has no data sources at all).
+An earlier version of this file claimed the opposite and the recipes were built
+backwards; a live sweep settled it. Both paths are built, branching on
+`account.advancedAuditMode`.
 
 **Alerts watch report widget data, not websites.** So an alert is only meaningful
 once the audit has run at least once, and the sane way to create one is the bell
 on the widget you care about (it pre-fills metric and filters) rather than the
 Alerts Library.
 
+**"Attach a standard" dead-ends on a new account.** Every audit recipe ends at a
+picker, and on day one that picker is empty. That is what the two `create_first_*`
+recipes are for, and why onboarding retargets to them when it can see the library
+is empty.
+
 ## Known gaps
 
-- **Only `create_api_key` is fully verified.** The audit recipes are grounded in
-  source but nobody has clicked through them yet. Do that before demo day —
-  every step marked `unverified: true` is one the pointer may miss.
-- **Two positional selectors remain**, both tab strips. The 4-line moonbeam
-  change above removes them.
+- **`alert_from_report` and the two starters aren't fully swept.** `alert_from_report`
+  needs an audit with a completed run to reach its report widgets; the starters
+  need someone to walk the rule and consent-category builders. Stand on the
+  screen and press **Check screen** — that's what clears an `unverified` flag.
+- **The Quick Audit branch is untested**, since advanced is the default. It's
+  reachable by turning advanced mode off in user settings.
 - **No page awareness.** The planner doesn't know what screen the user is on, so
-  it always plans from Data Sources. If Part 2/3 feed the current route back in,
+  it always plans from the start. If Part 2/3 feed the current route back in,
   recipes could skip steps the user has already done.
 - **One recipe per goal.** "Set up an audit _and_ alert me when it fails" needs
   chaining, which isn't built — today it picks whichever intent matched strongest.

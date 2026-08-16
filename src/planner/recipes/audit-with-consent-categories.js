@@ -60,10 +60,17 @@ const genericEnding = [
   },
 ]
 
-/** null = we can't see the account; [] = we looked and nothing matched. */
+/**
+ * null = we can't see the account; [] = we looked and nothing matched.
+ *
+ * An account with zero categories used to fall into the null branch and get the
+ * generic "search for it, or create one" hedge — the one case where we know for
+ * certain that searching is pointless. A missing list means unread; an empty
+ * array means empty, and the two get different plans.
+ */
 function matchesFor(context) {
   const categories = context?.account?.consentCategories
-  if (!Array.isArray(categories) || !categories.length) return null
+  if (!Array.isArray(categories)) return null
 
   return rankForSite(categories, hostFrom(context.parameters?.siteUrl)).filter(c => c.matches)
 }

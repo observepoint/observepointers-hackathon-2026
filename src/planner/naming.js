@@ -46,6 +46,28 @@ export function alertNameFrom(parameters) {
 }
 
 /**
+ * A rule's name is what shows up in an audit's pass/fail report, so it should
+ * read as the thing being asserted rather than as a label. "Google Analytics
+ * fires on every page" is a report line; "Rule 1" is not.
+ */
+export function ruleNameFrom(parameters) {
+  const subject = String(parameters.ruleSubject || '').trim()
+  if (!subject) return 'Untitled rule'
+
+  const trimmed = subject.length > 60 ? `${subject.slice(0, 57).trimEnd()}…` : subject
+  return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`
+}
+
+/**
+ * A consent category is the definition of "approved" for one site, so the site
+ * is the only thing its name needs to say.
+ */
+export function consentCategoryNameFrom(parameters) {
+  const host = hostFrom(parameters.siteUrl)
+  return host ? `${host} — Approved` : 'Approved tags & cookies'
+}
+
+/**
  * A starting URL gets typed into a real form, so tidy it: lowercase the host and
  * add a scheme if the user didn't. "Gap.com" is not a URL a crawler should be
  * handed.

@@ -222,6 +222,57 @@ h1 {
   color: var(--panel-warning-text);
 }
 
+/* First-run question. Reads as one card so the four answers feel like a
+   choice, not four unrelated buttons. */
+.onboarding {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--op-surface-raised);
+  border: 1px solid var(--op-border-default);
+  border-left: 3px solid var(--op-primary-default);
+  border-radius: 8px;
+  padding: 14px;
+}
+.onboarding h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+button.onboarding-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  height: auto;
+  padding: 9px 11px;
+  margin-bottom: 6px;
+  text-align: left;
+  background: var(--op-background);
+}
+button.onboarding-option:last-child {
+  margin-bottom: 0;
+}
+button.onboarding-option:hover {
+  border-color: var(--op-primary-default);
+  background: var(--op-primary-light);
+}
+
+.onboarding-label {
+  font-weight: 600;
+}
+.onboarding-hint {
+  font-size: 11px;
+  color: var(--op-text-secondary);
+  line-height: 1.35;
+}
+/* The hover tint is the light primary in both themes, so the muted hint has to
+   go dark with it or it disappears against yellow. */
+button.onboarding-option:hover .onboarding-hint {
+  color: var(--op-text-primary);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

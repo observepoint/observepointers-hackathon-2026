@@ -18,8 +18,16 @@ import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
 import { allKnownSelectors } from '../planner/recipes/index.js'
 import { getStoredApiKey } from '../planner/llm.js'
 import {
+  ONBOARDING_QUESTION,
+  onboardingOptions,
+  loadOnboarding,
+  saveOnboarding,
+  biasSuggestions,
+} from '../planner/onboarding.js'
+import {
   status as accountStatus,
   listConsentCategories,
+  listRules,
   probeApi,
   checkSelectors,
 } from '../planner/account.js'
@@ -29,10 +37,16 @@ const statusEl = document.getElementById('status')
 
 let controller = null
 let pendingQuestion = null // a `needs_input` result awaiting an answer
-let lastCategories = [] // account state, for the state-aware flow being built on this
+// Both left undefined, not [] — "we never managed to read it" has to stay
+// distinguishable from "we read it and it was empty". Onboarding branches on
+// the second, and an unread account defaulting to [] would tell someone with a
+// full library to go build a duplicate.
+let lastCategories
+let lastRules
 let lastAccountState = null // e.g. whether this user gets Quick Audit or Advanced
 let lastGoal = ''
 let lastPlan = null // so the screen can be re-checked without asking again
+let onboardingAnswer = null // what they said they came for, from a previous run
 
 /* ---------------------------------------------------------------------- *
  * Rendering
@@ -60,6 +74,60 @@ function addSuggestions(items) {
   }
   transcript.appendChild(wrap)
   transcript.scrollTop = transcript.scrollHeight
+}
+
+/**
+ * The first-run card. One question, four answers, and picking one goes straight
+ * into the normal ask() path — the option's `goal` is fed in exactly as if it
+ * had been typed, so there is no second planning route to keep in sync.
+ */
+function renderOnboarding(options) {
+  const card = document.createElement('div')
+  card.className = 'onboarding'
+
+  const question = document.createElement('h2')
+  question.textContent = ONBOARDING_QUESTION
+  card.appendChild(question)
+
+  for (const option of options) {
+    const button = document.createElement('button')
+    button.className = 'onboarding-option'
+
+    const label = document.createElement('span')
+    label.className = 'onboarding-label'
+    label.textContent = option.label
+    button.appendChild(label)
+
+    const hint = document.createElement('span')
+    hint.className = 'onboarding-hint'
+    hint.textContent = option.hint
+    button.appendChild(hint)
+
+    button.addEventListener('click', () => chooseOnboarding(option, card))
+    card.appendChild(button)
+  }
+
+  transcript.appendChild(card)
+  transcript.scrollTop = transcript.scrollHeight
+}
+
+async function chooseOnboarding(option, card) {
+  // Remove rather than disable: it has done its job, and leaving four dead
+  // buttons above the answer makes the panel look stuck.
+  card.remove()
+  onboardingAnswer = await saveOnboarding(option)
+
+  if (!option.goal) {
+    addMessage(
+      'assistant',
+      "Here's what I can walk you through. Pick one, or just tell me what you're after.",
+    )
+    addSuggestions(biasSuggestions(suggestions(), onboardingAnswer))
+    return
+  }
+
+  if (option.retargeted) addMessage('note', `Starting here because ${option.hint}.`)
+  await ask(option.goal)
 }
 
 function renderPlan(result) {
@@ -232,10 +300,13 @@ function handleResult(result) {
 
 /** Whatever we managed to read from the account, for state-aware recipes. */
 function accountContext() {
-  if (!lastCategories.length && !lastAccountState) return { account: null }
+  if (!lastCategories && !lastRules && !lastAccountState) return { account: null }
   return {
     account: {
+      // Passed through as-is, undefined included. Recipes already treat a
+      // missing list as "can't see the account" rather than "it's empty".
       consentCategories: lastCategories,
+      rules: lastRules,
       // moonbeam branches the audit-creation flow on this, so the plan has to
       // as well — otherwise half the steps point at a modal that never opens.
       advancedAuditMode: lastAccountState?.advancedAuditMode !== false,
@@ -292,6 +363,13 @@ async function showAccount() {
     return
   }
 
+  // Read alongside the categories, and awaited — onboarding retargets on
+  // whether the rule library is empty, so a result that lands after the card
+  // has rendered is no result at all. Failure leaves it undefined, which
+  // onboarding reads as unknown rather than empty.
+  const [rules] = await Promise.allSettled([listRules()])
+  if (rules.status === 'fulfilled') lastRules = rules.value
+
   try {
     const categories = await listConsentCategories()
     const line =
@@ -340,10 +418,32 @@ checkScreenButton.addEventListener('click', () => checkCurrentScreen(checkScreen
 
 controller = mountInput(document.getElementById('input-root'), { onSubmit: ask })
 
-addMessage(
-  'system',
-  "Tell me what you want to set up and I'll work out the steps, then walk you through them.",
-)
-addSuggestions(suggestions())
-showMode()
-showAccount()
+/**
+ * Boot order matters here.
+ *
+ * The account read comes before the greeting because the first-run question
+ * retargets on what the account already contains, and a card that renders first
+ * and corrects itself second is worse than one that waits. The account read is
+ * a single API call against a tab that is already open, so the wait is short —
+ * and if it fails, onboarding falls back to its un-retargeted options rather
+ * than blocking.
+ */
+async function boot() {
+  showMode()
+  await showAccount()
+
+  onboardingAnswer = await loadOnboarding()
+
+  if (!onboardingAnswer) {
+    renderOnboarding(onboardingOptions(accountContext()))
+    return
+  }
+
+  addMessage(
+    'system',
+    "Tell me what you want to set up and I'll work out the steps, then walk you through them.",
+  )
+  addSuggestions(biasSuggestions(suggestions(), onboardingAnswer))
+}
+
+boot()

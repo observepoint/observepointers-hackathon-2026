@@ -19,6 +19,9 @@
 
 const API = {
   consentCategories: '/api/v3/consent-categories/library',
+  // rules.service.ts: `environment.apiUploadAppUrl + 'rules'`, i.e. the plain v2
+  // collection. We only ever need the count, so no filters and no v3 paging.
+  rules: '/api/v2/rules',
 }
 
 function send(message) {
@@ -171,6 +174,20 @@ export async function listConsentCategories({ name } = {}) {
     // "which region did they mean?" is the one they keep choosing.
     auditCount: row.auditCount ?? 0,
   }))
+}
+
+/**
+ * The rule library, for one question only: is it empty?
+ *
+ * Onboarding retargets "are my tags firing?" from "attach rules to an audit" to
+ * "create your first rule" when there is nothing to attach. Getting that wrong
+ * in either direction is a bad first impression, so we read it rather than
+ * assume it — and callers must treat a throw as "unknown", not as "empty".
+ */
+export async function listRules() {
+  const data = await get(API.rules)
+  const rows = Array.isArray(data) ? data : (data?.rules ?? data?.items ?? data?.data ?? [])
+  return rows.map(row => ({ id: row.id, name: cleanText(row.name) || `Rule ${row.id}` }))
 }
 
 /**
