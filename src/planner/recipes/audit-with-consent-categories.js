@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  usesAdvancedPath,
+  auditParameters,
+} from './_audit-standards.js'
 import { rankForSite } from '../account.js'
 import { hostFrom } from '../naming.js'
 
@@ -218,7 +223,7 @@ export default {
 
   buildSteps(context) {
     const start = [
-      ...stepsToStandardsTab({ advanced: context.account?.advancedAuditMode !== false }),
+      ...stepsToStandardsTab({ advanced: usesAdvancedPath(context.account) }),
       openSubTab,
     ]
     const matches = matchesFor(context)

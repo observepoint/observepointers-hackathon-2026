@@ -17,9 +17,20 @@
  * empty report is a worse failure than telling them to wait.
  *
  * SELECTORS
- *   Solid — QuickCreateOpSelectors (alert/alert-quick-create/…constants.ts)
- *   Weak  — .create-new-alert-icon, the bell on op-widget-bell. Class only, no
- *           op-selector; and there is one bell per widget, so which one matters.
+ *   Solid — QuickCreateOpSelectors (alert/alert-quick-create/…constants.ts).
+ *           Note where each one sits: createName is on the mat-form-field (so
+ *           descend to input), createEmails on a wrapping div (descend), and
+ *           createCustomizeLink and saveBtn on the <button> itself (do NOT
+ *           descend — saveBtn goes through op-modal-footer-buttons, which binds
+ *           [attr.op-selector] straight onto the button).
+ *   Weak  — .create-new-alert-icon, the bell on op-widget-bell. Two problems:
+ *           there is one bell per widget so which one matters, and the class
+ *           only exists when that widget has NO alerts yet
+ *           (op-widget-bell.component.html gates it on `alerts.length === 0`).
+ *           With one or more alerts the bell becomes a menu trigger and the
+ *           create action moves to .create-new-alert-button inside it. The step
+ *           says so, and its completion waits on the dialog rather than on the
+ *           menu, so either route finishes it.
  */
 import { alertNameFrom } from '../naming.js'
 
@@ -87,13 +98,17 @@ export default {
       say: 'Open the audit you want to watch.',
       targetFallback: { description: 'the audit card on the Data Sources page' },
       unverified: true,
-      completion: { type: 'url_change', value: '/audit' },
+      // Reports live at /audit/:auditId/run/:runId/report/… (AuditReportUrlBuilders),
+      // so the trailing slash keeps this from matching anything else.
+      completion: { type: 'url_change', value: '/audit/' },
     },
     {
       id: 's2',
       actor: 'user',
       targetSelector: '.create-new-alert-icon',
-      say: 'Click the bell on the widget showing "{{parameters.conditionSummary}}".',
+      say:
+        'Click the bell on the widget showing "{{parameters.conditionSummary}}". ' +
+        'If it opens a list of existing alerts, pick "Create New Alert" at the bottom.',
       targetFallback: { description: 'the bell icon on the report widget' },
       unverified: true,
       completion: {
@@ -128,9 +143,12 @@ export default {
     {
       id: 's6',
       actor: 'user',
-      targetSelector: '[op-selector="quick-create-save-button"] button',
-      say: 'Save it.',
-      targetFallback: { description: 'the save button in the alert quick-create dialog' },
+      // No ` button` descend: op-modal-footer-buttons puts op-selector on the
+      // <button> itself, so the old selector was looking for a button inside a
+      // button and would never resolve.
+      targetSelector: '[op-selector="quick-create-save-button"]',
+      say: 'Create it. The label says Create, not Save.',
+      targetFallback: { description: 'the Create button in the alert quick-create dialog' },
       completion: { type: 'dom_event', value: 'click' },
     },
   ],

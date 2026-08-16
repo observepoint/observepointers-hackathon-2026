@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  usesAdvancedPath,
+  auditParameters,
+} from './_audit-standards.js'
 
 /**
  * Attach existing alerts to an audit, so a run that goes out of compliance
@@ -43,7 +48,7 @@ export default {
     'alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.',
   buildSteps(context) {
     return [
-      ...stepsToStandardsTab({ advanced: context.account?.advancedAuditMode !== false }),
+      ...stepsToStandardsTab({ advanced: usesAdvancedPath(context.account) }),
       {
         id: 's7',
         actor: 'user',

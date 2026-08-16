@@ -21,14 +21,14 @@
       "unverified": true,
       "completion": {
         "type": "url_change",
-        "value": "/audit"
+        "value": "/audit/"
       }
     },
     {
       "id": "s2",
       "actor": "user",
       "targetSelector": ".create-new-alert-icon",
-      "say": "Click the bell on the widget showing \"the purchase tag stops firing\".",
+      "say": "Click the bell on the widget showing \"the purchase tag stops firing\". If it opens a list of existing alerts, pick \"Create New Alert\" at the bottom.",
       "targetFallback": {
         "description": "the bell icon on the report widget"
       },
@@ -80,10 +80,10 @@
     {
       "id": "s6",
       "actor": "user",
-      "targetSelector": "[op-selector=\"quick-create-save-button\"] button",
-      "say": "Save it.",
+      "targetSelector": "[op-selector=\"quick-create-save-button\"]",
+      "say": "Create it. The label says Create, not Save.",
       "targetFallback": {
-        "description": "the save button in the alert quick-create dialog"
+        "description": "the Create button in the alert quick-create dialog"
       },
       "completion": {
         "type": "dom_event",

@@ -563,17 +563,95 @@ check(
   'quick path still switches to advanced for Standards',
   quickPath.some(sel => sel.includes('web-audit-switch-to-advanced-setup')),
 )
+// Quick Audit is not a subset of the editor: one field, no name control. The
+// old expectation here (audit-setup-name) was for a control that does not exist
+// on that screen.
 check(
-  'quick path uses the quick-setup name field',
-  quickPath.some(sel => sel.includes('audit-setup-name')),
+  'quick path fills the one field Quick Audit actually has',
+  quickPath.includes('#scanURL'),
+  quickPath.join(' | '),
+)
+check(
+  'quick path does not look for a name field that is not there',
+  !quickPath.some(sel => sel.includes('audit-setup-name')),
+)
+check(
+  'quick path renames after the switch, since Quick Audit auto-names',
+  (() => {
+    const steps = quickPath
+    return (
+      steps.indexOf('audit-editor-header-name-control input') >
+      steps.findIndex(s => s.includes('web-audit-switch-to-advanced-setup'))
+    )
+  })(),
+  quickPath.join(' | '),
 )
 check(
   'both reach the Standards tab',
   [advancedPath, quickPath].every(p => p.some(sel => sel.includes('audit-tab-standards'))),
 )
 check(
+  'both emit the same step ids, so recipes can append either way',
+  (() => {
+    const ids = advanced =>
+      buildPlan(
+        RECIPE,
+        'g',
+        { siteUrl: 'gap.com' },
+        { account: { consentCategories: [], advancedAuditMode: advanced } },
+      ).plan.steps.map(s => s.id)
+    return ids(true).join() === ids(false).join()
+  })(),
+)
+check(
   'defaults to advanced when the account state is unknown',
   pathFor(undefined).join() === advancedPath.join(),
+)
+
+// The branch moonbeam actually uses is an OR, and the half we were missing is
+// the one that matters: a brand-new account gets Quick Audit even with advanced
+// mode on, and a brand-new account is who this product is for.
+const pathForAccount = account =>
+  buildPlan(RECIPE, 'g', { siteUrl: 'gap.com' }, { account }).plan.steps.map(s => s.targetSelector)
+
+check(
+  'an account with no audits gets Quick Audit even with advanced mode on',
+  pathForAccount({ consentCategories: [], webAudits: [], advancedAuditMode: true }).includes(
+    '#scanURL',
+  ),
+)
+check(
+  'an account with audits keeps the advanced editor',
+  !pathForAccount({
+    consentCategories: [],
+    webAudits: [{ id: 1 }],
+    advancedAuditMode: true,
+  }).includes('#scanURL'),
+)
+check(
+  'an unread audit list is not an empty one',
+  !pathForAccount({ consentCategories: [], advancedAuditMode: true }).includes('#scanURL'),
+)
+check(
+  'advanced mode off still wins even when audits exist',
+  pathForAccount({
+    consentCategories: [],
+    webAudits: [{ id: 1 }],
+    advancedAuditMode: false,
+  }).includes('#scanURL'),
+)
+
+// Honest warnings: the quick path is source-accurate but nobody has swept it.
+const quickWarnings = buildPlan(
+  RECIPE,
+  'g',
+  { siteUrl: 'gap.com' },
+  { account: { consentCategories: [], webAudits: [], advancedAuditMode: true } },
+).warnings
+check(
+  'the unswept quick path says so',
+  quickWarnings.some(w => w.includes('unverified')),
+  quickWarnings.join(' | '),
 )
 
 /* ---------------------------------------------------------------- */
@@ -609,6 +687,34 @@ check(
 check(
   'the advanced audit path now has no unverified steps',
   consentSteps.every(s => !s.unverified),
+)
+
+/* ---------------------------------------------------------------- */
+section('op-selector descends only where the wrapper needs it')
+
+// Half the bugs in this library have been one word of ` input` / ` button` too
+// many or too few. Where the attribute sits is a per-template fact, so pin the
+// ones we have read.
+const everySelector = allKnownSelectors().map(s => s.selector)
+const has = needle => everySelector.some(s => s === needle)
+
+for (const [selector, why] of [
+  ['[op-selector="quick-create-name"] input', 'on mat-form-field, descend'],
+  ['[op-selector="quick-create-emails"] input', 'on a wrapping div, descend'],
+  ['[op-selector="cc-name"]', 'bound onto the <input matInput> itself'],
+  ['[op-selector="quick-create-customize-link"]', 'bound onto the <button> itself'],
+  ['[op-selector="rule-setup-save-btn"]', 'op-modal-footer-buttons binds onto <button>'],
+  ['[op-selector="quick-create-save-button"]', 'op-modal-footer-buttons binds onto <button>'],
+]) {
+  check(`${selector} — ${why}`, has(selector), everySelector.join('\n   '))
+}
+
+// The specific regression: a footer button selector with a ` button` descend
+// looks for a button inside a button and never resolves.
+check(
+  'no footer-button selector descends into a child button',
+  !everySelector.some(s => /(save-btn|save-button|continue-btn)"\] button/.test(s)),
+  everySelector.filter(s => /btn|button/.test(s)).join(' | '),
 )
 
 /* ---------------------------------------------------------------- */

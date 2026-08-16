@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  usesAdvancedPath,
+  auditParameters,
+} from './_audit-standards.js'
 
 /**
  * The bread-and-butter flow: an audit that checks tag & variable rules on every
@@ -38,7 +43,7 @@ export default {
     'your Tag & Variable Rules under Standards so every run reports pass/fail against them.',
   buildSteps(context) {
     return [
-      ...stepsToStandardsTab({ advanced: context.account?.advancedAuditMode !== false }),
+      ...stepsToStandardsTab({ advanced: usesAdvancedPath(context.account) }),
       {
         id: 's7',
         actor: 'user',

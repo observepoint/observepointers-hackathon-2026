@@ -134,17 +134,20 @@ system puts it on `op-text-input` / `op-button` / `op-textarea`, so:
 
 ```
 fill_text  →  [op-selector="audit-setup-starting-urls-textarea"] textarea
-click      →  [op-selector="quick-create-save-button"] button
+fill_text  →  [op-selector="quick-create-name"] input
 ```
 
 `op-button` binds Angular's `(buttonClick)`, so a synthetic click on the host
-element does nothing. You have to hit the real `button` inside. Recipes already
-follow this.
+element does nothing. You have to hit the real `button` inside.
 
-Two exceptions worth knowing, because they look like mistakes: `cc-name` and the
-modal footer buttons (`rule-setup-save-btn`, `cc-create-save`) put the attribute
-**on the control itself**, so those selectors need no descend. Check the template
-rather than assuming either way.
+**But it is not a rule — it's a per-template fact, and guessing costs you a
+selector that never resolves.** Every modal footer button
+(`quick-create-save-button`, `rule-setup-save-btn`, `cc-create-save`) goes
+through `op-modal-footer-buttons`, which binds `[attr.op-selector]` **straight
+onto the `<button>`**; so does `cc-name`, onto its `<input matInput>`. A trailing
+` button` on those looks for a button inside a button. That was a real bug in
+this repo. There's a test pinning the ones we've read; add to it when you read
+another.
 
 **3. The audit flows never change the URL.** Both audit setup screens are modals
 (`audit-setup-modal` → `op-audit-editor`), so every completion in those recipes
@@ -193,7 +196,7 @@ section header is clicked.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 167 checks, no API key, no network
+npm test           # 182 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -317,12 +320,24 @@ that the selector was read out of moonbeam source. Every step still marked
 
 ### Three things the recipes encode that aren't obvious
 
-**Advanced is the default, not Quick Audit.** `storage.service.ts` returns
-`value ?? true`, so Create → Web Audit opens the advanced editor unless the user
-explicitly turned advanced mode off (or the account has no data sources at all).
-An earlier version of this file claimed the opposite and the recipes were built
-backwards; a live sweep settled it. Both paths are built, branching on
-`account.advancedAuditMode`.
+**Create → Audit opens one of two different screens, and it's an OR.**
+
+```ts
+// manage-cards.component.ts::createWebAudit()
+totalCardsCount === 0 || useAdvancedAuditMode() !== true ? openQuickAudit() : openAdvancedAudit()
+```
+
+Advanced mode defaults to **on** (`storage.service.ts` returns `value ?? true`),
+so an established account goes straight to the editor. But an account with **no
+data sources gets Quick Audit regardless** — which is every account on day one,
+i.e. exactly who this is for. `usesAdvancedPath(account)` mirrors both halves;
+the side panel reads the audit count to feed it.
+
+Quick Audit is **not a subset** of the editor. It has one text field
+(`#scanURL`) and no name control at all, auto-naming the audit
+`"Simple Audit - <date>"`. So its path fills the URL, switches to advanced, and
+renames there — `switchToAdvancedView()` carries the URL across. Both branches
+emit `s1..s6` so recipes can append `s7` onward either way.
 
 **Alerts watch report widget data, not websites.** So an alert is only meaningful
 once the audit has run at least once, and the sane way to create one is the bell
@@ -336,12 +351,20 @@ is empty.
 
 ## Known gaps
 
-- **`alert_from_report` and the two starters aren't fully swept.** `alert_from_report`
-  needs an audit with a completed run to reach its report widgets; the starters
-  need someone to walk the rule and consent-category builders. Stand on the
-  screen and press **Check screen** — that's what clears an `unverified` flag.
-- **The Quick Audit branch is untested**, since advanced is the default. It's
-  reachable by turning advanced mode off in user settings.
+- **`alert_from_report`, the two starters and the Quick Audit branch aren't
+  swept.** All are source-accurate — every selector was read out of the template
+  that renders it — but nobody has watched them resolve. `alert_from_report`
+  needs an audit with a completed run; the starters need someone to walk the
+  rule and consent-category builders; Quick Audit needs an account with no data
+  sources, or advanced mode turned off in user settings. Stand on the screen and
+  press **Check screen** — that's what clears an `unverified` flag.
+- **The report bell is per-widget, and we can't say which one.**
+  `.create-new-alert-icon` matches the first bell in the document, not the
+  widget the user cares about, and it only exists on widgets with no alerts yet
+  — otherwise the bell opens a menu and the create action is inside it. The step
+  tells the user both things and waits on the dialog, so either route completes,
+  but Part 3's pointer will land on the wrong widget until it can resolve
+  `targetFallback.description` against nearby text.
 - **No page awareness.** The planner doesn't know what screen the user is on, so
   it always plans from the start. If Part 2/3 feed the current route back in,
   recipes could skip steps the user has already done.

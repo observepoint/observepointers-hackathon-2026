@@ -28,6 +28,7 @@ import {
   status as accountStatus,
   listConsentCategories,
   listRules,
+  listWebAudits,
   probeApi,
   checkSelectors,
 } from '../planner/account.js'
@@ -43,6 +44,7 @@ let pendingQuestion = null // a `needs_input` result awaiting an answer
 // full library to go build a duplicate.
 let lastCategories
 let lastRules
+let lastWebAudits
 let lastAccountState = null // e.g. whether this user gets Quick Audit or Advanced
 let lastGoal = ''
 let lastPlan = null // so the screen can be re-checked without asking again
@@ -300,15 +302,18 @@ function handleResult(result) {
 
 /** Whatever we managed to read from the account, for state-aware recipes. */
 function accountContext() {
-  if (!lastCategories && !lastRules && !lastAccountState) return { account: null }
+  if (!lastCategories && !lastRules && !lastWebAudits && !lastAccountState) return { account: null }
   return {
     account: {
       // Passed through as-is, undefined included. Recipes already treat a
       // missing list as "can't see the account" rather than "it's empty".
       consentCategories: lastCategories,
       rules: lastRules,
-      // moonbeam branches the audit-creation flow on this, so the plan has to
-      // as well — otherwise half the steps point at a modal that never opens.
+      // moonbeam branches the audit-creation flow on BOTH of these — an account
+      // with no data sources gets Quick Audit even with advanced mode on — so
+      // the plan has to as well, or half the steps point at a modal that never
+      // opens. See usesAdvancedPath().
+      webAudits: lastWebAudits,
       advancedAuditMode: lastAccountState?.advancedAuditMode !== false,
     },
   }
@@ -364,11 +369,13 @@ async function showAccount() {
   }
 
   // Read alongside the categories, and awaited — onboarding retargets on
-  // whether the rule library is empty, so a result that lands after the card
-  // has rendered is no result at all. Failure leaves it undefined, which
-  // onboarding reads as unknown rather than empty.
-  const [rules] = await Promise.allSettled([listRules()])
+  // whether the rule library is empty and the audit recipes branch on whether
+  // any audits exist, so a result that lands after the card has rendered is no
+  // result at all. Either failing leaves it undefined, which both readers treat
+  // as unknown rather than empty.
+  const [rules, audits] = await Promise.allSettled([listRules(), listWebAudits()])
   if (rules.status === 'fulfilled') lastRules = rules.value
+  if (audits.status === 'fulfilled') lastWebAudits = audits.value
 
   try {
     const categories = await listConsentCategories()

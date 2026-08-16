@@ -10,13 +10,20 @@
  *    "Create New". So the three recipes share almost everything, which is why
  *    the path lives here rather than being copy-pasted and drifting.
  *
- * 2. "Create → Web Audit" does NOT open the editor with the Standards tab.
- *    manage-cards.component.ts::createWebAudit() opens **Quick Audit** unless
- *    the user has previously opted into advanced mode — and a new user, which
- *    is exactly who this product is for, always lands in Quick Audit. Quick
- *    Audit has no Standards at all. Every one of these recipes therefore has to
- *    walk through "Switch to Advanced Setup" or it dead-ends on a screen that
- *    does not contain what we promised.
+ * 2. "Create → Web Audit" opens one of two different screens.
+ *    manage-cards.component.ts::createWebAudit():
+ *        totalCardsCount === 0 || useAdvancedAuditMode() !== true
+ *          ? openQuickAudit() : openAdvancedAudit()
+ *    Advanced mode defaults to ON (storage.service.ts returns `value ?? true`),
+ *    so an established account goes straight to the editor — but an account
+ *    with no data sources gets Quick Audit regardless, and that is exactly the
+ *    account this product exists for. Both paths are built; see
+ *    stepsToStandardsTab's `advanced` flag.
+ *
+ *    Quick Audit is not a subset of the editor. It has one text field
+ *    (#scanURL) and no name field, auto-naming the audit "Simple Audit -
+ *    <date>". So its path fills the URL, switches to advanced, and renames
+ *    there. Both switchToAdvancedView() and the editor carry the URL over.
  *
  * 3. Both are modals, not routes (`audit-setup-modal` → `op-audit-editor`).
  *    Nothing here changes the URL, so `completion` is dom_mutation / dom_event
@@ -50,10 +57,18 @@ export const SELECTORS = {
   createDataSource: '#guide-create-new-data-src-btn',
   createWebAudit: '#guide-create-new-audit',
 
-  // Quick Audit — only opens when advanced mode is explicitly off, or the
-  // account has no data sources yet.
-  quickAuditModal: '.audit-setup-modal',
-  quickAuditName: '[op-selector="audit-setup-name"] input',
+  // Quick Audit. A different screen from the advanced editor, not a subset of
+  // it — it has ONE text field and no name field at all:
+  //   quick-audit.component.html   <input #urlInput id="scanURL" …>
+  //   quick-audit.component.ts:124 auditHeaderValue.name = DEFAULT_AUDIT_NAME
+  // so the audit is auto-named "Simple Audit - <date>" and gets renamed after
+  // the switch to advanced. An earlier version of this file pointed at
+  // audit-setup-name and audit-setup-starting-urls-textarea here; neither
+  // exists on this screen.
+  quickAuditModal: '.audit-setup-modal', // panelClass, audit-modal.helpers.ts:21
+  quickAuditUrl: '#scanURL',
+  // opSelector on the footer button itself (op-modal-footer-buttons binds
+  // [attr.op-selector] straight onto <button>), so no descend.
   switchToAdvanced: '[op-selector="web-audit-switch-to-advanced-setup"]',
 
   // Advanced editor. The name lives in a header component with no op-selector,
@@ -112,22 +127,28 @@ export const SELECTORS = {
 }
 
 /**
- * Data Sources → name the audit → switch to Advanced → Standards tab.
- * Every one of the three recipes starts here, so fixing this path fixes all
- * three at once.
+ * Data Sources → create the audit → Standards tab. All three audit recipes
+ * start here, so fixing this path fixes all three at once.
+ *
+ * The advanced branch is VERIFIED against a running local moonbeam
+ * (2026-08-16). The quick branch is source-accurate but unswept — it needs an
+ * account with no data sources, or advanced mode turned off in user settings.
+ *
+ * Both branches emit s1..s6, so callers can append s7 onward either way.
  */
 /**
- * VERIFIED against a running local moonbeam (2026-08-16) unless marked
- * otherwise. `unverified` now means "nobody has seen this resolve", not "we
- * guessed" — the checker settles the difference.
+ * Which of the two screens will Create → Audit open?
  *
- * Which path runs is moonbeam's decision, not ours:
- * manage-cards.component.ts::createWebAudit() opens Quick Audit only when the
- * account has no data sources OR advanced mode is explicitly off. Since
- * storage.service.ts returns `value ?? true`, **advanced is the default** —
- * which is what a live check showed, and the reverse of what this file
- * originally claimed.
+ * Mirrors manage-cards.component.ts::createWebAudit() exactly, including the
+ * order of the two conditions. Both signals are optional: a list we never read
+ * cannot say "empty", so an unread account falls through to the advanced
+ * default, which is what an established account gets.
  */
+export function usesAdvancedPath(account) {
+  if (Array.isArray(account?.webAudits) && account.webAudits.length === 0) return false
+  return account?.advancedAuditMode !== false
+}
+
 export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
   const id = n => `s${startId + n}`
 
@@ -197,34 +218,42 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
     ]
   }
 
+  // Quick Audit's only field is the URL, and switchToAdvancedView() passes it
+  // through (`url: quickAuditForm.get('scanURL')?.value`), so it is worth
+  // filling before the switch rather than after. The name is not worth filling
+  // here — there is nowhere to put it — so it lands on the advanced header,
+  // replacing the auto-generated "Simple Audit - <date>".
   return [
     ...entry,
     {
       id: id(2),
       actor: 'ai',
-      targetSelector: SELECTORS.quickAuditName,
-      say: 'Naming it "{{parameters.auditName}}".',
-      action: { type: 'fill_text', value: '{{parameters.auditName}}' },
+      targetSelector: SELECTORS.quickAuditUrl,
+      say: 'Setting the site to scan.',
+      action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
+      unverified: true,
       completion: { type: 'dom_event', value: 'change' },
     },
     {
       id: id(3),
-      actor: 'ai',
-      targetSelector: SELECTORS.startingUrls,
-      say: 'Setting the starting URL.',
-      action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
-      completion: { type: 'dom_event', value: 'change' },
-    },
-    {
-      id: id(4),
       actor: 'user',
       targetSelector: SELECTORS.switchToAdvanced,
-      say: 'Switch to Advanced Setup — Standards lives there.',
+      say: 'Switch to Advanced Setup — Quick Audit has no Standards section.',
+      targetFallback: { description: 'the "Switch to Advanced Setup" button' },
+      unverified: true,
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
         targetSelector: SELECTORS.auditEditor,
       },
+    },
+    {
+      id: id(4),
+      actor: 'ai',
+      targetSelector: SELECTORS.advancedName,
+      say: 'Renaming it "{{parameters.auditName}}" — it came through as "Simple Audit".',
+      action: { type: 'fill_text', value: '{{parameters.auditName}}' },
+      completion: { type: 'dom_event', value: 'change' },
     },
     {
       id: id(5),
