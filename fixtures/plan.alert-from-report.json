@@ -12,7 +12,7 @@
     {
       "id": "s1",
       "actor": "user",
-      "navContext": "/data-sources",
+      "navContext": "/sources",
       "targetSelector": "[op-selector=\"cards-view-container\"]",
       "say": "Open the audit you want to watch.",
       "targetFallback": {

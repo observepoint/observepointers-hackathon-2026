@@ -28,15 +28,22 @@ listen with the same code.
 real recipes, committed to the repo:
 
 ```
-fixtures/plan.audit-with-rules.json               10 steps
-fixtures/plan.audit-with-consent-categories.json  10 steps
-fixtures/plan.audit-with-alerts.json              10 steps
-fixtures/plan.alert-from-report.json               6 steps
-fixtures/plan.create-api-key.json                  7 steps, fully verified
+fixtures/plan.audit-with-rules.json                    10 steps, all selectors confirmed
+fixtures/plan.audit-with-consent-categories.json        9 steps, all selectors confirmed
+fixtures/plan.audit-with-alerts.json                   10 steps, all selectors confirmed
+fixtures/plan.alert-from-report.json                    6 steps
+fixtures/plan.create-first-rule.json                    6 steps
+fixtures/plan.create-first-consent-category.json        7 steps
 ```
 
-Start with `plan.create-api-key.json` — it's the only one whose selectors are all
-confirmed, so if your runtime fails on it the bug is yours, not the plan's.
+Start with `plan.audit-with-rules.json` — every selector in it has been confirmed
+against a running moonbeam, so if your runtime fails on it the bug is yours, not
+the plan's.
+
+Then try `plan.create-first-rule.json`. It's the only shape that navigates the
+sidebar and lands on a **real route**, so it's the one that exercises
+`url_change` completions — the audit flows are all modals and never change the
+URL, so a runtime built against those alone has never run that path.
 
 `npm run fixtures` regenerates them. They come out of the live recipes on
 purpose — a hand-written fixture drifts the moment someone edits the schema, and
@@ -99,7 +106,7 @@ Guarantees the validator enforces, so you don't have to defend against them:
   has a `value`, a `dom_mutation` always has a `targetSelector` and `condition`.
   Without this a step gives your runtime nothing to wait on and stalls silently.
 - **No `{{placeholders}}` survive.** An unsubstituted one would have you typing
-  `{{parameters.keyName}}` into a real form.
+  `{{parameters.auditName}}` into a real form.
 
 ### One additive field
 
@@ -113,7 +120,7 @@ problem.
 
 ## For Part 3: what I found in moonbeam
 
-Four things that will save you a day each.
+Six things that will save you a day each.
 
 **1. Half the `op-selector`s are invisible to grep.** A literal search for
 `op-selector="` finds ~163. But many are bound dynamically —
@@ -126,31 +133,58 @@ better than it first looks.
 system puts it on `op-text-input` / `op-button` / `op-textarea`, so:
 
 ```
-fill_text  →  [op-selector="api-keys-create-name"] input
-click      →  [op-selector="api-keys-create-submit"] button
+fill_text  →  [op-selector="audit-setup-starting-urls-textarea"] textarea
+click      →  [op-selector="quick-create-save-button"] button
 ```
 
 `op-button` binds Angular's `(buttonClick)`, so a synthetic click on the host
 element does nothing. You have to hit the real `button` inside. Recipes already
 follow this.
 
+Two exceptions worth knowing, because they look like mistakes: `cc-name` and the
+modal footer buttons (`rule-setup-save-btn`, `cc-create-save`) put the attribute
+**on the control itself**, so those selectors need no descend. Check the template
+rather than assuming either way.
+
 **3. The audit flows never change the URL.** Both audit setup screens are modals
 (`audit-setup-modal` → `op-audit-editor`), so every completion in those recipes
 is `dom_mutation` / `dom_event`. If you build URL-watching first, it will look
 like the walkthrough hangs.
 
-**4. Tabs can carry `op-selector` but currently don't.** `op-tabs` renders
-`[attr.op-selector]="tab.opSelector"`, and neither the audit editor nor the
-standards tab sets it. **Adding it is 4 lines and makes all three audit recipes
-verified** — worth doing before demo day:
+**4. Tabs can carry `op-selector`, and mostly don't yet.** `op-tabs` renders
+`[attr.op-selector]="tab.opSelector"`, but neither the audit editor nor the
+standards tab sets it upstream. There's a local moonbeam patch adding five of
+them (`audit-tab-standards`, `standards-tab-rules` /
+`-consent-categories` / `-alerts`) — worth landing, but **the extension no longer
+depends on it.**
 
-```ts
-// audit-editor.component.ts  generateTabs()
-{ name: …, path: EAuditTab.standards, opSelector: 'audit-tab-standards' }
+The two main editor tabs fall back positionally:
 
-// standards-tab.component.ts  this.tabs = [ … ]
-opSelector: 'standards-tab-rules' | 'standards-tab-consent-categories' | 'standards-tab-alerts'
 ```
+[op-selector="audit-tab-standards"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)
+```
+
+That is safe **only because both halves resolve to the same element** — the
+attribute sits on the very tab the position picks, and `generateTabs()` emits all
+six tabs unconditionally. Don't copy the pattern blind; a comma list whose halves
+can match different elements is a coin toss.
+
+The three **standards sub-tabs** deliberately get no positional fallback.
+`createTabs()` builds them with `unshift()` and drops Consent Categories when
+privacy is off, so no index is right in both layouts — a fallback there would
+point confidently at the wrong tab, which is worse than pointing at nothing. They
+rely on `targetFallback.description` instead.
+
+**5. Sidebar links are the most reliable selectors in the app.** Every one comes
+from `opLinkSelectorMap` in `sidebar.constants.ts` — `sidebar-standards`,
+`sidebar-standards-rules`, `sidebar-standards-consent-categories`,
+`sidebar-alerts`, and ~70 more. Nothing positional, no patch needed. Note that
+Standards is a `mat-expansion-panel`: its children aren't in the DOM until the
+section header is clicked.
+
+**6. `op-button-2021` binds `aria-label` from `labelText`.** So a button with no
+`op-selector` is still reachable semantically — `button[aria-label="Create Rule"]`
+— which beats an `:nth-child` every time.
 
 ---
 
@@ -159,7 +193,7 @@ opSelector: 'standards-tab-rules' | 'standards-tab-consent-categories' | 'standa
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 59 checks, no API key, no network
+npm test           # 167 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 

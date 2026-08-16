@@ -32,15 +32,29 @@ const cases = [
     goal: 'add alerts to my audit for https://www.example.com',
   },
   { file: 'plan.alert-from-report.json', goal: 'alert me when the purchase tag stops firing' },
+  // The empty-account pair. Worth shipping as fixtures because they are the
+  // only plans that walk the sidebar and land on a real route, so a runtime
+  // that only ever tested against the audit modals hasn't exercised
+  // `url_change` completions at all.
+  {
+    file: 'plan.create-first-rule.json',
+    goal: 'create a rule',
+    answer: 'Google Analytics fires on every page',
+  },
+  {
+    file: 'plan.create-first-consent-category.json',
+    goal: 'create a consent category',
+    answer: 'https://www.example.com',
+  },
 ]
 
-for (const { file, goal } of cases) {
+for (const { file, goal, answer } of cases) {
   let result = await createPlan(goal, { forceLocal: true })
 
   // Some goals legitimately need one more answer; bake in a sample so the
   // fixture is a finished plan rather than a half-state.
   if (result.status === 'needs_input') {
-    result = answerAndRetry(result, 'the purchase tag stops firing', goal)
+    result = answerAndRetry(result, answer ?? 'the purchase tag stops firing', goal)
   }
 
   if (result.status !== 'plan') {

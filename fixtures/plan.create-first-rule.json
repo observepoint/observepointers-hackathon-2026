@@ -1,0 +1,93 @@
+{
+  "recipeId": "create_first_rule",
+  "goal": "create a rule",
+  "summary": "A rule defines what \"correct\" looks like; an audit is what checks it — so this comes first. We'll open the rule library and start one called \"Google Analytics fires on every page\". You set the conditions, since only you know which tags and values count as right.",
+  "executionMode": "templated",
+  "parameters": {
+    "ruleSubject": "Google Analytics fires on every page",
+    "ruleName": "Google Analytics fires on every page"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"sidebar-standards\"]",
+      "say": "Open Standards in the sidebar.",
+      "targetFallback": {
+        "description": "the \"Standards\" section in the left sidebar"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"sidebar-standards-rules\"]"
+      }
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
+      "say": "Go to Tag & Variable Rules.",
+      "targetFallback": {
+        "description": "the \"Tag & Variable Rules\" link under Standards"
+      },
+      "completion": {
+        "type": "url_change",
+        "value": "/rules/library"
+      }
+    },
+    {
+      "id": "s3",
+      "actor": "user",
+      "targetSelector": "button[aria-label=\"Create Rule\"]",
+      "say": "Start a new rule.",
+      "targetFallback": {
+        "description": "the \"Create Rule\" button"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "rule-name-control input"
+      }
+    },
+    {
+      "id": "s4",
+      "actor": "ai",
+      "targetSelector": "rule-name-control input",
+      "say": "Naming it \"Google Analytics fires on every page\".",
+      "action": {
+        "type": "fill_text",
+        "value": "Google Analytics fires on every page"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      }
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-setup-continue-btn\"]",
+      "say": "Pick the tag and the condition that make this rule pass, then continue.",
+      "targetFallback": {
+        "description": "the Next button in the rule builder"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-setup-save-btn\"]",
+      "say": "Save it. It's now attachable to any audit under Standards.",
+      "targetFallback": {
+        "description": "the Save button in the rule builder"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    }
+  ]
+}
