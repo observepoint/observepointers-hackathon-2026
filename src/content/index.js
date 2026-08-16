@@ -48,6 +48,24 @@ function readAuthToken() {
   return null
 }
 
+/**
+ * moonbeam's own branch: manage-cards.component.ts::createWebAudit() opens the
+ * ADVANCED editor unless this is explicitly false (or the account has no data
+ * sources at all). storage.service.ts returns `value ?? true`, so advanced is
+ * the default — the opposite of what the recipe originally assumed.
+ */
+function usesAdvancedAuditMode() {
+  for (const key of ['useAdvancedAuditMode.other', 'useAdvancedAuditMode']) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw !== null) return JSON.parse(raw) !== false
+    } catch {
+      /* try the next key */
+    }
+  }
+  return true // matches storage.service.ts's own default
+}
+
 function environmentName() {
   if (/^(localhost|127\.0\.0\.1)$/i.test(location.hostname)) return 'local'
   return location.hostname.includes('observepointstaging') ? 'staging' : 'production'
@@ -210,6 +228,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       signedIn: Boolean(readAuthToken()),
       environment: environmentName(),
       hostname: location.hostname,
+      advancedAuditMode: usesAdvancedAuditMode(),
     })
     return false
   }

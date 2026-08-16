@@ -30,6 +30,7 @@ const statusEl = document.getElementById('status')
 let controller = null
 let pendingQuestion = null // a `needs_input` result awaiting an answer
 let lastCategories = [] // account state, for the state-aware flow being built on this
+let lastAccountState = null // e.g. whether this user gets Quick Audit or Advanced
 let lastGoal = ''
 let lastPlan = null // so the screen can be re-checked without asking again
 
@@ -231,7 +232,15 @@ function handleResult(result) {
 
 /** Whatever we managed to read from the account, for state-aware recipes. */
 function accountContext() {
-  return { account: lastCategories.length ? { consentCategories: lastCategories } : null }
+  if (!lastCategories.length && !lastAccountState) return { account: null }
+  return {
+    account: {
+      consentCategories: lastCategories,
+      // moonbeam branches the audit-creation flow on this, so the plan has to
+      // as well — otherwise half the steps point at a modal that never opens.
+      advancedAuditMode: lastAccountState?.advancedAuditMode !== false,
+    },
+  }
 }
 
 async function ask(text) {
@@ -266,6 +275,7 @@ async function ask(text) {
  */
 async function showAccount() {
   const state = await accountStatus()
+  lastAccountState = state
 
   if (!state.connected) {
     const why = {

@@ -38,7 +38,12 @@ export async function status() {
   const reply = await send({ type: 'OP_ACCOUNT_STATUS' })
 
   if (reply.ok) {
-    return { connected: true, environment: reply.environment, hostname: reply.hostname }
+    return {
+      connected: true,
+      environment: reply.environment,
+      hostname: reply.hostname,
+      advancedAuditMode: reply.advancedAuditMode !== false,
+    }
   }
 
   // Distinguish the three reasons, because the fix is different for each and

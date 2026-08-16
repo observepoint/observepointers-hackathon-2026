@@ -11,7 +11,7 @@
     {
       "id": "s1",
       "actor": "user",
-      "navContext": "/data-sources",
+      "navContext": "/sources",
       "targetSelector": "#guide-create-new-data-src-btn",
       "say": "Open the create menu.",
       "targetFallback": {
@@ -26,20 +26,20 @@
       "id": "s2",
       "actor": "user",
       "targetSelector": "#guide-create-new-audit",
-      "say": "Choose Web Audit.",
+      "say": "Choose Audit.",
       "targetFallback": {
-        "description": "the Web Audit item in the create menu"
+        "description": "the Audit item in the create menu"
       },
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
-        "targetSelector": ".audit-setup-modal"
+        "targetSelector": ".op-audit-editor"
       }
     },
     {
       "id": "s3",
       "actor": "ai",
-      "targetSelector": "[op-selector=\"audit-setup-name\"] input",
+      "targetSelector": "audit-editor-header-name-control input",
       "say": "Naming it \"example.com — Alerting\".",
       "action": {
         "type": "fill_text",
@@ -52,6 +52,20 @@
     },
     {
       "id": "s4",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"audit-tab-url-sources\"]",
+      "say": "Open URL Sources.",
+      "targetFallback": {
+        "description": "the URL Sources tab in the audit editor"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    },
+    {
+      "id": "s5",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
       "say": "Setting the starting URL.",
@@ -65,17 +79,6 @@
       }
     },
     {
-      "id": "s5",
-      "actor": "user",
-      "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
-      "say": "Switch to Advanced Setup — Standards lives there.",
-      "completion": {
-        "type": "dom_mutation",
-        "condition": "visible",
-        "targetSelector": ".op-audit-editor"
-      }
-    },
-    {
       "id": "s6",
       "actor": "user",
       "targetSelector": "[op-selector=\"audit-tab-standards\"]",
@@ -83,7 +86,6 @@
       "targetFallback": {
         "description": "the Standards tab in the audit editor"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
@@ -98,7 +100,6 @@
       "targetFallback": {
         "description": "the \"Alerts\" sub-tab"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
@@ -113,7 +114,6 @@
       "targetFallback": {
         "description": "the search box in the alerts picker"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_event",
         "value": "input"
@@ -127,7 +127,6 @@
       "targetFallback": {
         "description": "the \"add all\" button in the alerts picker"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_event",
         "value": "click"
@@ -141,7 +140,6 @@
       "targetFallback": {
         "description": "the \"Create New Alert\" button"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_event",
         "value": "click"

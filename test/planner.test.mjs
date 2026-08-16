@@ -166,13 +166,6 @@ for (const recipe of RECIPES) {
 /* ---------------------------------------------------------------- */
 section('intent matching (no model)')
 
-const apiKeyMatch = matchDeterministic('I need an API key for our CI pipeline')
-check(
-  'matches the API key recipe',
-  apiKeyMatch.recipeId === 'create_api_key',
-  JSON.stringify(apiKeyMatch),
-)
-
 const alertMatch = matchDeterministic('alert me when the purchase tag stops firing')
 check(
   'matches the alert recipe',
@@ -212,10 +205,12 @@ check(
   JSON.stringify(matchDeterministic('add alerts to my audit')),
 )
 
-const quoted = matchDeterministic('create an api key called "Deploy bot"')
+const quoted = matchDeterministic(
+  'set up an audit called "Q3 tag sweep" for gap.com that checks my rules',
+)
 check(
   'extracts a quoted name',
-  quoted.parameters.keyName === 'Deploy bot',
+  quoted.parameters.auditName === 'Q3 tag sweep',
   JSON.stringify(quoted.parameters),
 )
 
@@ -229,17 +224,22 @@ check(
 /* ---------------------------------------------------------------- */
 section('createPlan end to end (forceLocal)')
 
-const planned = await createPlan('I need an API key called "CI bot"', { forceLocal: true })
+const planned = await createPlan(
+  'set up an audit called "CI sweep" for gap.com that checks my tag rules',
+  {
+    forceLocal: true,
+  },
+)
 check('returns a plan', planned.status === 'plan', JSON.stringify(planned).slice(0, 200))
 check('plan is schema-valid', planned.status === 'plan' && validatePlan(planned.plan).length === 0)
-check('carries the goal through', planned.plan?.goal.includes('CI bot'))
-check('uses the extracted parameter', planned.plan?.parameters.keyName === 'CI bot')
+check('carries the goal through', planned.plan?.goal.includes('CI sweep'))
+check('uses the extracted parameter', planned.plan?.parameters.auditName === 'CI sweep')
 check(
   'substitutes the parameter into a step',
-  planned.plan?.steps.some(s => s.action?.value === 'CI bot'),
+  planned.plan?.steps.some(s => s.action?.value === 'CI sweep'),
   JSON.stringify(planned.plan?.steps.map(s => s.action)),
 )
-check('applies a declared default', planned.plan?.parameters.keyDescription?.length > 0)
+check('applies a derived default', planned.plan?.parameters.siteUrl === 'https://gap.com')
 check('marks execution mode', planned.plan?.executionMode === 'templated')
 
 // No URL anywhere in the goal, and siteUrl is required — it must ask rather
@@ -516,10 +516,54 @@ check(
 check('survives nonsense', normalizeSiteUrl('') === '')
 
 /* ---------------------------------------------------------------- */
+section('quick vs advanced audit creation')
+
+// moonbeam's createWebAudit() opens the ADVANCED editor unless advanced mode is
+// explicitly off, and storage.service returns `value ?? true` — so advanced is
+// the default. A live check confirmed it. Planning the Quick Audit path for
+// everyone pointed half the steps at a modal that never opens.
+const pathFor = advanced =>
+  buildPlan(
+    RECIPE,
+    'g',
+    { siteUrl: 'gap.com' },
+    { account: { consentCategories: [], advancedAuditMode: advanced } },
+  ).plan.steps.map(s => s.targetSelector)
+
+const advancedPath = pathFor(true)
+const quickPath = pathFor(false)
+
+check(
+  'advanced path never waits on the Quick Audit modal',
+  !advancedPath.some(sel => sel.includes('web-audit-switch-to-advanced-setup')),
+  advancedPath.join(' | '),
+)
+check(
+  'advanced path names the audit in the editor header',
+  advancedPath.some(sel => sel.startsWith('audit-editor-header-name-control')),
+)
+check(
+  'quick path still switches to advanced for Standards',
+  quickPath.some(sel => sel.includes('web-audit-switch-to-advanced-setup')),
+)
+check(
+  'quick path uses the quick-setup name field',
+  quickPath.some(sel => sel.includes('audit-setup-name')),
+)
+check(
+  'both reach the Standards tab',
+  [advancedPath, quickPath].every(p => p.some(sel => sel.includes('audit-tab-standards'))),
+)
+check(
+  'defaults to advanced when the account state is unknown',
+  pathFor(undefined).join() === advancedPath.join(),
+)
+
+/* ---------------------------------------------------------------- */
 section('selector catalogue')
 
 const catalogue = allKnownSelectors()
-check('collects selectors from every recipe', catalogue.length > 20, String(catalogue.length))
+check('collects selectors from every recipe', catalogue.length > 15, String(catalogue.length))
 check(
   'deduplicates the shared audit path',
   new Set(catalogue.map(c => c.selector)).size === catalogue.length,

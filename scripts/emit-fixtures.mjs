@@ -32,7 +32,6 @@ const cases = [
     goal: 'add alerts to my audit for https://www.example.com',
   },
   { file: 'plan.alert-from-report.json', goal: 'alert me when the purchase tag stops firing' },
-  { file: 'plan.create-api-key.json', goal: "I need an API key called 'CI bot'" },
 ]
 
 for (const { file, goal } of cases) {

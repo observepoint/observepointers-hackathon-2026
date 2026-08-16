@@ -16,7 +16,6 @@
  *   audit_with_consent_categories  Consent Categories (privacy)
  *   audit_with_alerts              Alerts
  *   alert_from_report              "alert me when X breaks", from a report widget
- *   create_api_key                 kept as the one fully verified reference
  *
  * The first three share `_audit-standards.js`, because in moonbeam they are
  * three sub-tabs of one screen rather than three separate flows.
@@ -34,14 +33,12 @@ import auditWithRules from './audit-with-rules.js'
 import auditWithConsentCategories from './audit-with-consent-categories.js'
 import auditWithAlerts from './audit-with-alerts.js'
 import alertFromReport from './alert-from-report.js'
-import createApiKey from './create-api-key.js'
 
 export const RECIPES = [
   auditWithRules,
   auditWithConsentCategories,
   auditWithAlerts,
   alertFromReport,
-  createApiKey,
 ]
 
 export const getRecipe = id => RECIPES.find(r => r.id === id) || null

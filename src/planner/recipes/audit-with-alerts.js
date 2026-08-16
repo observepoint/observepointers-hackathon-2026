@@ -41,47 +41,45 @@ export default {
   summaryTemplate:
     'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and attach ' +
     'alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.',
-  steps: [
-    ...stepsToStandardsTab(),
-    {
-      id: 's7',
-      actor: 'user',
-      targetSelector: SELECTORS.subTabAlerts,
-      say: 'Open Alerts.',
-      targetFallback: { description: 'the "Alerts" sub-tab' },
-      unverified: true,
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: '.op-standards-selector',
+  buildSteps(context) {
+    return [
+      ...stepsToStandardsTab({ advanced: context.account?.advancedAuditMode !== false }),
+      {
+        id: 's7',
+        actor: 'user',
+        targetSelector: SELECTORS.subTabAlerts,
+        say: 'Open Alerts.',
+        targetFallback: { description: 'the "Alerts" sub-tab' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: '.op-standards-selector',
+        },
       },
-    },
-    {
-      id: 's8',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsSearch,
-      say: 'Search your alerts.',
-      targetFallback: { description: 'the search box in the alerts picker' },
-      unverified: true,
-      completion: { type: 'dom_event', value: 'input' },
-    },
-    {
-      id: 's9',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsAddAll,
-      say: 'Attach them.',
-      targetFallback: { description: 'the "add all" button in the alerts picker' },
-      unverified: true,
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    {
-      id: 's10',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsCreateNew,
-      say: 'Nothing fits? Create an alert here instead.',
-      targetFallback: { description: 'the "Create New Alert" button' },
-      unverified: true,
-      completion: { type: 'dom_event', value: 'click' },
-    },
-  ],
+      {
+        id: 's8',
+        actor: 'user',
+        targetSelector: SELECTORS.standardsSearch,
+        say: 'Search your alerts.',
+        targetFallback: { description: 'the search box in the alerts picker' },
+        completion: { type: 'dom_event', value: 'input' },
+      },
+      {
+        id: 's9',
+        actor: 'user',
+        targetSelector: SELECTORS.standardsAddAll,
+        say: 'Attach them.',
+        targetFallback: { description: 'the "add all" button in the alerts picker' },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+      {
+        id: 's10',
+        actor: 'user',
+        targetSelector: SELECTORS.standardsCreateNew,
+        say: 'Nothing fits? Create an alert here instead.',
+        targetFallback: { description: 'the "Create New Alert" button' },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+    ]
+  },
 }

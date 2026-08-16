@@ -33,7 +33,6 @@ const openSubTab = {
   targetSelector: SELECTORS.subTabConsentCategories,
   say: 'Open Consent Categories.',
   targetFallback: { description: 'the "Consent Categories" sub-tab' },
-  unverified: true,
   completion: {
     type: 'dom_mutation',
     condition: 'visible',
@@ -49,7 +48,6 @@ const genericEnding = [
     targetSelector: SELECTORS.standardsSearch,
     say: 'Search for the category that covers this site.',
     targetFallback: { description: 'the search box in the consent categories picker' },
-    unverified: true,
     completion: { type: 'dom_event', value: 'input' },
   },
   {
@@ -58,7 +56,6 @@ const genericEnding = [
     targetSelector: SELECTORS.standardsAddAll,
     say: 'Attach it.',
     targetFallback: { description: 'the "add all" button in the consent categories picker' },
-    unverified: true,
     completion: { type: 'dom_event', value: 'click' },
   },
 ]
@@ -213,7 +210,10 @@ export default {
   },
 
   buildSteps(context) {
-    const start = [...stepsToStandardsTab(), openSubTab]
+    const start = [
+      ...stepsToStandardsTab({ advanced: context.account?.advancedAuditMode !== false }),
+      openSubTab,
+    ]
     const matches = matchesFor(context)
 
     if (matches === null) return [...start, ...genericEnding]
@@ -252,7 +252,6 @@ export default {
               ? `Filtering to ${stated.term}.`
               : `Filtering to ${host} — ${matches.length} categories, one per geography.`,
           action: { type: 'fill_text', value: searchFor },
-          unverified: true,
           completion: { type: 'dom_event', value: 'input' },
         },
         {
@@ -261,7 +260,6 @@ export default {
           targetSelector: SELECTORS.standardsAddAll,
           say: attachSay,
           targetFallback: { description: 'the consent categories picker' },
-          unverified: true,
           completion: { type: 'dom_event', value: 'click' },
         },
       ]
@@ -279,7 +277,6 @@ export default {
           targetSelector: SELECTORS.standardsSearch,
           say: `Searching for "${best.name}".`,
           action: { type: 'fill_text', value: best.name },
-          unverified: true,
           completion: { type: 'dom_event', value: 'input' },
         },
         {
@@ -290,7 +287,6 @@ export default {
             ? `Attach it. ${others} other categor${others === 1 ? 'y' : 'ies'} also cover this site if you need more than one.`
             : 'Attach it.',
           targetFallback: { description: 'the "add all" button in the consent categories picker' },
-          unverified: true,
           completion: { type: 'dom_event', value: 'click' },
         },
       ]
@@ -305,7 +301,6 @@ export default {
         targetSelector: SELECTORS.standardsCreateNew,
         say: 'None of your categories cover this site, so create one here.',
         targetFallback: { description: 'the "Create New Consent Category" button' },
-        unverified: true,
         completion: { type: 'dom_event', value: 'click' },
       },
       {
@@ -314,7 +309,6 @@ export default {
         targetSelector: SELECTORS.standardsCreateNew,
         say: 'Name it after the site, then list the tags and cookies you approve of.',
         targetFallback: { description: 'the new consent category form' },
-        unverified: true,
         completion: { type: 'dom_event', value: 'change' },
       },
     ]

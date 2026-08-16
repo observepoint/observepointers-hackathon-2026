@@ -50,11 +50,18 @@ export const SELECTORS = {
   createDataSource: '#guide-create-new-data-src-btn',
   createWebAudit: '#guide-create-new-audit',
 
-  // Quick Audit (the default landing modal)
+  // Quick Audit — only opens when advanced mode is explicitly off, or the
+  // account has no data sources yet.
   quickAuditModal: '.audit-setup-modal',
-  auditName: '[op-selector="audit-setup-name"] input',
-  startingUrls: '[op-selector="audit-setup-starting-urls-textarea"] textarea',
+  quickAuditName: '[op-selector="audit-setup-name"] input',
   switchToAdvanced: '[op-selector="web-audit-switch-to-advanced-setup"]',
+
+  // Advanced editor. The name lives in a header component with no op-selector,
+  // so we target the component's own element name — Angular renders it as a
+  // real tag, which makes it as stable as an attribute would be.
+  advancedName: 'audit-editor-header-name-control input',
+  urlSourcesTab: '[op-selector="audit-tab-url-sources"]',
+  startingUrls: '[op-selector="audit-setup-starting-urls-textarea"] textarea',
 
   // Advanced audit editor
   auditEditor: '.op-audit-editor',
@@ -90,14 +97,26 @@ export const SELECTORS = {
  * Every one of the three recipes starts here, so fixing this path fixes all
  * three at once.
  */
-export function stepsToStandardsTab({ startId = 1 } = {}) {
+/**
+ * VERIFIED against a running local moonbeam (2026-08-16) unless marked
+ * otherwise. `unverified` now means "nobody has seen this resolve", not "we
+ * guessed" — the checker settles the difference.
+ *
+ * Which path runs is moonbeam's decision, not ours:
+ * manage-cards.component.ts::createWebAudit() opens Quick Audit only when the
+ * account has no data sources OR advanced mode is explicitly off. Since
+ * storage.service.ts returns `value ?? true`, **advanced is the default** —
+ * which is what a live check showed, and the reverse of what this file
+ * originally claimed.
+ */
+export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
   const id = n => `s${startId + n}`
 
-  return [
+  const entry = [
     {
       id: id(0),
       actor: 'user',
-      navContext: '/data-sources',
+      navContext: '/sources',
       targetSelector: SELECTORS.createDataSource,
       say: 'Open the create menu.',
       targetFallback: { description: 'the Create button on the Data Sources page' },
@@ -107,18 +126,65 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
       id: id(1),
       actor: 'user',
       targetSelector: SELECTORS.createWebAudit,
-      say: 'Choose Web Audit.',
-      targetFallback: { description: 'the Web Audit item in the create menu' },
+      say: 'Choose Audit.',
+      targetFallback: { description: 'the Audit item in the create menu' },
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
-        targetSelector: SELECTORS.quickAuditModal,
+        targetSelector: advanced ? SELECTORS.auditEditor : SELECTORS.quickAuditModal,
       },
     },
+  ]
+
+  if (advanced) {
+    return [
+      ...entry,
+      {
+        id: id(2),
+        actor: 'ai',
+        targetSelector: SELECTORS.advancedName,
+        say: 'Naming it "{{parameters.auditName}}".',
+        action: { type: 'fill_text', value: '{{parameters.auditName}}' },
+        completion: { type: 'dom_event', value: 'change' },
+      },
+      {
+        id: id(3),
+        actor: 'user',
+        targetSelector: SELECTORS.urlSourcesTab,
+        say: 'Open URL Sources.',
+        targetFallback: { description: 'the URL Sources tab in the audit editor' },
+        unverified: true,
+        completion: { type: 'dom_event', value: 'click' },
+      },
+      {
+        id: id(4),
+        actor: 'ai',
+        targetSelector: SELECTORS.startingUrls,
+        say: 'Setting the starting URL.',
+        action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
+        completion: { type: 'dom_event', value: 'change' },
+      },
+      {
+        id: id(5),
+        actor: 'user',
+        targetSelector: SELECTORS.standardsTab,
+        say: 'Open the Standards tab.',
+        targetFallback: { description: 'the Standards tab in the audit editor' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: '.op-tabs.sub-menu',
+        },
+      },
+    ]
+  }
+
+  return [
+    ...entry,
     {
       id: id(2),
       actor: 'ai',
-      targetSelector: SELECTORS.auditName,
+      targetSelector: SELECTORS.quickAuditName,
       say: 'Naming it "{{parameters.auditName}}".',
       action: { type: 'fill_text', value: '{{parameters.auditName}}' },
       completion: { type: 'dom_event', value: 'change' },
@@ -148,7 +214,6 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
       targetSelector: SELECTORS.standardsTab,
       say: 'Open the Standards tab.',
       targetFallback: { description: 'the Standards tab in the audit editor' },
-      unverified: true,
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
