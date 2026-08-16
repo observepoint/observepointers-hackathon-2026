@@ -71,6 +71,24 @@ function matchesFor(context) {
   return rankForSite(categories, hostFrom(context.parameters?.siteUrl)).filter(c => c.matches)
 }
 
+/**
+ * A CMP-synced account doesn't have "the category for this site" — it has one
+ * per geography. A real account here returned 79 matches for observepoint.com,
+ * all OneTrust cookie groups differing only by region.
+ *
+ * Naming the first is arbitrary and quietly wrong: attaching the Alberta group
+ * to an audit run from the EU reports the wrong approvals. When we spot that
+ * shape, we say so and let the user pick the geo, rather than pretending to
+ * know which one they meant.
+ */
+const GEO_FANOUT_THRESHOLD = 3
+
+function isGeoFanout(matches) {
+  if (matches.length <= GEO_FANOUT_THRESHOLD) return false
+  const domains = new Set(matches.map(c => c.cmpDomain).filter(Boolean))
+  return domains.size === 1 && matches.filter(c => c.cmpDomain).length === matches.length
+}
+
 export default {
   id: 'audit_with_consent_categories',
   title: 'Audit a site for consent / privacy compliance',
@@ -112,6 +130,14 @@ export default {
 
     if (matches === null) return generic
 
+    if (isGeoFanout(matches)) {
+      return (
+        `Your account has ${matches.length} consent categories for {{parameters.siteUrl}} — they're CMP ` +
+        "groups, one per geography. We'll create the audit and open the picker filtered to this site so you " +
+        'can choose the region you audit from; attaching the wrong one reports the wrong approvals.'
+      )
+    }
+
     if (matches.length) {
       const names = matches
         .slice(0, 2)
@@ -135,6 +161,33 @@ export default {
     const matches = matchesFor(context)
 
     if (matches === null) return [...start, ...genericEnding]
+
+    // Many geo variants: filter the picker to the site, then it's the user's
+    // call. Searching a specific name here would silently choose for them.
+    if (isGeoFanout(matches)) {
+      const host = hostFrom(context.parameters?.siteUrl)
+      return [
+        ...start,
+        {
+          id: 's8',
+          actor: 'ai',
+          targetSelector: SELECTORS.standardsSearch,
+          say: `Filtering to ${host} — ${matches.length} categories, one per geography.`,
+          action: { type: 'fill_text', value: host },
+          unverified: true,
+          completion: { type: 'dom_event', value: 'input' },
+        },
+        {
+          id: 's9',
+          actor: 'user',
+          targetSelector: SELECTORS.standardsAddAll,
+          say: 'Pick the region you audit from and attach it — not all of them.',
+          targetFallback: { description: 'the consent categories picker' },
+          unverified: true,
+          completion: { type: 'dom_event', value: 'click' },
+        },
+      ]
+    }
 
     if (matches.length) {
       const [best] = matches

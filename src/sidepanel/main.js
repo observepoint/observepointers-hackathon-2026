@@ -108,7 +108,7 @@ async function runSelectorCheck(plan, card, button) {
   button.textContent = 'Checking…'
 
   try {
-    const results = await checkSelectors(plan.steps)
+    const { results, page } = await checkSelectors(plan.steps)
     const output = document.createElement('pre')
     output.className = 'selector-check'
     output.textContent = results
@@ -124,10 +124,13 @@ async function runSelectorCheck(plan, card, button) {
         return `${mark} ${r.id}  ${note}\n   ${r.selector}`
       })
       .join('\n')
+    // Lead with where we looked. Without it, "0/9" reads as "the selectors are
+    // wrong" when the real answer is almost always "wrong screen".
+    output.textContent = `on ${page?.screen ?? 'unknown'} — ${page?.url ?? ''}\n\n${output.textContent}`
     card.appendChild(output)
 
     const visible = results.filter(r => r.visible).length
-    button.textContent = `${visible}/${results.length} resolve here`
+    button.textContent = `${visible}/${results.length} resolve on ${page?.screen ?? 'this screen'}`
   } catch (error) {
     button.textContent = `Check failed: ${error.message}`
   }

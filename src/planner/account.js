@@ -119,6 +119,8 @@ function cleanText(value) {
     .replace(/&amp;/gi, '&')
     .replace(/&[a-z]+;/gi, ' ')
     .replace(/\s+/g, ' ')
+    .replace(/^[\s|\-–—]+/, '')
+    .replace(/[\s|\-–—]+$/, '')
     .trim()
 }
 
@@ -208,5 +210,5 @@ export async function checkSelectors(steps) {
     selectors: steps.map(s => ({ id: s.id, selector: s.targetSelector })),
   })
   if (!reply.ok) throw new Error(reply.error || 'could not check selectors')
-  return reply.results
+  return { results: reply.results, page: reply.page }
 }

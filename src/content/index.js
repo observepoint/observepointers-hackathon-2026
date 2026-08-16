@@ -97,6 +97,31 @@ function authContext() {
  * different things: hidden usually means "right selector, wrong screen — you
  * haven't opened the modal yet", while missing means the selector is wrong.
  */
+/**
+ * Landmarks that identify which screen you're on. "0/9 resolve" is useless on
+ * its own — the first question is always "where was it looking?", and the
+ * answer is nearly always "a different screen than the step expects".
+ */
+const LANDMARKS = [
+  ['the audit editor (advanced)', '.op-audit-editor'],
+  ['the standards picker', '.op-standards-selector'],
+  ['Quick Audit', '.audit-setup-modal'],
+  ['Data Sources', '[op-selector="cards-view-container"]'],
+  ['API Keys', '[op-selector="api-keys-panel"]'],
+  ['an ObservePoint page', '[op-selector="top-nav-bar"]'],
+]
+
+function describeScreen() {
+  for (const [label, selector] of LANDMARKS) {
+    try {
+      if (document.querySelector(selector)) return label
+    } catch {
+      /* ignore */
+    }
+  }
+  return 'an unrecognised page'
+}
+
 function checkSelectors(selectors) {
   return selectors.map(({ id, selector }) => {
     let element
@@ -165,7 +190,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === 'OP_CHECK_SELECTORS') {
-    sendResponse({ ok: true, results: checkSelectors(message.selectors ?? []) })
+    sendResponse({
+      ok: true,
+      results: checkSelectors(message.selectors ?? []),
+      page: { url: location.href, screen: describeScreen() },
+    })
     return false
   }
 

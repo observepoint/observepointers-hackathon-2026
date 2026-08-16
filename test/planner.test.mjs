@@ -421,6 +421,32 @@ check(
   new Set(unmatched.plan.steps.map(s => s.id)).size === unmatched.plan.steps.length,
 )
 
+// A CMP-synced account has one category per geography, not one per site. The
+// real account returned 79 for observepoint.com; naming the first is arbitrary
+// and attaches the wrong region's approvals.
+const geoFanout = withAccount(
+  ['Canada', 'Canada, Alberta', 'USA, Alabama', 'USA, California', 'Germany'].map((geo, i) => ({
+    id: 10 + i,
+    name: `Analytical Cookies | gap.com | ${geo}`,
+    labels: [],
+    cmpDomain: 'gap.com',
+  })),
+)
+check('spots a CMP geo fan-out', geoFanout.plan.summary.includes('one per geography'))
+check(
+  'filters the picker by site instead of naming one arbitrarily',
+  geoFanout.plan.steps.some(s => s.action?.value === 'gap.com'),
+  JSON.stringify(geoFanout.plan.steps.map(s => s.action?.value)),
+)
+check(
+  'tells the user to pick rather than attach everything',
+  geoFanout.plan.steps.some(s => s.say.includes('not all of them')),
+)
+check(
+  'still names a single match when there is no fan-out',
+  matched.plan.steps.some(s => s.action?.value === 'Gap EU — GDPR'),
+)
+
 /* ---------------------------------------------------------------- */
 section('url normalisation')
 
