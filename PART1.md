@@ -263,14 +263,14 @@ the tests use.
 Focused on audits and the three things you attach to them, plus the two starter
 flows for an account that has none of them yet.
 
-| Recipe                          | Covers                                         | Verified            |
-| ------------------------------- | ---------------------------------------------- | ------------------- |
-| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps        |
-| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps        |
-| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps        |
-| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 2 steps unswept  |
-| `create_first_rule`             | Fill an empty rule library                     | ⚠️ needs a sweep    |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 3 steps unswept  |
+| Recipe                          | Covers                                         | Verified           |
+| ------------------------------- | ---------------------------------------------- | ------------------ |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps       |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps       |
+| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps       |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 2 steps unswept |
+| `create_first_rule`             | Fill an empty rule library                     | ⚠️ needs a sweep   |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 3 steps unswept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
