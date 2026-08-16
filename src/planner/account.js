@@ -158,6 +158,12 @@ export async function listConsentCategories({ name } = {}) {
     // The strongest signal available: for CMP-synced categories this is
     // literally the domain the group belongs to.
     cmpDomain: row.cmpData?.oneTrustCookieGroupDomain ?? null,
+    // The geography this CMP group applies to ("Canada, Alberta"). It is the
+    // only thing distinguishing 79 otherwise-identical categories, so it is the
+    // field that decides which one is correct.
+    cmpGeo: cleanText(row.cmpData?.oneTrustCookieGroupGeo) || null,
+    // How many audits already use this category. The best available answer to
+    // "which region did they mean?" is the one they keep choosing.
     auditCount: row.auditCount ?? 0,
   }))
 }

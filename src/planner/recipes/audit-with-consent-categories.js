@@ -89,6 +89,51 @@ function isGeoFanout(matches) {
   return domains.size === 1 && matches.filter(c => c.cmpDomain).length === matches.length
 }
 
+/**
+ * Did the user name a region? "…observepoint.com for Canada" should pick the
+ * Canadian groups rather than shrugging at 79 of them.
+ *
+ * Matched against the geo strings in *their* account rather than a hardcoded
+ * country list. Their CMP already knows how it spells its regions, so borrowing
+ * that vocabulary handles "Alberta", "EMEA" or any internal naming we'd never
+ * have thought to enumerate — and it can't match a region they don't have.
+ */
+function narrowByStatedGeo(matches, goal) {
+  const said = String(goal ?? '').toLowerCase()
+  if (!said) return null
+
+  // Any comma-separated part counts: "Canada, Alberta" should answer to both
+  // "for Canada" and "for Alberta".
+  // Keep the account's own casing — echoing "canada" back at someone who wrote
+  // "Canada" looks like a bug even though the match is right.
+  const partsOf = category =>
+    (category.cmpGeo ?? '')
+      .split(',')
+      .map(part => part.trim())
+      .filter(part => part.length > 2)
+
+  let term = null
+  const hits = matches.filter(category => {
+    const hit = partsOf(category).find(part => said.includes(part.toLowerCase()))
+    // Keep the most specific term the user actually said, so a follow-up search
+    // filters to what they asked for rather than to the whole domain.
+    if (hit && (!term || hit.length > term.length)) term = hit
+    return Boolean(hit)
+  })
+
+  return hits.length && hits.length < matches.length ? { hits, term } : null
+}
+
+/**
+ * No region stated. The most useful suggestion isn't a guess at geography — it
+ * is what their other audits already use. `auditCount` comes back on every
+ * category, so the account answers the question itself.
+ */
+function mostUsed(matches) {
+  const ranked = [...matches].sort((a, b) => (b.auditCount ?? 0) - (a.auditCount ?? 0))
+  return ranked[0]?.auditCount > 0 ? ranked[0] : null
+}
+
 export default {
   id: 'audit_with_consent_categories',
   title: 'Audit a site for consent / privacy compliance',
@@ -131,10 +176,21 @@ export default {
     if (matches === null) return generic
 
     if (isGeoFanout(matches)) {
+      const stated = narrowByStatedGeo(matches, context.goal)
+      if (stated) {
+        return stated.hits.length === 1
+          ? `"${stated.hits[0].name}" is the one matching the region you named, so we'll create the audit and attach that.`
+          : `${stated.hits.length} of your ${matches.length} categories for {{parameters.siteUrl}} cover ${stated.term} — we'll filter the picker to those so you can pick between them.`
+      }
+
+      const popular = mostUsed(matches)
+      const suggestion = popular
+        ? ` Your other audits mostly use "${popular.name}" (${popular.auditCount} of them), so that's the safe default unless you audit from elsewhere.`
+        : ' Tell me the region and I can pick it for you.'
+
       return (
-        `Your account has ${matches.length} consent categories for {{parameters.siteUrl}} — they're CMP ` +
-        "groups, one per geography. We'll create the audit and open the picker filtered to this site so you " +
-        'can choose the region you audit from; attaching the wrong one reports the wrong approvals.'
+        `Your account has ${matches.length} consent categories for {{parameters.siteUrl}} — CMP groups, one ` +
+        `per geography, so there's no single right answer.${suggestion}`
       )
     }
 
@@ -166,14 +222,36 @@ export default {
     // call. Searching a specific name here would silently choose for them.
     if (isGeoFanout(matches)) {
       const host = hostFrom(context.parameters?.siteUrl)
+      const stated = narrowByStatedGeo(matches, context.goal)
+
+      // A named region is an instruction; the most-used one is only a
+      // suggestion. Never offer the second when we have the first — that reads
+      // as the assistant contradicting itself.
+      const exact = stated?.hits.length === 1 ? stated.hits[0] : null
+      const popular = stated ? null : mostUsed(matches)
+
+      const searchFor = exact ? exact.name : (stated?.term ?? host)
+
+      let attachSay
+      if (exact) attachSay = 'Attach it.'
+      else if (stated) {
+        attachSay = `Pick which of the ${stated.hits.length} ${stated.term} categories you want and attach it.`
+      } else if (popular) {
+        attachSay = `Pick your region and attach it — not all of them. "${popular.name}" is what your other audits use.`
+      } else attachSay = 'Pick the region you audit from and attach it — not all of them.'
+
       return [
         ...start,
         {
           id: 's8',
           actor: 'ai',
           targetSelector: SELECTORS.standardsSearch,
-          say: `Filtering to ${host} — ${matches.length} categories, one per geography.`,
-          action: { type: 'fill_text', value: host },
+          say: exact
+            ? `Searching for "${exact.name}".`
+            : stated
+              ? `Filtering to ${stated.term}.`
+              : `Filtering to ${host} — ${matches.length} categories, one per geography.`,
+          action: { type: 'fill_text', value: searchFor },
           unverified: true,
           completion: { type: 'dom_event', value: 'input' },
         },
@@ -181,7 +259,7 @@ export default {
           id: 's9',
           actor: 'user',
           targetSelector: SELECTORS.standardsAddAll,
-          say: 'Pick the region you audit from and attach it — not all of them.',
+          say: attachSay,
           targetFallback: { description: 'the consent categories picker' },
           unverified: true,
           completion: { type: 'dom_event', value: 'click' },

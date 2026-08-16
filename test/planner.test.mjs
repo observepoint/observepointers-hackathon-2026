@@ -447,6 +447,60 @@ check(
   matched.plan.steps.some(s => s.action?.value === 'Gap EU — GDPR'),
 )
 
+// Stating a region should narrow the fan-out rather than being ignored.
+const geoAccount = ['Canada', 'Canada, Alberta', 'USA, Alabama', 'USA, California', 'Germany'].map(
+  (geo, i) => ({
+    id: 20 + i,
+    name: `Analytical Cookies | gap.com | ${geo}`,
+    labels: [],
+    cmpDomain: 'gap.com',
+    cmpGeo: geo,
+    auditCount: geo === 'USA, California' ? 12 : 1,
+  }),
+)
+const planFor = goal =>
+  buildPlan(RECIPE, goal, { siteUrl: 'gap.com' }, { account: { consentCategories: geoAccount } })
+
+const alberta = planFor('privacy audit for gap.com for Alberta')
+check(
+  'a uniquely named region resolves to one category',
+  alberta.plan.summary.includes('Canada, Alberta'),
+)
+check(
+  'and gets searched for by name',
+  alberta.plan.steps.some(
+    s => s.action?.value === 'Analytical Cookies | gap.com | Canada, Alberta',
+  ),
+)
+
+const canada = planFor('privacy audit for gap.com for Canada')
+check('a region covering several narrows to those', canada.plan.summary.includes('2 of your 5'))
+check(
+  'filters the picker by the region, not the domain',
+  canada.plan.steps.some(s => s.action?.value === 'Canada'),
+)
+check(
+  "keeps the account's own casing",
+  canada.plan.summary.includes('Canada') && !canada.plan.summary.includes('canada'),
+)
+// Contradicting yourself is worse than saying less: never push the popular
+// choice at someone who already named a different region.
+check(
+  'does not suggest the most-used one once a region is named',
+  !canada.plan.steps.some(s => s.say.includes('USA, California')),
+  JSON.stringify(canada.plan.steps.map(s => s.say)),
+)
+
+const noGeo = planFor('privacy audit for gap.com')
+check(
+  'with no region, suggests what their other audits use',
+  noGeo.plan.summary.includes('USA, California') && noGeo.plan.summary.includes('12 of them'),
+)
+check(
+  'and still leaves the choice to them',
+  noGeo.plan.steps.some(s => s.say.includes('not all of them')),
+)
+
 /* ---------------------------------------------------------------- */
 section('url normalisation')
 

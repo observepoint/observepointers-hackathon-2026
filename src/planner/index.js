@@ -91,7 +91,7 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
   }
 
   const scope = { parameters }
-  const planningContext = { ...context, parameters }
+  const planningContext = { ...context, parameters, goal }
 
   const rawSteps = recipe.buildSteps ? recipe.buildSteps(planningContext) : recipe.steps
   const rawSummary = recipe.buildSummary
