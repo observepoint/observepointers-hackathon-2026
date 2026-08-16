@@ -288,14 +288,24 @@ check(
 /* ---------------------------------------------------------------- */
 section('warnings')
 
-const auditPlan = await createPlan(
-  'set up an audit for https://www.example.com that checks my tag rules',
-  { forceLocal: true },
-)
+// The audit path is fully verified now, so this exercises the mechanism against
+// alert_from_report, whose report-widget selectors nobody has stood in front of.
+const alertPlan = await createPlan('alert me when the purchase tag stops firing', {
+  forceLocal: true,
+})
 check(
   'flags unverified selectors so nobody debugs a ghost',
-  auditPlan.status === 'plan' && auditPlan.warnings.some(w => w.includes('unverified')),
-  JSON.stringify(auditPlan.warnings),
+  alertPlan.status === 'plan' && alertPlan.warnings.some(w => w.includes('unverified')),
+  JSON.stringify(alertPlan.warnings),
+)
+check(
+  'and stays quiet once a path is verified',
+  (
+    await createPlan('privacy audit for gap.com', {
+      forceLocal: true,
+      account: { consentCategories: [], advancedAuditMode: true },
+    })
+  ).warnings.length === 0,
 )
 
 /* ---------------------------------------------------------------- */
@@ -557,6 +567,41 @@ check(
 check(
   'defaults to advanced when the account state is unknown',
   pathFor(undefined).join() === advancedPath.join(),
+)
+
+/* ---------------------------------------------------------------- */
+section('tab selectors survive without the moonbeam patch')
+
+const consentSteps = buildPlan(
+  RECIPE,
+  'g',
+  { siteUrl: 'gap.com' },
+  { account: { consentCategories: [], advancedAuditMode: true } },
+).plan.steps
+
+const tabStep = id => consentSteps.find(s => s.id === id).targetSelector
+
+// Both halves resolve to the same element, so the list works with or without
+// the op-selector attribute.
+for (const [id, attr, position] of [
+  ['s4', 'audit-tab-url-sources', 'nth-child(2)'],
+  ['s6', 'audit-tab-standards', 'nth-child(4)'],
+]) {
+  check(`${id} prefers the attribute`, tabStep(id).includes(attr))
+  check(`${id} falls back positionally`, tabStep(id).includes(position))
+}
+
+// The sub-tabs deliberately get no positional fallback: unshift() ordering plus
+// a conditional Consent tab means no index is right in both layouts, and a
+// confident wrong tab is worse than none.
+check('sub-tabs have no positional fallback', !tabStep('s7').includes('nth-child'), tabStep('s7'))
+check(
+  'sub-tabs keep a text fallback instead',
+  Boolean(consentSteps.find(s => s.id === 's7').targetFallback),
+)
+check(
+  'the advanced audit path now has no unverified steps',
+  consentSteps.every(s => !s.unverified),
 )
 
 /* ---------------------------------------------------------------- */

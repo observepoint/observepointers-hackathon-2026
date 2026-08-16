@@ -60,7 +60,20 @@ export const SELECTORS = {
   // so we target the component's own element name — Angular renders it as a
   // real tag, which makes it as stable as an attribute would be.
   advancedName: 'audit-editor-header-name-control input',
-  urlSourcesTab: '[op-selector="audit-tab-url-sources"]',
+
+  // Comma lists, so these work with or without the moonbeam op-selector patch.
+  //
+  // Safe here specifically because both halves resolve to the SAME element: the
+  // attribute, when present, sits on the very tab the positional selector
+  // picks. querySelector returns the first match in document order, so either
+  // way you get that tab. This is not a general trick — a comma list whose
+  // halves can match different elements is a coin toss.
+  //
+  // Reliable because generateTabs() emits all six audit tabs unconditionally
+  // (the `hidden` flags nearby are on buttons, not tabs), so Scenario, URL
+  // Sources, Schedule, Standards, Pre-Audit, On-Page are always positions 1-6.
+  urlSourcesTab:
+    '[op-selector="audit-tab-url-sources"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)',
   startingUrls: '[op-selector="audit-setup-starting-urls-textarea"] textarea',
 
   // Advanced audit editor
@@ -81,7 +94,13 @@ export const SELECTORS = {
   // pointed at the wrong tab. Worse, the order is conditional: without privacy
   // there is no Consent tab and every index shifts. Positional selectors were
   // never going to survive that.
-  standardsTab: '[op-selector="audit-tab-standards"]',
+  standardsTab:
+    '[op-selector="audit-tab-standards"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)',
+  // No positional fallback for these three. createTabs() builds them with
+  // unshift() and drops Consent Categories when privacy is off, so there is no
+  // index that is correct in both layouts — a fallback would confidently point
+  // at the wrong tab, which is worse than pointing at nothing. If the attribute
+  // is missing, targetFallback's text match is the honest answer.
   subTabRules: '[op-selector="standards-tab-rules"]',
   subTabConsentCategories: '[op-selector="standards-tab-consent-categories"]',
   subTabAlerts: '[op-selector="standards-tab-alerts"]',
@@ -153,7 +172,6 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
         targetSelector: SELECTORS.urlSourcesTab,
         say: 'Open URL Sources.',
         targetFallback: { description: 'the URL Sources tab in the audit editor' },
-        unverified: true,
         completion: { type: 'dom_event', value: 'click' },
       },
       {

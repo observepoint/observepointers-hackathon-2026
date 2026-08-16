@@ -53,12 +53,11 @@
     {
       "id": "s4",
       "actor": "user",
-      "targetSelector": "[op-selector=\"audit-tab-url-sources\"]",
+      "targetSelector": "[op-selector=\"audit-tab-url-sources\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)",
       "say": "Open URL Sources.",
       "targetFallback": {
         "description": "the URL Sources tab in the audit editor"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_event",
         "value": "click"
@@ -81,7 +80,7 @@
     {
       "id": "s6",
       "actor": "user",
-      "targetSelector": "[op-selector=\"audit-tab-standards\"]",
+      "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
       "say": "Open the Standards tab.",
       "targetFallback": {
         "description": "the Standards tab in the audit editor"
