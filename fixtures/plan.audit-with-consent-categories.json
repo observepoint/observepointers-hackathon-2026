@@ -41,6 +41,9 @@
       "actor": "ai",
       "targetSelector": "audit-editor-header-name-control input",
       "say": "Naming it \"example.com — Consent & privacy\".",
+      "targetFallback": {
+        "description": "the audit name field in the editor header"
+      },
       "action": {
         "type": "fill_text",
         "value": "example.com — Consent & privacy"
@@ -68,6 +71,9 @@
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
       "say": "Setting the starting URL.",
+      "targetFallback": {
+        "description": "the \"URLs to Scan\" box on the URL Sources tab"
+      },
       "action": {
         "type": "fill_text",
         "value": "https://www.example.com"

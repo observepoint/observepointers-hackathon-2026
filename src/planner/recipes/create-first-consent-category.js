@@ -1,5 +1,6 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { consentCategoryNameFrom, normalizeSiteUrl } from '../naming.js'
+import { unswept } from './_unswept.js'
 
 /**
  * The empty-account case for privacy.
@@ -73,7 +74,7 @@ export default {
     'A consent category is your definition of "approved" — without one, a privacy audit runs and ' +
     'reports nothing. We\'ll create one called "{{parameters.categoryName}}". You add the tags and ' +
     'cookies you actually allow, because that list is a policy decision, not a technical one.',
-  steps: [
+  steps: unswept([
     ...stepsToLibrary({
       link: NAV.consentCategoriesLink,
       label: 'Consent Categories',
@@ -100,7 +101,6 @@ export default {
       targetSelector: '.mat-menu-op-button-2021 button[mat-menu-item]',
       say: 'Choose "Create a New Consent Category" — the other two import from a template or OneTrust.',
       targetFallback: { description: '"Create a New Consent Category" in the open menu' },
-      unverified: true,
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
@@ -112,6 +112,7 @@ export default {
       actor: 'ai',
       targetSelector: '[op-selector="cc-name"]',
       say: 'Naming it "{{parameters.categoryName}}".',
+      targetFallback: { description: 'the "Name" field on the consent category form' },
       action: { type: 'fill_text', value: '{{parameters.categoryName}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
@@ -121,7 +122,6 @@ export default {
       targetSelector: '[op-selector="cc-create-next"]',
       say: 'Add the tags and cookies you approve of — that list is what "approved" means here.',
       targetFallback: { description: 'the Next button in the consent category form' },
-      unverified: true,
       completion: { type: 'dom_event', value: 'click' },
     },
     {
@@ -130,8 +130,7 @@ export default {
       targetSelector: '[op-selector="cc-create-save"]',
       say: 'Save it. Any audit can now attach this under Standards.',
       targetFallback: { description: 'the Save button in the consent category form' },
-      unverified: true,
       completion: { type: 'dom_event', value: 'click' },
     },
-  ],
+  ]),
 }

@@ -20,7 +20,8 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": "[op-selector=\"sidebar-standards-rules\"]"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s2",
@@ -33,7 +34,8 @@
       "completion": {
         "type": "url_change",
         "value": "/rules/library"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s3",
@@ -47,13 +49,17 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": "rule-name-control input"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s4",
       "actor": "ai",
       "targetSelector": "rule-name-control input",
       "say": "Naming it \"Google Analytics fires on every page\".",
+      "targetFallback": {
+        "description": "the rule name field at the top of the builder"
+      },
       "action": {
         "type": "fill_text",
         "value": "Google Analytics fires on every page"
@@ -61,7 +67,8 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s5",
@@ -74,7 +81,8 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s6",
@@ -87,7 +95,8 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "unverified": true
     }
   ]
 }

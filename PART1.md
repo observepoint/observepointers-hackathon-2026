@@ -108,13 +108,18 @@ Guarantees the validator enforces, so you don't have to defend against them:
 - **No `{{placeholders}}` survive.** An unsubstituted one would have you typing
   `{{parameters.auditName}}` into a real form.
 
-### One additive field
+### One additive field, and it is no longer optional
 
-Some steps carry `targetFallback: { description: "the button to create a rule" }`.
-**Ignore it for now** — it costs you nothing. It exists because CSS selectors
-break on screens without `op-selector` attributes, and Part 3's pointer can
-already resolve a plain description. Wire it up only if selector misses become a
-problem.
+**Every** step carries
+`targetFallback: { description: "the \"Create Rule\" button" }`. That started as
+a nice-to-have for screens without `op-selector` attributes. It isn't any more:
+three of the six recipes have no swept selectors at all, and the report-widget
+bell genuinely cannot be addressed by CSS (one bell per widget, and the class we
+target only exists on widgets with no alerts yet).
+
+So Part 3 should resolve `targetFallback.description` against visible text when
+`targetSelector` misses. A test asserts no step ever ships without one, so you
+can rely on it being there.
 
 ---
 
@@ -300,14 +305,14 @@ the tests use.
 Focused on audits and the three things you attach to them, plus the two starter
 flows for an account that has none of them yet.
 
-| Recipe                          | Covers                                         | Verified           |
-| ------------------------------- | ---------------------------------------------- | ------------------ |
-| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps       |
-| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps       |
-| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps       |
-| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 2 steps unswept |
-| `create_first_rule`             | Fill an empty rule library                     | ⚠️ needs a sweep   |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 3 steps unswept |
+| Recipe                          | Covers                                         | Verified     |
+| ------------------------------- | ---------------------------------------------- | ------------ |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps |
+| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
+| `create_first_rule`             | Fill an empty rule library                     | ⚠️ 0/6 swept |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 0/7 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
@@ -315,8 +320,17 @@ tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
 "Verified" means somebody stood on the screen and pressed **Check screen**, not
-that the selector was read out of moonbeam source. Every step still marked
-`unverified: true` is one the pointer may miss.
+that the selector was read out of moonbeam source — every selector in this
+library was read out of the template that renders it, and that is a weaker claim
+than having looked. A selector that is right in the source and absent from the
+DOM (wrong screen, feature flag off, conditional block) fails exactly like a
+wrong one.
+
+The three unswept recipes therefore mark **every** step `unverified: true` via
+`unswept()` in `recipes/_unswept.js`, which also records what has actually been
+looked at and how to clear a flag. An earlier version of this had the flags
+hand-placed and they had already drifted — two of these recipes were claiming
+verified steps nobody had seen.
 
 ### Three things the recipes encode that aren't obvious
 

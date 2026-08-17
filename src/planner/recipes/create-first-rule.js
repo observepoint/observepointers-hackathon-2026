@@ -1,4 +1,5 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
+import { unswept } from './_unswept.js'
 import { ruleNameFrom } from '../naming.js'
 
 /**
@@ -18,15 +19,18 @@ import { ruleNameFrom } from '../naming.js'
  * produce a rule that passes or fails for reasons nobody intended, which is
  * worse than an empty one.
  *
- * SELECTORS
- *   Solid — sidebar links (opLinkSelectorMap), rule-setup-continue-btn and
- *           rule-setup-save-btn (RuleSetupOpSelectors, rendered straight onto
- *           the <button> by op-modal-footer-buttons)
- *   Solid — button[aria-label="Create Rule"]. op-button-2021 binds
- *           [attr.aria-label]="ariaLabel || labelText", and rule-library's
- *           template sets labelText="Create Rule". Semantic, not positional.
- *   Solid — rule-name-control input. Same component-tag trick as the audit
- *           editor's name field; Angular renders the tag for real.
+ * SELECTORS — every one read out of the template that renders it, and NOT ONE
+ * of them swept. `unverified` means "nobody has watched this resolve", so all
+ * six carry it until someone stands on these screens and presses Check screen.
+ * Being confident about source is not the same as having looked.
+ *   Sourced — sidebar links (opLinkSelectorMap), rule-setup-continue-btn and
+ *             rule-setup-save-btn (RuleSetupOpSelectors, rendered straight onto
+ *             the <button> by op-modal-footer-buttons)
+ *   Sourced — button[aria-label="Create Rule"]. op-button-2021 binds
+ *             [attr.aria-label]="ariaLabel || labelText", and rule-library's
+ *             template sets labelText="Create Rule". Semantic, not positional.
+ *   Sourced — rule-name-control input. Same component-tag trick as the audit
+ *             editor's name field; Angular renders the tag for real.
  */
 export default {
   id: 'create_first_rule',
@@ -74,7 +78,7 @@ export default {
     'A rule defines what "correct" looks like; an audit is what checks it — so this comes first. ' +
     'We\'ll open the rule library and start one called "{{parameters.ruleName}}". You set the ' +
     'conditions, since only you know which tags and values count as right.',
-  steps: [
+  steps: unswept([
     ...stepsToLibrary({
       link: NAV.rulesLink,
       label: 'Tag & Variable Rules',
@@ -97,6 +101,7 @@ export default {
       actor: 'ai',
       targetSelector: 'rule-name-control input',
       say: 'Naming it "{{parameters.ruleName}}".',
+      targetFallback: { description: 'the rule name field at the top of the builder' },
       action: { type: 'fill_text', value: '{{parameters.ruleName}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
@@ -116,5 +121,5 @@ export default {
       targetFallback: { description: 'the Save button in the rule builder' },
       completion: { type: 'dom_event', value: 'click' },
     },
-  ],
+  ]),
 }

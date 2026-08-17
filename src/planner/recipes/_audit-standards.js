@@ -37,17 +37,12 @@
  *       itself, so the attribute form is confirmed
  *     #guide-create-new-data-src-btn / #guide-create-new-audit — moonbeam
  *       already tags these for a guide tool; the `guide-` prefix isn't ours
- *   Weak — positional:
- *     the two tab strips. op-tabs renders [attr.op-selector]="tab.opSelector",
- *     but neither audit-editor nor standards-tab sets opSelector on its tab
- *     definitions, so nothing is emitted and we fall back to :nth-child.
- *
- * THE ONE MOONBEAM CHANGE WORTH MAKING (4 lines, makes all three recipes solid):
- *   audit-editor.component.ts   generateTabs()  → opSelector: 'audit-tab-standards'
- *   standards-tab.component.ts  this.tabs = []  → opSelector: 'standards-tab-rules'
- *                                                 / 'standards-tab-consent-categories'
- *                                                 / 'standards-tab-alerts'
- * Then swap the positional selectors below and mark these recipes verified.
+ *   Weak — the tab strips. op-tabs renders [attr.op-selector]="tab.opSelector",
+ *     but neither audit-editor nor standards-tab sets opSelector upstream. A
+ *     local moonbeam patch adds five of them; the selectors below work with or
+ *     without it, so nothing here depends on that patch landing. See the
+ *     comments on urlSourcesTab / standardsTab for why one gets a positional
+ *     fallback and the sub-tabs deliberately do not.
  */
 
 import { auditNameFor, normalizeSiteUrl } from '../naming.js'
@@ -94,9 +89,9 @@ export const SELECTORS = {
   // Advanced audit editor
   auditEditor: '.op-audit-editor',
 
-  // These four need the moonbeam change described at the top of this file.
-  // Until it lands they resolve to nothing and Part 3 falls back to
-  // targetFallback.description, which matches the tab's visible text.
+  // The three sub-tabs below resolve to nothing without the moonbeam patch, and
+  // Part 3 falls back to targetFallback.description, which matches the tab's
+  // visible text. That is deliberate — see the note under them.
   //
   // They replaced :nth-child() selectors, and it is worth knowing why rather
   // than reinventing them. standards-tab.component.ts::createTabs() builds the
@@ -127,16 +122,6 @@ export const SELECTORS = {
 }
 
 /**
- * Data Sources → create the audit → Standards tab. All three audit recipes
- * start here, so fixing this path fixes all three at once.
- *
- * The advanced branch is VERIFIED against a running local moonbeam
- * (2026-08-16). The quick branch is source-accurate but unswept — it needs an
- * account with no data sources, or advanced mode turned off in user settings.
- *
- * Both branches emit s1..s6, so callers can append s7 onward either way.
- */
-/**
  * Which of the two screens will Create → Audit open?
  *
  * Mirrors manage-cards.component.ts::createWebAudit() exactly, including the
@@ -149,6 +134,16 @@ export function usesAdvancedPath(account) {
   return account?.advancedAuditMode !== false
 }
 
+/**
+ * Data Sources → create the audit → Standards tab. All three audit recipes
+ * start here, so fixing this path fixes all three at once.
+ *
+ * The advanced branch is VERIFIED against a running local moonbeam
+ * (2026-08-16). The quick branch is source-accurate but unswept — it needs an
+ * account with no data sources, or advanced mode turned off in user settings.
+ *
+ * Both branches emit s1..s6, so callers can append s7 onward either way.
+ */
 export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
   const id = n => `s${startId + n}`
 
@@ -184,6 +179,7 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
         actor: 'ai',
         targetSelector: SELECTORS.advancedName,
         say: 'Naming it "{{parameters.auditName}}".',
+        targetFallback: { description: 'the audit name field in the editor header' },
         action: { type: 'fill_text', value: '{{parameters.auditName}}' },
         completion: { type: 'dom_event', value: 'change' },
       },
@@ -200,6 +196,7 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
         actor: 'ai',
         targetSelector: SELECTORS.startingUrls,
         say: 'Setting the starting URL.',
+        targetFallback: { description: 'the "URLs to Scan" box on the URL Sources tab' },
         action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
         completion: { type: 'dom_event', value: 'change' },
       },
@@ -230,6 +227,7 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
       actor: 'ai',
       targetSelector: SELECTORS.quickAuditUrl,
       say: 'Setting the site to scan.',
+      targetFallback: { description: 'the "Website url/domain to Audit" field' },
       action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
       unverified: true,
       completion: { type: 'dom_event', value: 'change' },
@@ -252,6 +250,7 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
       actor: 'ai',
       targetSelector: SELECTORS.advancedName,
       say: 'Renaming it "{{parameters.auditName}}" — it came through as "Simple Audit".',
+      targetFallback: { description: 'the audit name field in the editor header' },
       action: { type: 'fill_text', value: '{{parameters.auditName}}' },
       completion: { type: 'dom_event', value: 'change' },
     },

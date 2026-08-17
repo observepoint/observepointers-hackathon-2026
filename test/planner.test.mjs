@@ -740,6 +740,36 @@ check(
   catalogue.every(c => c.selector),
 )
 
+// Part 3 is told it can rely on this, and three of six recipes have no swept
+// selectors at all, so the fallback is load-bearing rather than decorative.
+check(
+  'no step anywhere ships without a text fallback',
+  (() => {
+    for (const recipe of RECIPES) {
+      const steps = recipe.steps ?? recipe.buildSteps?.({ parameters: {} }) ?? []
+      const missing = steps.filter(s => !s.targetFallback?.description)
+      if (missing.length) return false
+    }
+    return true
+  })(),
+)
+
+// The flags used to be hand-placed and had already drifted: two recipes claimed
+// verified steps nobody had looked at. unswept() marks a whole list at once.
+check(
+  'only the swept audit recipes claim zero unverified steps',
+  (() => {
+    const clean = RECIPES.filter(recipe => {
+      const steps = recipe.steps ?? recipe.buildSteps?.({ parameters: {} }) ?? []
+      return steps.every(s => !s.unverified)
+    }).map(r => r.id)
+    return (
+      clean.join() ===
+      ['audit_with_rules', 'audit_with_consent_categories', 'audit_with_alerts'].join()
+    )
+  })(),
+)
+
 /* ---------------------------------------------------------------- */
 section('first-run onboarding')
 

@@ -18,11 +18,11 @@
       "targetFallback": {
         "description": "the audit card on the Data Sources page"
       },
-      "unverified": true,
       "completion": {
         "type": "url_change",
         "value": "/audit/"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s2",
@@ -32,18 +32,21 @@
       "targetFallback": {
         "description": "the bell icon on the report widget"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": "[op-selector=\"quick-create-name\"]"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s3",
       "actor": "ai",
       "targetSelector": "[op-selector=\"quick-create-name\"] input",
       "say": "Naming it \"Alert: The purchase tag stops firing\".",
+      "targetFallback": {
+        "description": "the \"Name Alert\" field in the quick-create dialog"
+      },
       "action": {
         "type": "fill_text",
         "value": "Alert: The purchase tag stops firing"
@@ -51,13 +54,17 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s4",
       "actor": "ai",
       "targetSelector": "[op-selector=\"quick-create-emails\"] input",
       "say": "Notifying your account email.",
+      "targetFallback": {
+        "description": "the recipients field in the quick-create dialog"
+      },
       "action": {
         "type": "fill_text",
         "value": "your account email"
@@ -65,17 +72,22 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s5",
       "actor": "user",
       "targetSelector": "[op-selector=\"quick-create-customize-link\"]",
       "say": "Adjust the threshold if you need a specific number.",
+      "targetFallback": {
+        "description": "the \"Customize Alert Logic & Setup\" link"
+      },
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s6",
@@ -88,7 +100,8 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "unverified": true
     }
   ]
 }

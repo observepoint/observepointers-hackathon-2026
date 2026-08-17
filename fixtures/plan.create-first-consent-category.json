@@ -20,7 +20,8 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": "[op-selector=\"sidebar-standards-consent-categories\"]"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s2",
@@ -33,7 +34,8 @@
       "completion": {
         "type": "url_change",
         "value": "/consent-categories"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s3",
@@ -47,7 +49,8 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": ".mat-menu-op-button-2021"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s4",
@@ -57,18 +60,21 @@
       "targetFallback": {
         "description": "\"Create a New Consent Category\" in the open menu"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": "[op-selector=\"cc-name\"]"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s5",
       "actor": "ai",
       "targetSelector": "[op-selector=\"cc-name\"]",
       "say": "Naming it \"example.com — Approved\".",
+      "targetFallback": {
+        "description": "the \"Name\" field on the consent category form"
+      },
       "action": {
         "type": "fill_text",
         "value": "example.com — Approved"
@@ -76,7 +82,8 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s6",
@@ -86,11 +93,11 @@
       "targetFallback": {
         "description": "the Next button in the consent category form"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "unverified": true
     },
     {
       "id": "s7",
@@ -100,11 +107,11 @@
       "targetFallback": {
         "description": "the Save button in the consent category form"
       },
-      "unverified": true,
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "unverified": true
     }
   ]
 }

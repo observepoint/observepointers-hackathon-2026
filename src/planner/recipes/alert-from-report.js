@@ -33,6 +33,7 @@
  *           menu, so either route finishes it.
  */
 import { alertNameFrom } from '../naming.js'
+import { unswept } from './_unswept.js'
 
 export default {
   id: 'alert_from_report',
@@ -89,7 +90,7 @@ export default {
     'We\'ll open its report, find the widget showing "{{parameters.conditionSummary}}", and create the ' +
     'alert from its bell — that pre-fills the metric and filters. Notifications go to ' +
     '{{parameters.notifyEmail}}.',
-  steps: [
+  steps: unswept([
     {
       id: 's1',
       actor: 'user',
@@ -97,7 +98,6 @@ export default {
       targetSelector: '[op-selector="cards-view-container"]',
       say: 'Open the audit you want to watch.',
       targetFallback: { description: 'the audit card on the Data Sources page' },
-      unverified: true,
       // Reports live at /audit/:auditId/run/:runId/report/… (AuditReportUrlBuilders),
       // so the trailing slash keeps this from matching anything else.
       completion: { type: 'url_change', value: '/audit/' },
@@ -110,7 +110,6 @@ export default {
         'Click the bell on the widget showing "{{parameters.conditionSummary}}". ' +
         'If it opens a list of existing alerts, pick "Create New Alert" at the bottom.',
       targetFallback: { description: 'the bell icon on the report widget' },
-      unverified: true,
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
@@ -122,6 +121,7 @@ export default {
       actor: 'ai',
       targetSelector: '[op-selector="quick-create-name"] input',
       say: 'Naming it "{{parameters.alertName}}".',
+      targetFallback: { description: 'the "Name Alert" field in the quick-create dialog' },
       action: { type: 'fill_text', value: '{{parameters.alertName}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
@@ -130,6 +130,7 @@ export default {
       actor: 'ai',
       targetSelector: '[op-selector="quick-create-emails"] input',
       say: 'Notifying {{parameters.notifyEmail}}.',
+      targetFallback: { description: 'the recipients field in the quick-create dialog' },
       action: { type: 'fill_text', value: '{{parameters.notifyEmail}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
@@ -138,6 +139,7 @@ export default {
       actor: 'user',
       targetSelector: '[op-selector="quick-create-customize-link"]',
       say: 'Adjust the threshold if you need a specific number.',
+      targetFallback: { description: 'the "Customize Alert Logic & Setup" link' },
       completion: { type: 'dom_event', value: 'click' },
     },
     {
@@ -151,5 +153,5 @@ export default {
       targetFallback: { description: 'the Create button in the alert quick-create dialog' },
       completion: { type: 'dom_event', value: 'click' },
     },
-  ],
+  ]),
 }
