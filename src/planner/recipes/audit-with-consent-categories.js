@@ -146,7 +146,6 @@ function mostUsed(matches) {
 export default {
   id: 'audit_with_consent_categories',
   title: 'Audit a site for consent / privacy compliance',
-  verified: false,
   intent: {
     description:
       'Create a web audit and attach Consent Categories, so the audit reports which tags, ' +

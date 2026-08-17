@@ -18,7 +18,6 @@ import {
 export default {
   id: 'audit_with_alerts',
   title: 'Attach alerts to an audit',
-  verified: false,
   intent: {
     description:
       'Create a web audit and attach existing alerts under Standards, so runs that breach a ' +

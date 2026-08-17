@@ -38,7 +38,6 @@ import { unswept } from './_unswept.js'
 export default {
   id: 'alert_from_report',
   title: 'Get alerted when something breaks',
-  verified: false,
   intent: {
     description:
       'Create an alert from an audit report widget, so a threshold breach emails someone. ' +

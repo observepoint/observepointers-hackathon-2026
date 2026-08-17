@@ -689,6 +689,18 @@ check(
   consentSteps.every(s => !s.unverified),
 )
 
+// A recipe-level `verified` boolean used to sit alongside the per-step flag.
+// Nothing read it, it had already drifted, and it cannot answer the question for
+// a recipe whose two branches differ — audit_with_rules is fully swept on the
+// advanced path and not on the quick one. One source of truth only.
+check(
+  'no recipe carries a recipe-level verified flag',
+  RECIPES.every(r => r.verified === undefined),
+  RECIPES.filter(r => r.verified !== undefined)
+    .map(r => r.id)
+    .join(', '),
+)
+
 /* ---------------------------------------------------------------- */
 section('op-selector descends only where the wrapper needs it')
 
@@ -765,7 +777,14 @@ check(
     }).map(r => r.id)
     return (
       clean.join() ===
-      ['audit_with_rules', 'audit_with_consent_categories', 'audit_with_alerts'].join()
+      [
+        'audit_with_rules',
+        'audit_with_consent_categories',
+        'audit_with_alerts',
+        // Swept end to end on /rules/library: sidebar link, Create Rule,
+        // name field, Next, Save.
+        'create_first_rule',
+      ].join()
     )
   })(),
 )
@@ -925,6 +944,21 @@ for (const [id, parameters] of [
     steps.filter(s => s.unverified).every(s => s.targetFallback?.description),
   )
 }
+
+// create_first_rule is the one starter that has been walked end to end, so it is
+// the fixture to hand Part 2 for the route-based shape.
+check(
+  'create_first_rule has no unswept steps left',
+  RECIPES.find(r => r.id === 'create_first_rule').steps.every(s => !s.unverified),
+)
+// …and its neighbour still does, which is the point of splitting the wrapper.
+check(
+  'create_first_consent_category keeps its swept sidebar step and flags the rest',
+  (() => {
+    const steps = RECIPES.find(r => r.id === 'create_first_consent_category').steps
+    return !steps[0].unverified && steps.slice(1).every(s => s.unverified)
+  })(),
+)
 
 check(
   'a rule name reads as the assertion, not a label',

@@ -33,8 +33,12 @@
  *   2. Prefer [op-selector="..."] — stable and human-named. Note that many are
  *      bound dynamically ([attr.op-selector]="OP_SELECTORS.x"), so grep the
  *      *.constants.ts enums too, not just the templates.
- *   3. Mark a step `unverified: true` until you have clicked it yourself, and
- *      `verified: true` on the recipe only when every step is confirmed.
+ *   3. Wrap your steps in unswept() from ./_unswept.js until you have watched
+ *      them resolve with Check screen. Per-step, not per-recipe: there used to
+ *      be a recipe-level `verified` flag and it drifted immediately, because
+ *      nothing read it and because a recipe with two branches cannot answer the
+ *      question with one boolean. The step flag is what Part 2 and Part 3
+ *      consume, so it is the only one that exists now.
  */
 
 import auditWithRules from './audit-with-rules.js'

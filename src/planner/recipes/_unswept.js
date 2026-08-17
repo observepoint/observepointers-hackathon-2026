@@ -9,17 +9,23 @@
  * absent from the DOM (wrong screen, feature flag off, conditional block) fails
  * exactly like a wrong one.
  *
- * What has been swept, against a running local moonbeam (2026-08-16):
+ * What has been swept, against a running local moonbeam:
  *   Data Sources     #guide-create-new-data-src-btn, #guide-create-new-audit
  *   Advanced editor  audit-editor-header-name-control input,
  *                    audit-setup-starting-urls-textarea textarea,
  *                    audit-tab-standards, standards-tab-{rules,
  *                    consent-categories,alerts}
+ *   Sidebar          sidebar-standards-rules,
+ *                    sidebar-standards-consent-categories
+ *   Rules library    button[aria-label="Create Rule"]
+ *   Rule builder     rule-name-control input, rule-setup-continue-btn ("Next"),
+ *                    rule-setup-save-btn ("Save") — both footer buttons are
+ *                    visible at once, so nothing gates Save on finishing the
+ *                    conditions step
  *
- * Everything else — the sidebar, both standards libraries, the rule builder,
- * the consent-category form, report widgets, the alert quick-create dialog, and
- * the whole Quick Audit screen — has not been looked at. Those recipes wrap
- * their steps in unswept().
+ * Still unlooked-at: the consent-category library and form, report widgets, the
+ * alert quick-create dialog, and the whole Quick Audit screen. Those steps go
+ * through unswept().
  *
  * To clear a flag: stand on the screen, press Check screen, and if it resolves,
  * drop the step out of the wrapper and add the screen to the list above. Do not

@@ -32,7 +32,7 @@ fixtures/plan.audit-with-rules.json                    10 steps, all selectors c
 fixtures/plan.audit-with-consent-categories.json        9 steps, all selectors confirmed
 fixtures/plan.audit-with-alerts.json                   10 steps, all selectors confirmed
 fixtures/plan.alert-from-report.json                    6 steps
-fixtures/plan.create-first-rule.json                    5 steps
+fixtures/plan.create-first-rule.json                    5 steps, all selectors confirmed
 fixtures/plan.create-first-consent-category.json        6 steps
 ```
 
@@ -112,7 +112,7 @@ Guarantees the validator enforces, so you don't have to defend against them:
 **Every** step carries
 `targetFallback: { description: "the \"Create Rule\" button" }`. That started as
 a nice-to-have for screens without `op-selector` attributes. It isn't any more:
-three of the six recipes have no swept selectors at all, and the report-widget
+two of the six recipes are almost entirely unswept, and the report-widget
 bell genuinely cannot be addressed by CSS (one bell per widget, and the class we
 target only exists on widgets with no alerts yet).
 
@@ -212,7 +212,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 186 checks, no API key, no network
+npm test           # 189 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -322,8 +322,8 @@ flows for an account that has none of them yet.
 | `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps |
 | `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
 | `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
-| `create_first_rule`             | Fill an empty rule library                     | ⚠️ 0/6 swept |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 0/7 swept |
+| `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 1/6 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
@@ -337,9 +337,11 @@ than having looked. A selector that is right in the source and absent from the
 DOM (wrong screen, feature flag off, conditional block) fails exactly like a
 wrong one.
 
-The three unswept recipes therefore mark **every** step `unverified: true` via
-`unswept()` in `recipes/_unswept.js`, which also records what has actually been
-looked at and how to clear a flag. An earlier version of this had the flags
+Unswept steps are marked `unverified: true` by `unswept()` in
+`recipes/_unswept.js`, which also records what has actually been looked at and
+how to clear a flag. It is applied per step, not per recipe:
+`create_first_consent_category` has a swept sidebar step and five unswept ones
+after it, and rounding that either way would be a lie in one direction. An earlier version of this had the flags
 hand-placed and they had already drifted — two of these recipes were claiming
 verified steps nobody had seen.
 
@@ -376,8 +378,8 @@ is empty.
 
 ## Known gaps
 
-- **`alert_from_report`, the two starters and the Quick Audit branch aren't
-  swept.** All are source-accurate — every selector was read out of the template
+- **`alert_from_report`, the consent-category starter and the Quick Audit branch
+  aren't swept.** All are source-accurate — every selector was read out of the template
   that renders it — but nobody has watched them resolve. `alert_from_report`
   needs an audit with a completed run; the starters need someone to walk the
   rule and consent-category builders; Quick Audit needs an account with no data

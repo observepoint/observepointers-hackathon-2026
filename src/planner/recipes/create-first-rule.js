@@ -1,5 +1,4 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
-import { unswept } from './_unswept.js'
 import { ruleNameFrom } from '../naming.js'
 
 /**
@@ -19,23 +18,25 @@ import { ruleNameFrom } from '../naming.js'
  * produce a rule that passes or fails for reasons nobody intended, which is
  * worse than an empty one.
  *
- * SELECTORS — every one read out of the template that renders it, and NOT ONE
- * of them swept. `unverified` means "nobody has watched this resolve", so all
- * five carry it until someone stands on these screens and presses Check screen.
- * Being confident about source is not the same as having looked.
- *   Sourced — sidebar links (opLinkSelectorMap), rule-setup-continue-btn and
- *             rule-setup-save-btn (RuleSetupOpSelectors, rendered straight onto
- *             the <button> by op-modal-footer-buttons)
- *   Sourced — button[aria-label="Create Rule"]. op-button-2021 binds
- *             [attr.aria-label]="ariaLabel || labelText", and rule-library's
- *             template sets labelText="Create Rule". Semantic, not positional.
- *   Sourced — rule-name-control input. Same component-tag trick as the audit
- *             editor's name field; Angular renders the tag for real.
+ * SELECTORS — all five SWEPT on a running local moonbeam. Every one resolved
+ * visible, so this recipe carries no unverified steps.
+ *   sidebar-standards-rules          from opLinkSelectorMap
+ *   button[aria-label="Create Rule"] op-button-2021 binds
+ *                                    [attr.aria-label]="ariaLabel || labelText",
+ *                                    and rule-library sets labelText. Semantic,
+ *                                    not positional.
+ *   rule-name-control input          same component-tag trick as the audit
+ *                                    editor's name field
+ *   rule-setup-continue-btn          reads "Next"
+ *   rule-setup-save-btn              reads "Save"
+ *
+ * Worth knowing from the sweep: Next and Save are visible at the same time, so
+ * the modal does not gate saving on finishing the conditions step. s4 exists to
+ * get the user to set conditions, not because Save is unreachable without it.
  */
 export default {
   id: 'create_first_rule',
   title: 'Create your first tag & variable rule',
-  verified: false,
   intent: {
     description:
       'Create a Tag & Variable Rule in the rule library, from scratch. Use when the account has ' +
@@ -78,7 +79,7 @@ export default {
     'A rule defines what "correct" looks like; an audit is what checks it — so this comes first. ' +
     'We\'ll open the rule library and start one called "{{parameters.ruleName}}". You set the ' +
     'conditions, since only you know which tags and values count as right.',
-  steps: unswept([
+  steps: [
     ...stepsToLibrary({
       link: NAV.rulesLink,
       label: 'Tag & Variable Rules',
@@ -121,5 +122,5 @@ export default {
       targetFallback: { description: 'the Save button in the rule builder' },
       completion: { type: 'dom_event', value: 'click' },
     },
-  ]),
+  ],
 }

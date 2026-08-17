@@ -19,8 +19,7 @@
       "completion": {
         "type": "url_change",
         "value": "/consent-categories"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s2",

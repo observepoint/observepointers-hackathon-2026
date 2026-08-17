@@ -29,7 +29,6 @@ import { unswept } from './_unswept.js'
 export default {
   id: 'create_first_consent_category',
   title: 'Create your first consent category',
-  verified: false,
   intent: {
     description:
       'Create a Consent Category from the library, from scratch. A consent category is the list ' +
@@ -74,63 +73,68 @@ export default {
     'A consent category is your definition of "approved" — without one, a privacy audit runs and ' +
     'reports nothing. We\'ll create one called "{{parameters.categoryName}}". You add the tags and ' +
     'cookies you actually allow, because that list is a policy decision, not a technical one.',
-  steps: unswept([
+  // The sidebar step is swept; nothing past it is. Splitting the wrapper keeps
+  // that distinction honest rather than rounding the whole recipe down.
+  steps: [
     ...stepsToLibrary({
       link: NAV.consentCategoriesLink,
       label: 'Consent Categories',
       route: '/consent-categories',
     }),
-    {
-      id: 's2',
-      actor: 'user',
-      // Two buttons, never both: the page swaps in cc-zero-state when the
-      // account has none, and that is exactly the account this recipe is for.
-      // A comma list is safe when the halves are mutually exclusive.
-      targetSelector: 'button[aria-label="Create a consent category"], button[aria-label="CREATE"]',
-      say: 'Open the create menu.',
-      targetFallback: { description: 'the create button on the Consent Categories page' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: '.mat-menu-op-button-2021',
+    ...unswept([
+      {
+        id: 's2',
+        actor: 'user',
+        // Two buttons, never both: the page swaps in cc-zero-state when the
+        // account has none, and that is exactly the account this recipe is for.
+        // A comma list is safe when the halves are mutually exclusive.
+        targetSelector:
+          'button[aria-label="Create a consent category"], button[aria-label="CREATE"]',
+        say: 'Open the create menu.',
+        targetFallback: { description: 'the create button on the Consent Categories page' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: '.mat-menu-op-button-2021',
+        },
       },
-    },
-    {
-      id: 's3',
-      actor: 'user',
-      targetSelector: '.mat-menu-op-button-2021 button[mat-menu-item]',
-      say: 'Choose "Create a New Consent Category" — the other two import from a template or OneTrust.',
-      targetFallback: { description: '"Create a New Consent Category" in the open menu' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
+      {
+        id: 's3',
+        actor: 'user',
+        targetSelector: '.mat-menu-op-button-2021 button[mat-menu-item]',
+        say: 'Choose "Create a New Consent Category" — the other two import from a template or OneTrust.',
+        targetFallback: { description: '"Create a New Consent Category" in the open menu' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: '[op-selector="cc-name"]',
+        },
+      },
+      {
+        id: 's4',
+        actor: 'ai',
         targetSelector: '[op-selector="cc-name"]',
+        say: 'Naming it "{{parameters.categoryName}}".',
+        targetFallback: { description: 'the "Name" field on the consent category form' },
+        action: { type: 'fill_text', value: '{{parameters.categoryName}}' },
+        completion: { type: 'dom_event', value: 'change' },
       },
-    },
-    {
-      id: 's4',
-      actor: 'ai',
-      targetSelector: '[op-selector="cc-name"]',
-      say: 'Naming it "{{parameters.categoryName}}".',
-      targetFallback: { description: 'the "Name" field on the consent category form' },
-      action: { type: 'fill_text', value: '{{parameters.categoryName}}' },
-      completion: { type: 'dom_event', value: 'change' },
-    },
-    {
-      id: 's5',
-      actor: 'user',
-      targetSelector: '[op-selector="cc-create-next"]',
-      say: 'Add the tags and cookies you approve of — that list is what "approved" means here.',
-      targetFallback: { description: 'the Next button in the consent category form' },
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    {
-      id: 's6',
-      actor: 'user',
-      targetSelector: '[op-selector="cc-create-save"]',
-      say: 'Save it. Any audit can now attach this under Standards.',
-      targetFallback: { description: 'the Save button in the consent category form' },
-      completion: { type: 'dom_event', value: 'click' },
-    },
-  ]),
+      {
+        id: 's5',
+        actor: 'user',
+        targetSelector: '[op-selector="cc-create-next"]',
+        say: 'Add the tags and cookies you approve of — that list is what "approved" means here.',
+        targetFallback: { description: 'the Next button in the consent category form' },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+      {
+        id: 's6',
+        actor: 'user',
+        targetSelector: '[op-selector="cc-create-save"]',
+        say: 'Save it. Any audit can now attach this under Standards.',
+        targetFallback: { description: 'the Save button in the consent category form' },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+    ]),
+  ],
 }

@@ -19,8 +19,7 @@
       "completion": {
         "type": "url_change",
         "value": "/rules/library"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s2",
@@ -34,8 +33,7 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": "rule-name-control input"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s3",
@@ -52,8 +50,7 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s4",
@@ -66,8 +63,7 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s5",
@@ -80,8 +76,7 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      },
-      "unverified": true
+      }
     }
   ]
 }

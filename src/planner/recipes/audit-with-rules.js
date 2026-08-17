@@ -12,7 +12,6 @@ import {
 export default {
   id: 'audit_with_rules',
   title: 'Create an audit that checks your tag rules',
-  verified: false,
   intent: {
     description:
       'Create a web audit and attach Tag & Variable Rules to it, so every run checks whether ' +
