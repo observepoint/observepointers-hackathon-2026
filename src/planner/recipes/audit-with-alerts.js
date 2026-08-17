@@ -48,11 +48,10 @@ export default {
       targetSelector: SELECTORS.subTabAlerts,
       say: 'Open Alerts.',
       targetFallback: { description: 'the "Alerts" sub-tab' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: '.op-standards-selector',
-      },
+      // See the note in audit-with-consent-categories.js. Alerts happens to be the
+      // sub-tab already selected, so this one worked by accident; a click is right
+      // for the same reason it is right for the other two.
+      completion: { type: 'dom_event', value: 'click' },
     },
     {
       id: 's9',

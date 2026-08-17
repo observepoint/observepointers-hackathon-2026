@@ -122,9 +122,8 @@
         "description": "the \"Consent Categories\" sub-tab"
       },
       "completion": {
-        "type": "dom_mutation",
-        "condition": "visible",
-        "targetSelector": ".op-standards-selector"
+        "type": "dom_event",
+        "value": "click"
       }
     },
     {

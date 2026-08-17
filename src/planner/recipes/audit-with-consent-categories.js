@@ -33,11 +33,17 @@ const openSubTab = {
   targetSelector: SELECTORS.subTabConsentCategories,
   say: 'Open Consent Categories.',
   targetFallback: { description: 'the "Consent Categories" sub-tab' },
-  completion: {
-    type: 'dom_mutation',
-    condition: 'visible',
-    targetSelector: '.op-standards-selector',
-  },
+  // A click, not a mutation. The obvious completion for "open the Consent
+  // Categories sub-tab" is "the standards picker became visible" — and it is wrong,
+  // because the picker is ALREADY visible. createTabs() builds the sub-tabs with
+  // unshift(), so the rendered order is Alerts, Consent Categories, Rules, and
+  // Alerts is selected when Standards opens. .op-standards-selector was therefore
+  // on screen before this step began: it completed instantly, the user never clicked
+  // anything, and the next step typed its search into the ALERTS picker.
+  //
+  // The click is what we are actually waiting for. Nothing else on this screen
+  // distinguishes "the picker I want" from "a picker".
+  completion: { type: 'dom_event', value: 'click' },
 }
 
 /** What we say when we cannot see the account. */
@@ -68,7 +74,7 @@ const genericEnding = [
  * certain that searching is pointless. A missing list means unread; an empty
  * array means empty, and the two get different plans.
  */
-function matchesFor(context) {
+export function matchesFor(context) {
   const categories = context?.account?.consentCategories
   if (!Array.isArray(categories)) return null
 
@@ -108,10 +114,15 @@ function isGeoFanout(matches) {
  * Note the omission: bare "us". It collides with the pronoun in "check our site
  * for us", which is a phrasing this product invites.
  */
+const US_NAMES = ['united states of america', 'united states', 'u.s.a.', 'u.s.', 'america']
 const GEO_ALIASES = {
-  usa: ['united states of america', 'united states', 'u.s.a.', 'u.s.', 'america'],
+  usa: US_NAMES,
+  // Some accounts file it as the two-letter code instead. Same names either way.
+  us: US_NAMES,
   uk: ['united kingdom', 'great britain', 'britain', 'england', 'scotland', 'wales'],
+  gb: ['united kingdom', 'great britain', 'britain', 'england', 'scotland', 'wales'],
   eu: ['european union', 'europe', 'eea'],
+  ca: ['canada'],
 }
 
 const escapeRe = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -126,11 +137,28 @@ const mentions = (said, term) =>
   new RegExp(`(^|[^a-z0-9])${escapeRe(term.toLowerCase())}([^a-z0-9]|$)`).test(said)
 
 /**
+ * A two-letter code has to be WRITTEN as a code.
+ *
+ * The alias table deliberately omits bare "us" because it collides with the
+ * pronoun — but that only guarded one door. An account whose CMP files things under
+ * "US" rather than "USA" put the collision straight back: "check our site for
+ * privacy compliance. observepoint.com for us" matched 67 of 79 categories on the
+ * pronoun, and the plan then offered to filter the picker to "us".
+ *
+ * So for a two-character part, require it uppercase in the user's own text. "for
+ * US" is a region; "for us" is not. Longer names stay case-insensitive, because
+ * nobody writes "canada" meaning anything else.
+ */
+const mentionsCoded = (rawGoal, term) =>
+  new RegExp(`(^|[^A-Za-z0-9])${escapeRe(term.toUpperCase())}([^A-Za-z0-9]|$)`).test(rawGoal)
+
+/**
  * Did the user name a region? "…observepoint.com for Canada" should pick the
  * Canadian groups rather than shrugging at 79 of them.
  */
 function narrowByStatedGeo(matches, goal) {
-  const said = String(goal ?? '').toLowerCase()
+  const raw = String(goal ?? '')
+  const said = raw.toLowerCase()
   if (!said) return null
 
   // Any comma-separated part counts: "Canada, Alberta" should answer to both
@@ -144,10 +172,16 @@ function narrowByStatedGeo(matches, goal) {
       .map(part => part.trim())
       .filter(part => part.length >= 2)
 
-  const said_ = said
-  const namesPart = part =>
-    mentions(said_, part) ||
-    (GEO_ALIASES[part.toLowerCase()] ?? []).some(alias => mentions(said_, alias))
+  // Aliases first, and they are exempt from the uppercase rule. "european union"
+  // cannot be a pronoun, so there is nothing to disambiguate — it was only ever the
+  // BARE two-letter code that needed writing as a code. Checking the code first
+  // broke the alias path entirely: "the European Union" stopped finding an "EU"
+  // category, because "European" contains no bounded uppercase "EU".
+  const namesPart = part => {
+    const aliases = GEO_ALIASES[part.toLowerCase()] ?? []
+    if (aliases.some(alias => mentions(said, alias))) return true
+    return part.length === 2 ? mentionsCoded(raw, part) : mentions(said, part)
+  }
 
   let term = null
   const hits = matches.filter(category => {
@@ -172,6 +206,43 @@ function narrowByStatedGeo(matches, goal) {
 function mostUsed(matches) {
   const ranked = [...matches].sort((a, b) => (b.auditCount ?? 0) - (a.auditCount ?? 0))
   return ranked[0]?.auditCount > 0 ? ranked[0] : null
+}
+
+/**
+ * The single best category to prefill a picker search with, for callers that want
+ * the account-aware answer without the branching narrative around it.
+ *
+ * Shared with audit_with_all_standards. Reimplementing the geo handling there
+ * would mean two places to get the CMP fan-out wrong.
+ *
+ * @returns {{name: string, others: number, term: string|null}|null}
+ *   null when the account is unreadable or nothing matches.
+ */
+export function bestCategoryFor(context) {
+  const matches = matchesFor(context)
+  if (!matches?.length) return null
+
+  if (isGeoFanout(matches)) {
+    const stated = narrowByStatedGeo(matches, context.goal)
+    // One region named and one category for it: that is an answer. Several, or
+    // none named, and the honest move is to filter rather than choose.
+    if (stated?.hits.length === 1) {
+      return { name: stated.hits[0].name, others: matches.length - 1, term: stated.term }
+    }
+    // Same rule as the recipe's own steps: a region token is not a search term. Pick
+    // a real category from among the ones covering the region they named.
+    if (stated) {
+      const pick = mostUsed(stated.hits) ?? stated.hits[0]
+      return { name: pick.name, others: stated.hits.length - 1, term: stated.term }
+    }
+
+    const popular = mostUsed(matches)
+    return popular
+      ? { name: popular.name, others: matches.length - 1, term: null }
+      : { name: hostFrom(context.parameters?.siteUrl), others: matches.length - 1, term: null }
+  }
+
+  return { name: matches[0].name, others: matches.length - 1, term: null }
 }
 
 export default {
@@ -267,17 +338,28 @@ export default {
       // suggestion. Never offer the second when we have the first — that reads
       // as the assistant contradicting itself.
       const exact = stated?.hits.length === 1 ? stated.hits[0] : null
-      const popular = stated ? null : mostUsed(matches)
 
-      const searchFor = exact ? exact.name : (stated?.term ?? host)
+      // ALWAYS SEARCH A REAL CATEGORY NAME, never a region token.
+      //
+      // This used to type stated.term, which produced `fill_text: "us"` — two
+      // characters, matching 67 of 79 categories by substring. Useless as a filter
+      // and it reads as the assistant not knowing the answer. The picker searches
+      // names, so give it a name: the most-used category among the ones covering
+      // the region they named, and say how many others share it. Precise prefill,
+      // region still respected, and the user still chooses.
+      const within = stated?.hits ?? matches
+      const pick = exact ?? mostUsed(within) ?? within[0]
+      const others = within.length - 1
 
       let attachSay
       if (exact) attachSay = 'Attach it.'
       else if (stated) {
-        attachSay = `Pick which of the ${stated.hits.length} ${stated.term} categories you want and attach it.`
-      } else if (popular) {
-        attachSay = `Pick your region and attach it — not all of them. "${popular.name}" is what your other audits use.`
-      } else attachSay = 'Pick the region you audit from and attach it — not all of them.'
+        attachSay = `Attach it, or pick another — ${others} more ${
+          others === 1 ? 'category covers' : 'categories cover'
+        } ${stated.term}.`
+      } else if (pick?.auditCount > 0) {
+        attachSay = `Attach it — it is what your other audits use. ${others} others cover this site if you audit from elsewhere.`
+      } else attachSay = `Pick the region you audit from and attach it — not all ${within.length}.`
 
       return [
         ...start,
@@ -286,11 +368,11 @@ export default {
           actor: 'ai',
           targetSelector: SELECTORS.standardsSearch,
           say: exact
-            ? `Searching for "${exact.name}".`
+            ? `Searching for "${pick.name}".`
             : stated
-              ? `Filtering to ${stated.term}.`
-              : `Filtering to ${host} — ${matches.length} categories, one per geography.`,
-          action: { type: 'fill_text', value: searchFor },
+              ? `Filtering to "${pick.name}" — one of ${stated.hits.length} covering ${stated.term}.`
+              : `Filtering to "${pick.name}" — ${matches.length} categories cover ${host}, one per geography.`,
+          action: { type: 'fill_text', value: pick.name },
           completion: { type: 'dom_event', value: 'input' },
         },
         {

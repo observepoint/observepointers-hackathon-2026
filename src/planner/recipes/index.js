@@ -15,6 +15,9 @@
  *   audit_with_rules               Tag & Variable Rules
  *   audit_with_consent_categories  Consent Categories (privacy)
  *   audit_with_alerts              Alerts
+ *   audit_with_all_standards       all three at once, because they are three
+ *                                  sub-tabs of ONE screen — ask for more than one
+ *                                  and you used to get exactly one, silently
  *   alert_from_report              "alert me when X breaks", from a report widget
  *
  * The first three share `_audit-standards.js`, because in moonbeam they are
@@ -44,6 +47,7 @@
 import auditWithRules from './audit-with-rules.js'
 import auditWithConsentCategories from './audit-with-consent-categories.js'
 import auditWithAlerts from './audit-with-alerts.js'
+import auditWithAllStandards from './audit-with-all-standards.js'
 import alertFromReport from './alert-from-report.js'
 import createFirstRule from './create-first-rule.js'
 import createFirstConsentCategory from './create-first-consent-category.js'
@@ -52,6 +56,7 @@ export const RECIPES = [
   auditWithRules,
   auditWithConsentCategories,
   auditWithAlerts,
+  auditWithAllStandards,
   alertFromReport,
   createFirstRule,
   createFirstConsentCategory,

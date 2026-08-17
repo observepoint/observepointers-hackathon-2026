@@ -59,7 +59,7 @@ deliberate line, not a limitation we haven't got to yet.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 216 checks, no API key, no network
+npm test           # 219 checks, no API key, no network
 ```
 
 Open the side panel from the toolbar icon. Type, or click the mic — **voice sends

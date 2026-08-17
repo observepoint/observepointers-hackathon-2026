@@ -43,11 +43,10 @@ export default {
       targetSelector: SELECTORS.subTabRules,
       say: 'Open Tag & Variable Rules.',
       targetFallback: { description: 'the "Tag & Variable Rules" sub-tab' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: '.op-standards-selector',
-      },
+      // See the note in audit-with-consent-categories.js: the standards picker is
+      // already on screen when Standards opens, so a visibility completion fires
+      // instantly and the user never clicks this tab.
+      completion: { type: 'dom_event', value: 'click' },
     },
     {
       id: 's9',

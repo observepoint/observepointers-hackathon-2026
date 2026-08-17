@@ -1,15 +1,14 @@
 {
-  "recipeId": "audit_with_alerts",
-  "goal": "add alerts to my audit for https://www.example.com",
-  "summary": "We'll create an audit called \"example.com — Alerting\" against https://www.example.com and attach alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.",
+  "recipeId": "audit_with_all_standards",
+  "goal": "set up an audit for https://www.example.com with rules, consent categories and alerts",
+  "summary": "Rules, Consent Categories and Alerts are three sub-tabs of one Standards screen, so this is a single audit rather than three. We'll create \"example.com — All standards\" against https://www.example.com and attach all three.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
-    "auditName": "example.com — Alerting"
+    "auditName": "example.com — All standards"
   },
   "steps": [
     {
-      "id": "s1",
       "actor": "user",
       "navContext": "/sources",
       "targetSelector": "#guide-create-new-data-src-btn",
@@ -20,10 +19,10 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "id": "s1"
     },
     {
-      "id": "s2",
       "actor": "user",
       "targetSelector": "#guide-create-new-audit",
       "say": "Choose Audit.",
@@ -34,10 +33,10 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": ".op-audit-editor, .audit-setup-modal"
-      }
+      },
+      "id": "s2"
     },
     {
-      "id": "s3",
       "actor": "user",
       "optional": true,
       "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
@@ -50,27 +49,27 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": ".op-audit-editor"
-      }
+      },
+      "id": "s3"
     },
     {
-      "id": "s4",
       "actor": "ai",
       "targetSelector": "audit-editor-header-name-control input",
-      "say": "Naming it \"example.com — Alerting\".",
+      "say": "Naming it \"example.com — All standards\".",
       "targetFallback": {
         "description": "the audit name field in the editor header"
       },
       "action": {
         "type": "fill_text",
-        "value": "example.com — Alerting"
+        "value": "example.com — All standards"
       },
       "completion": {
         "type": "dom_event",
         "value": "change"
-      }
+      },
+      "id": "s4"
     },
     {
-      "id": "s5",
       "actor": "user",
       "targetSelector": "[op-selector=\"audit-tab-url-sources\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)",
       "say": "Open URL Sources.",
@@ -80,10 +79,10 @@
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
+      },
+      "id": "s5"
     },
     {
-      "id": "s6",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
       "say": "Setting the starting URL.",
@@ -97,10 +96,10 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      }
+      },
+      "id": "s6"
     },
     {
-      "id": "s7",
       "actor": "user",
       "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
       "say": "Open the Standards tab.",
@@ -111,59 +110,86 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": ".op-tabs.sub-menu"
-      }
+      },
+      "id": "s7"
     },
     {
-      "id": "s8",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"standards-tab-rules\"]",
+      "say": "Open Tag & Variable Rules.",
+      "targetFallback": {
+        "description": "the \"Tag & Variable Rules\" sub-tab under Standards"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s8"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .add-all-standards-btn",
+      "say": "Add the rules this audit should check.",
+      "targetFallback": {
+        "description": "the \"add all\" button in the picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s9"
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"standards-tab-consent-categories\"]",
+      "say": "Open Consent Categories.",
+      "targetFallback": {
+        "description": "the \"Consent Categories\" sub-tab under Standards"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s10"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .add-all-standards-btn",
+      "say": "Search for the category that covers this site, then attach it.",
+      "targetFallback": {
+        "description": "the \"add all\" button in the picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s11"
+    },
+    {
       "actor": "user",
       "targetSelector": "[op-selector=\"standards-tab-alerts\"]",
       "say": "Open Alerts.",
       "targetFallback": {
-        "description": "the \"Alerts\" sub-tab"
+        "description": "the \"Alerts\" sub-tab under Standards"
       },
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
-    },
-    {
-      "id": "s9",
-      "actor": "user",
-      "targetSelector": ".op-standards-selector .search-input",
-      "say": "Search your alerts.",
-      "targetFallback": {
-        "description": "the search box in the alerts picker"
       },
-      "completion": {
-        "type": "dom_event",
-        "value": "input"
-      }
+      "id": "s12"
     },
     {
-      "id": "s10",
       "actor": "user",
       "targetSelector": ".op-standards-selector .add-all-standards-btn",
-      "say": "Attach them.",
+      "say": "Add the alerts that should fire when a run breaches them.",
       "targetFallback": {
-        "description": "the \"add all\" button in the alerts picker"
+        "description": "the \"add all\" button in the picker"
       },
       "completion": {
         "type": "dom_event",
         "value": "click"
-      }
-    },
-    {
-      "id": "s11",
-      "actor": "user",
-      "targetSelector": ".op-standards-selector .create-new-btn",
-      "say": "Nothing fits? Create an alert here instead.",
-      "targetFallback": {
-        "description": "the \"Create New Alert\" button"
       },
-      "completion": {
-        "type": "dom_event",
-        "value": "click"
-      }
+      "id": "s13"
     }
   ]
 }

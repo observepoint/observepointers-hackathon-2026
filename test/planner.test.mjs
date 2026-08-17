@@ -460,14 +460,19 @@ const geoFanout = withAccount(
   })),
 )
 check('spots a CMP geo fan-out', geoFanout.plan.summary.includes('one per geography'))
+// The prefill must be a real category NAME, never a region token. A live run filled
+// "us" -- two characters, matching 67 of 79 by substring -- which is useless as a
+// filter and reads as the assistant not knowing the answer.
+const fanoutFill = geoFanout.plan.steps.find(s => s.id === 's9')
 check(
-  'filters the picker by site instead of naming one arbitrarily',
-  geoFanout.plan.steps.some(s => s.action?.value === 'gap.com'),
-  JSON.stringify(geoFanout.plan.steps.map(s => s.action?.value)),
+  'prefills a real category name, not a region token',
+  fanoutFill?.action.value.includes('gap.com |'),
+  fanoutFill?.action.value,
 )
 check(
   'tells the user to pick rather than attach everything',
-  geoFanout.plan.steps.some(s => s.say.includes('not all of them')),
+  geoFanout.plan.steps.some(s => /not all|pick another|pick the region/i.test(s.say)),
+  geoFanout.plan.steps.map(s => s.say).join(' | '),
 )
 check(
   'still names a single match when there is no fan-out',
@@ -503,8 +508,9 @@ check(
 const canada = planFor('privacy audit for gap.com for Canada')
 check('a region covering several narrows to those', canada.plan.summary.includes('2 of your 5'))
 check(
-  'filters the picker by the region, not the domain',
-  canada.plan.steps.some(s => s.action?.value === 'Canada'),
+  'prefills a Canadian category rather than the word Canada',
+  canada.plan.steps.some(s => /\| Canada/.test(s.action?.value ?? '')),
+  canada.plan.steps.find(s => s.id === 's9')?.action.value,
 )
 check(
   "keeps the account's own casing",
@@ -525,7 +531,8 @@ check(
 )
 check(
   'and still leaves the choice to them',
-  noGeo.plan.steps.some(s => s.say.includes('not all of them')),
+  noGeo.plan.steps.some(s => /others cover this site|pick the region/i.test(s.say)),
+  noGeo.plan.steps.map(s => s.say).join(' | '),
 )
 
 /* ---------------------------------------------------------------- */
@@ -725,6 +732,8 @@ check(
         'audit_with_rules',
         'audit_with_consent_categories',
         'audit_with_alerts',
+        // Reuses only selectors the three above already proved.
+        'audit_with_all_standards',
         // Swept end to end on /rules/library: sidebar link, Create Rule,
         // name field, Next, Save.
         'create_first_rule',
@@ -763,17 +772,17 @@ const privacy = region => `check gap.com for privacy compliance in ${region}`
 
 // The reported failure: an account that writes USA matched nothing for "the
 // United States", so the plan picked the first of four by ordering.
-for (const [said, expected] of [
+// Asserts which geo the chosen category belongs to, not an exact string: the
+// prefill is a real category name now, and the point is that it covers the region
+// the user named.
+for (const [said, geo] of [
   ['the United States', 'USA'],
   ['the U.S.', 'USA'],
   ['America', 'USA'],
   ['Canada', 'Canada'],
 ]) {
-  check(
-    `"${said}" narrows to ${expected}`,
-    (await searchesFor(privacy(said))) === expected,
-    await searchesFor(privacy(said)),
-  )
+  const filled = await searchesFor(privacy(said))
+  check(`"${said}" narrows to a ${geo} category`, filled.includes(geo), filled)
 }
 
 // Two-character geos used to be dropped outright by a length > 2 filter, so an
@@ -788,11 +797,18 @@ check(
   (await searchesFor(privacy('the United Kingdom'))).includes('UK'),
 )
 
-// The reason bare "us" is deliberately absent from the alias table.
+// The reason bare "us" is deliberately absent from the alias table. The prefill is
+// a real category name now, so the assertion is about NARROWING, not the string:
+// a pronoun must not make the plan claim it filtered to a region.
+const pronounPlan = await createPlan('check our site for privacy compliance for us, gap.com', {
+  forceLocal: true,
+  account: aliasAccount,
+})
 check(
-  'the pronoun in "for us" is not a region',
-  (await searchesFor('check our site for privacy compliance for us, gap.com')) === 'gap.com',
-  await searchesFor('check our site for privacy compliance for us, gap.com'),
+  'the pronoun in "for us" does not narrow to a region',
+  pronounPlan.plan.summary.includes('one per geography') &&
+    !/covering|cover us\b/i.test(pronounPlan.plan.summary),
+  pronounPlan.plan.summary,
 )
 // Bounded matching, not substring: "eu" inside another word must not count.
 check(

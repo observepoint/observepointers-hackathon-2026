@@ -31,6 +31,10 @@ const cases = [
     file: 'plan.audit-with-alerts.json',
     goal: 'add alerts to my audit for https://www.example.com',
   },
+  {
+    file: 'plan.audit-with-all-standards.json',
+    goal: 'set up an audit for https://www.example.com with rules, consent categories and alerts',
+  },
   { file: 'plan.alert-from-report.json', goal: 'alert me when the purchase tag stops firing' },
   // The empty-account pair. Worth shipping as fixtures because they are the
   // only plans that walk the sidebar and land on a real route, so a runtime

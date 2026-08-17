@@ -30,7 +30,8 @@ real recipes, committed to the repo:
 ```
 fixtures/plan.audit-with-rules.json                    10 steps, all selectors confirmed
 fixtures/plan.audit-with-consent-categories.json        9 steps, all selectors confirmed
-fixtures/plan.audit-with-alerts.json                   10 steps, all selectors confirmed
+fixtures/plan.audit-with-alerts.json                   11 steps, all selectors confirmed
+fixtures/plan.audit-with-all-standards.json            13 steps, all selectors confirmed
 fixtures/plan.alert-from-report.json                    6 steps
 fixtures/plan.create-first-rule.json                    5 steps, all selectors confirmed
 fixtures/plan.create-first-consent-category.json        5 steps
@@ -212,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 216 checks, no API key, no network
+npm test           # 219 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -350,6 +351,7 @@ flows for an account that has none of them yet.
 | `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps |
 | `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps |
 | `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
+| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps |
 | `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
 | `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept |
