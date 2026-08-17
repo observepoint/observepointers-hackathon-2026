@@ -36,6 +36,12 @@ async function activeTab() {
  * Tabs open before the extension loaded have no content script. Ping, and
  * inject on failure. The file path must come from the runtime manifest: the
  * build renames content scripts, so a hardcoded src/ path 404s once built.
+ *
+ * This is also the escape hatch for the narrowed content_scripts.matches. The
+ * manifest only auto-injects on ObservePoint hosts, but executeScript is gated
+ * by host permissions / activeTab rather than by those matches — so if Part 2 or
+ * Part 3 needs the pointer on some other page to test, this path still reaches
+ * it once the panel has been opened.
  */
 async function ensureContentScript(tabId) {
   try {

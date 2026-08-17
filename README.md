@@ -96,6 +96,8 @@ src/
 ├── sidepanel/        # The chat surface. input.js is the voice/text seam.
 ├── content/          # On-page: reads the session token, describes the screen,
 │                     # verifies selectors. Part 2's walkthrough lands here.
+│                     # Injected only on ObservePoint hosts + localhost, not
+│                     # <all_urls>.
 ├── background/       # Service worker. Cross-origin API calls happen here, not
 │                     # in the content script — page CORS blocks those.
 ├── options/          # API key

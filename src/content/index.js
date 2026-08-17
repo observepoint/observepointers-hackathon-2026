@@ -11,13 +11,33 @@
  *    storage, so it can read that same token and make the same authenticated
  *    call the app makes.
  *
- *    The token never leaves this file. The side panel asks for a path and gets
- *    back JSON; it never sees the credential, so a bug up there can't leak it.
+ *    The token crosses exactly one boundary: this script → our own service
+ *    worker, which needs it because a content script's cross-origin fetch obeys
+ *    the *page's* CORS policy and the app host does not proxy /api. It goes no
+ *    further. The side panel asks for a path and gets back JSON, so it never
+ *    sees the credential and a bug up there cannot leak it. An earlier version
+ *    of this comment claimed the token never left this file; that stopped being
+ *    true when the fetch moved to the worker, and saying so was worse than the
+ *    change itself.
  *
  * 2. PLAN_READY receipt — Part 2's placeholder. Logs the plan and flags whether
  *    its first step resolves on this page.
+ *
+ * WHERE THIS RUNS
+ * The manifest injects only on the hosts below — not <all_urls>. The extension
+ * is useless anywhere else, and a script on every page you visit is a much
+ * bigger ask than one on the app it automates. Chrome match patterns ignore the
+ * port, so `http://localhost/*` covers moonbeam's dev server on :4200.
+ *
+ * Part 2 and Part 3, if you need the pointer on some other page to test:
+ * background/index.js::ensureContentScript() injects on demand via
+ * chrome.scripting, which the `activeTab` permission covers once the user has
+ * opened the panel. Narrowing the declared matches did not take that away.
  */
 
+// Kept in sync with the manifest's content_scripts.matches by hand. This is the
+// runtime guard, that is the injection filter, and they answer different
+// questions — on-demand injection can land us somewhere matches would not.
 // Local moonbeam (`npm start` → localhost:4200) counts: it is the same app,
 // and its dev environment.ts points at the staging API, so everything else
 // works unchanged.
