@@ -149,7 +149,11 @@
         "unverified": true
       }
     ],
-    "chain": ["create_tag_variable_rule", "create_first_alert", "audit_with_all_standards"]
+    "chain": [
+      "create_tag_variable_rule",
+      "create_first_alert",
+      "audit_with_all_standards"
+    ]
   },
   {
     "recipeId": "create_tag_variable_rule",

@@ -91,6 +91,47 @@ const tokens = s =>
 const URL_RE = /\bhttps?:\/\/[^\s'"]+|\b(?:[a-z0-9-]+\.)+(?:com|org|net|io|co|dev|ai)(?:\/\S*)?/i
 const QUOTED_RE = /["“']([^"”']{2,60})["”']/
 
+/**
+ * "for USA, Utah" / "in Canada, Alberta" -> the place.
+ *
+ * Capitalisation is the signal: place names are written capitalised and the words
+ * around them are not, which is what keeps "for gap.com" and the pronoun "us" out of
+ * it. One optional comma-separated part, because that is the shape OneTrust uses.
+ *
+ * TWO THINGS THAT CAUGHT IT OUT, both from the same sentence.
+ *
+ * "from" is not a location preposition here — it is the CMP's. "import our consent
+ * categories FROM OneTrust FOR observepoint.com" pulled out "OneTrust" and the
+ * walkthrough went looking for a location row labelled OneTrust. Locations take "for"
+ * or "in"; the vendor takes "from", and dropping it removes the collision at its
+ * source rather than blocklisting one vendor's name.
+ *
+ * Every candidate is then checked rather than just the first, because "in" still
+ * collides — "our categories in OneTrust for Utah" — and a domain written with a
+ * capital ("for Observepoint.com") is a site, not a place.
+ */
+function extractLocation(goal) {
+  const candidates = String(goal ?? '').matchAll(
+    /\b(?:for|in)\s+([A-Z][\w.]*(?:,\s*[A-Z][\w.]*)?)/g,
+  )
+
+  for (const [, candidate] of candidates) {
+    if (/\.(com|org|net|io|co|dev|ai)\b/i.test(candidate)) continue
+    if (NOT_PLACES.has(candidate.toLowerCase())) continue
+    return candidate
+  }
+  return null
+}
+
+/**
+ * Capitalised words this product's own vocabulary uses that are not places.
+ *
+ * Deliberately short. It is the backstop for the "in OneTrust" shape that dropping
+ * "from" does not cover; if it starts growing, the answer is a model call rather than
+ * a longer list of proper nouns.
+ */
+const NOT_PLACES = new Set(['onetrust', 'observepoint', 'gdpr', 'ccpa'])
+
 export function extractParameters(goal, recipe) {
   const found = {}
 
@@ -108,12 +149,8 @@ export function extractParameters(goal, recipe) {
       const m = goal.match(QUOTED_RE)
       if (m) found[param.name] = m[1]
     } else if (name.includes('location') || name.includes('region')) {
-      // "for USA, Utah" / "in Canada, Alberta". Capitalisation is the signal: place
-      // names are written capitalised and the surrounding words are not, which keeps
-      // "for gap.com" and "for us" out of it. One optional comma-separated part,
-      // because that is the shape OneTrust uses.
-      const m = goal.match(/\b(?:for|in|from)\s+([A-Z][\w.]*(?:,\s*[A-Z][\w.]*)?)/)
-      if (m) found[param.name] = m[1]
+      const location = extractLocation(goal)
+      if (location) found[param.name] = location
     } else if (name.includes('condition') || name.includes('summary')) {
       // "alert me when X" / "notify me if X" -> X
       const m = goal.match(/\b(?:when|if)\b\s+(.{4,120})/i)

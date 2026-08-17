@@ -714,6 +714,32 @@ check(
   otOnly.plans?.map(p => p.recipeId).join(','),
 )
 
+// "from OneTrust for observepoint.com" used to yield location "OneTrust", and the
+// walkthrough went looking for a location row labelled OneTrust. "from" belongs to the
+// vendor; locations take "for" or "in".
+const locationOf = goal => matchDeterministic(goal).parameters.location ?? null
+
+check(
+  'the CMP is not mistaken for a location',
+  locationOf('import our consent categories from OneTrust for observepoint.com') === null,
+  locationOf('import our consent categories from OneTrust for observepoint.com'),
+)
+check(
+  'and neither is a capitalised domain',
+  locationOf('import our OneTrust consent categories for Gap.com') === null,
+  locationOf('import our OneTrust consent categories for Gap.com'),
+)
+check(
+  '"in <vendor> for <place>" still finds the place',
+  locationOf('import our categories in OneTrust for Utah') === 'Utah',
+  locationOf('import our categories in OneTrust for Utah'),
+)
+check(
+  'a two-part location survives',
+  locationOf('sync OneTrust consent categories for USA, Utah') === 'USA, Utah',
+  locationOf('sync OneTrust consent categories for USA, Utah'),
+)
+
 // Both halves are required. Mentioning the CMP is not asking to import from it, and
 // re-importing categories someone already has is not a helpful reading.
 check(

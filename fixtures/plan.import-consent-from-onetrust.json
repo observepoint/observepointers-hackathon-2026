@@ -1,11 +1,11 @@
 {
   "recipeId": "import_consent_from_onetrust",
   "goal": "import our consent categories from OneTrust for gap.com",
-  "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://gap.com for OneTrust — rerun it per location if you need more than one.",
+  "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://gap.com for the location you need — rerun it per location if you need more than one.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://gap.com",
-    "location": "OneTrust"
+    "location": "the location you need"
   },
   "steps": [
     {
@@ -73,48 +73,15 @@
     {
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-onetrust-location\"]",
-      "say": "Open the location list.",
+      "say": "Pick your location — the list is searchable.",
       "targetFallback": {
         "description": "the \"From Which Location?\" dropdown"
-      },
-      "completion": {
-        "type": "dom_mutation",
-        "condition": "visible",
-        "targetSelector": "input.mat-select-search-input:not(.mat-select-search-hidden)"
-      },
-      "id": "s5",
-      "unverified": true
-    },
-    {
-      "actor": "ai",
-      "targetSelector": "input.mat-select-search-input:not(.mat-select-search-hidden)",
-      "say": "Filtering the list to \"OneTrust\".",
-      "targetFallback": {
-        "description": "the search box at the top of the location list"
-      },
-      "action": {
-        "type": "fill_text",
-        "value": "OneTrust"
-      },
-      "completion": {
-        "type": "dom_event",
-        "value": "input"
-      },
-      "id": "s6",
-      "unverified": true
-    },
-    {
-      "actor": "user",
-      "targetSelector": "mat-option.loc-autocomplete >> text=OneTrust",
-      "say": "Choose the OneTrust row.",
-      "targetFallback": {
-        "description": "the OneTrust option in the location list"
       },
       "completion": {
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s7",
+      "id": "s5",
       "unverified": true
     },
     {
@@ -129,7 +96,7 @@
         "condition": "visible",
         "targetSelector": ".options-selected-container"
       },
-      "id": "s8",
+      "id": "s6",
       "unverified": true
     },
     {
@@ -143,7 +110,7 @@
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s9",
+      "id": "s7",
       "unverified": true
     }
   ]
