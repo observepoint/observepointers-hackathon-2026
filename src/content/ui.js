@@ -30,7 +30,7 @@ export function unhighlightElement(el) {
   el.classList.remove('op-wt-highlight')
 }
 
-export function showTooltip(element, text, stepIndex, totalSteps) {
+export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
   removeTooltip()
 
   const tip = document.createElement('div')
@@ -48,15 +48,32 @@ export function showTooltip(element, text, stepIndex, totalSteps) {
     font-size: 14px;
     line-height: 1.5;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    pointer-events: none;
+    pointer-events: ${onNext ? 'auto' : 'none'};
   `
   tip.innerHTML = `
     <div style="font-size:11px;color:#ffd700;font-weight:600;letter-spacing:0.5px;margin-bottom:6px;">
       STEP ${stepIndex + 1} OF ${totalSteps}
     </div>
     <div>${text}</div>
+    ${onNext ? `
+    <button id="op-wt-next-btn" style="
+      margin-top: 10px;
+      width: 100%;
+      background: #ffd700;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    ">Next →</button>` : ''}
   `
   document.body.appendChild(tip)
+
+  if (onNext) {
+    document.getElementById('op-wt-next-btn').addEventListener('click', onNext)
+  }
 
   const rect = element.getBoundingClientRect()
   const tipRect = tip.getBoundingClientRect()
