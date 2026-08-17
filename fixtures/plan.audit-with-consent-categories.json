@@ -128,11 +128,15 @@
     },
     {
       "id": "s9",
-      "actor": "user",
+      "actor": "ai",
       "targetSelector": ".op-standards-selector .search-input",
-      "say": "Search for the category that covers this site.",
+      "say": "Filtering to \"example.com\" — I can't read your account from here, so this is a guess at the name.",
       "targetFallback": {
         "description": "the search box in the consent categories picker"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "example.com"
       },
       "completion": {
         "type": "dom_event",

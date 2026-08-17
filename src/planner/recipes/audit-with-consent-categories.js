@@ -46,14 +46,24 @@ const openSubTab = {
   completion: { type: 'dom_event', value: 'click' },
 }
 
-/** What we say when we cannot see the account. */
-const genericEnding = [
+/**
+ * What we say when we cannot see the account.
+ *
+ * Even here, say what to TYPE. "Search for the category that covers this site" is
+ * an instruction with the useful half missing — the user is staring at a search box
+ * wondering what this thing is called. We do not know the category name without the
+ * account, but we do know the site, and the site is what its name almost always
+ * contains. So fill the host: it is a guess about their naming, never about their
+ * data, and it beats an empty box.
+ */
+const genericEnding = context => [
   {
     id: 's9',
-    actor: 'user',
+    actor: 'ai',
     targetSelector: SELECTORS.standardsSearch,
-    say: 'Search for the category that covers this site.',
+    say: `Filtering to "${hostFrom(context.parameters?.siteUrl)}" — I can't read your account from here, so this is a guess at the name.`,
     targetFallback: { description: 'the search box in the consent categories picker' },
+    action: { type: 'fill_text', value: hostFrom(context.parameters?.siteUrl) },
     completion: { type: 'dom_event', value: 'input' },
   },
   {
@@ -326,7 +336,7 @@ export default {
     const start = [...stepsToStandardsTab(), openSubTab]
     const matches = matchesFor(context)
 
-    if (matches === null) return [...start, ...genericEnding]
+    if (matches === null) return [...start, ...genericEnding(context)]
 
     // Many geo variants: filter the picker to the site, then it's the user's
     // call. Searching a specific name here would silently choose for them.

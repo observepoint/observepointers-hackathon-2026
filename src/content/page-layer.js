@@ -361,6 +361,33 @@ function waitForElement(selector, signal, timeoutMs = 10000) {
   })
 }
 
+/**
+ * Bring an element into view, but only if it isn't already.
+ *
+ * Unconditional scrolling is worse than none: every step would yank the page even
+ * when the target is plainly visible, which reads as jitter. So this checks first,
+ * and leaves anything comfortably on screen alone.
+ *
+ * `block: 'center'` rather than 'nearest' because a target flush against the bottom
+ * edge is technically visible and practically not — and the tooltip needs room
+ * underneath it.
+ */
+function scrollIntoViewIfNeeded(element) {
+  const rect = element.getBoundingClientRect()
+  const height = window.innerHeight || document.documentElement.clientHeight
+  // A margin, not zero: an element with 10px showing is not usable, and the
+  // tooltip has to fit somewhere near it.
+  const margin = 120
+  const onScreen = rect.top >= margin && rect.bottom <= height - margin
+
+  if (onScreen) return Promise.resolve()
+
+  element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+  // Long enough for a smooth scroll to settle, so the highlight and the tooltip
+  // land on the element's final position rather than its old one.
+  return new Promise(r => setTimeout(r, 400))
+}
+
 export async function startWalkthrough(plans) {
   abortController = new AbortController()
   const { signal } = abortController
@@ -431,6 +458,14 @@ export async function startWalkthrough(plans) {
       }
 
       activeElement = element
+      // Scroll before highlighting, not after. The standards picker's "add all"
+      // button sits below the fold on a short window: it was being highlighted
+      // correctly and the user could not see it, which is indistinguishable from
+      // the walkthrough pointing at nothing.
+      //
+      // Also before showTooltip, which anchors to the element's rect -- position it
+      // first and the tooltip ends up wherever the element used to be.
+      await scrollIntoViewIfNeeded(element)
       highlightElement(element)
 
       const isDomMutation = step.completion?.type === 'dom_mutation'

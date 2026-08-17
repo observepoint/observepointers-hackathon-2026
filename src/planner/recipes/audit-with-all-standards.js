@@ -1,5 +1,6 @@
 import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 import { bestCategoryFor } from './audit-with-consent-categories.js'
+import { hostFrom } from '../naming.js'
 
 /**
  * One audit, all three Standards.
@@ -131,7 +132,18 @@ export default {
         ),
       )
     } else {
-      consentLeg.push(attach('Search for the category that covers this site, then attach it.'))
+      // No account, but still say what to type: the site. Its name almost always
+      // contains it, and a named guess beats "search for the right one".
+      const host = hostFrom(context.parameters?.siteUrl)
+      consentLeg.push({
+        actor: 'ai',
+        targetSelector: SELECTORS.standardsSearch,
+        say: `Filtering to "${host}" — I can't read your account from here, so this is a guess at the name.`,
+        targetFallback: { description: 'the search box in the consent categories picker' },
+        action: { type: 'fill_text', value: host },
+        completion: { type: 'dom_event', value: 'input' },
+      })
+      consentLeg.push(attach('Attach the one that covers this site.'))
     }
 
     return numbered([

@@ -153,9 +153,26 @@
       "id": "s10"
     },
     {
+      "actor": "ai",
+      "targetSelector": ".op-standards-selector .search-input",
+      "say": "Filtering to \"example.com\" — I can't read your account from here, so this is a guess at the name.",
+      "targetFallback": {
+        "description": "the search box in the consent categories picker"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "example.com"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s11"
+    },
+    {
       "actor": "user",
       "targetSelector": ".op-standards-selector .add-all-standards-btn",
-      "say": "Search for the category that covers this site, then attach it.",
+      "say": "Attach the one that covers this site.",
       "targetFallback": {
         "description": "the \"add all\" button in the picker"
       },
@@ -163,7 +180,7 @@
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s11"
+      "id": "s12"
     },
     {
       "actor": "user",
@@ -176,7 +193,7 @@
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s12"
+      "id": "s13"
     },
     {
       "actor": "user",
@@ -189,7 +206,7 @@
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s13"
+      "id": "s14"
     }
   ]
 }

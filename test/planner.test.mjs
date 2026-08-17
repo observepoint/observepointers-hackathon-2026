@@ -412,9 +412,18 @@ const withAccount = categories =>
 // Blind: the plan has to hedge, and the hedge is the three-step branch.
 const blind = buildPlan(RECIPE, 'g', { siteUrl: 'gap.com' })
 check('falls back to generic steps with no account', blind.status === 'plan')
+// Even blind it says what to TYPE. "Search for the category that covers this site"
+// is an instruction with the useful half missing -- the user is staring at a search
+// box wondering what the thing is called. We cannot know the category name without
+// the account, but we know the site, and its name almost always contains it.
 check(
-  'generic plan still searches rather than naming a category',
-  blind.plan.steps.some(s => s.say.includes('Search for the category')),
+  'a blind plan still prefills something searchable',
+  blind.plan.steps.some(s => s.action?.value === 'gap.com'),
+  JSON.stringify(blind.plan.steps.map(s => s.action?.value)),
+)
+check(
+  'and admits it is guessing at the name',
+  blind.plan.steps.some(s => /can't read your account/.test(s.say)),
 )
 
 // A match: name it, and drop the branch entirely.
