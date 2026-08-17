@@ -11,24 +11,25 @@
     {
       "id": "s1",
       "actor": "user",
-      "navContext": "/sources",
-      "targetSelector": "#guide-create-new-data-src-btn",
-      "say": "Open the create menu.",
+      "navContext": "*",
+      "targetSelector": "[op-selector=\"sidebar-create-new\"]",
+      "say": "Click Create New in the left sidebar.",
       "targetFallback": {
-        "description": "the Create button on the Data Sources page"
+        "description": "the \"Create New\" button in the left sidebar"
       },
       "completion": {
-        "type": "dom_event",
-        "value": "click"
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"new-data-option-audit\"]"
       }
     },
     {
       "id": "s2",
       "actor": "user",
-      "targetSelector": "#guide-create-new-audit",
+      "targetSelector": "[op-selector=\"new-data-option-audit\"]",
       "say": "Choose Audit.",
       "targetFallback": {
-        "description": "the Audit item in the create menu"
+        "description": "the \"Audit\" option in the Create New dialog"
       },
       "completion": {
         "type": "dom_mutation",

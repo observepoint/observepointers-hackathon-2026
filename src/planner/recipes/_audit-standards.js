@@ -48,7 +48,17 @@
 import { auditNameFor, normalizeSiteUrl } from '../naming.js'
 
 export const SELECTORS = {
-  // Data Sources page
+  // The sidebar, which is reachable from every screen in the app — including the
+  // Data Sources page, so this replaces rather than supplements the entry below.
+  //
+  // NOT '#guide-left-nav-create-new'. global-sidebar.component.ts sets an `id` on
+  // its link objects but global-sidebar-link.component.html never binds one, so
+  // those ids exist only in the TypeScript. The op-selector is bound and real.
+  sidebarCreateNew: '[op-selector="sidebar-create-new"]',
+  newDataAudit: '[op-selector="new-data-option-audit"]',
+
+  // Data Sources page. Kept because alert_from_report still starts there — it has
+  // to pick an existing audit — and because Check screen uses them as landmarks.
   createDataSource: '#guide-create-new-data-src-btn',
   createWebAudit: '#guide-create-new-audit',
 
@@ -126,8 +136,22 @@ export const SELECTORS = {
 }
 
 /**
- * Data Sources → create the audit → Standards tab. All three audit recipes start
- * here, so fixing this path fixes all three at once.
+ * Sidebar → create the audit → Standards tab. All the audit recipes start here, so
+ * fixing this path fixes all of them at once.
+ *
+ * STARTS FROM THE SIDEBAR, NOT FROM DATA SOURCES.
+ *
+ * It used to open the Data Sources page's Create button, scoped to `/sources`. That
+ * made a plan begun from anywhere else stop and tell the user to navigate — the
+ * walkthrough's first act was a chore. The sidebar's Create New opens the same
+ * NewDataModalComponent from every screen, so the navigation step is gone rather
+ * than explained.
+ *
+ * One behavioural difference worth knowing: new-data-modal's createAudit() branches
+ * on `useAdvancedAuditMode()` ALONE, where manage-cards' createWebAudit() also
+ * opens Quick Audit when the account has no data sources. So this route reaches the
+ * advanced editor more often. The optional switch-to-advanced step below covers
+ * both either way, which is exactly why it is optional rather than predicted.
  *
  * ONE PATH, BOTH ENTRY POINTS.
  *
@@ -166,18 +190,31 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
     {
       id: id(0),
       actor: 'user',
-      navContext: '/sources',
-      targetSelector: SELECTORS.createDataSource,
-      say: 'Open the create menu.',
-      targetFallback: { description: 'the Create button on the Data Sources page' },
-      completion: { type: 'dom_event', value: 'click' },
+      // No navContext. This used to be scoped to /sources and start from the Data
+      // Sources page's own Create button, which meant a plan begun anywhere else
+      // stopped to tell the user to navigate first — a prerequisite popup standing
+      // between them and the thing they asked for.
+      //
+      // The sidebar's Create New opens the same modal from any screen, so the
+      // navigation step disappears rather than being explained. It also survives a
+      // collapsed sidebar: only `always-expanded-body` is gated on that, and this
+      // is a top-level item.
+      navContext: '*',
+      targetSelector: SELECTORS.sidebarCreateNew,
+      say: 'Click Create New in the left sidebar.',
+      targetFallback: { description: 'the "Create New" button in the left sidebar' },
+      completion: {
+        type: 'dom_mutation',
+        condition: 'visible',
+        targetSelector: SELECTORS.newDataAudit,
+      },
     },
     {
       id: id(1),
       actor: 'user',
-      targetSelector: SELECTORS.createWebAudit,
+      targetSelector: SELECTORS.newDataAudit,
       say: 'Choose Audit.',
-      targetFallback: { description: 'the Audit item in the create menu' },
+      targetFallback: { description: 'the "Audit" option in the Create New dialog' },
       completion: {
         type: 'dom_mutation',
         condition: 'visible',

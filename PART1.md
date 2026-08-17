@@ -213,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 232 checks, no API key, no network
+npm test           # 235 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -395,6 +395,29 @@ hand-placed and they had already drifted — two of these recipes were claiming
 verified steps nobody had seen.
 
 ### Three things the recipes encode that aren't obvious
+
+**Audits start from the sidebar, not from Data Sources.** The audit path used to
+open the Data Sources page's Create button, scoped to `navContext: '/sources'` — so
+a plan begun anywhere else stopped to tell the user to navigate first. The
+walkthrough's opening act was a chore.
+
+The sidebar's **Create New** opens the same `NewDataModalComponent` from every
+screen, so that step is gone rather than explained. `navContext: '*'`, no
+prerequisite popup, and it survives a collapsed sidebar (only
+`always-expanded-body` is gated on that; Create New is a top-level item).
+
+Two things found doing it:
+
+- **`#guide-left-nav-create-new` does not exist.** `global-sidebar.component.ts`
+  sets an `id` on its link objects, but `global-sidebar-link.component.html` never
+  binds one — those ids live only in the TypeScript. Use the `opLinkSelectorMap`
+  names: `[op-selector="sidebar-create-new"]`. Part 2's `ANCHOR.navCreateNew` reaches
+  for the dead id.
+- **The two routes branch differently.** `new-data-modal`'s `createAudit()` checks
+  `useAdvancedAuditMode()` alone; `manage-cards`' `createWebAudit()` _also_ opens
+  Quick Audit when the account has no data sources. So the sidebar route lands in the
+  advanced editor more often — which changes nothing here, because the switch step is
+  optional rather than predicted.
 
 **Create → Audit opens one of two different screens, and it's an OR.**
 

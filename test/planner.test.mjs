@@ -438,7 +438,10 @@ check(
 )
 check(
   'drops the "or create one instead" branch when something matches',
-  !matched.plan.steps.some(s => s.say.includes('Create')),
+  // Scoped to the hedge, not to the word "Create": the entry step legitimately
+  // says "Click Create New in the left sidebar", which made a bare substring
+  // check fail the moment that path changed.
+  !matched.plan.steps.some(s => /create one|create a new consent/i.test(s.say)),
   JSON.stringify(matched.plan.steps.map(s => s.say)),
 )
 
@@ -620,12 +623,24 @@ check(
 )
 // Either modal satisfies the step that opens one. Mutually exclusive, so a comma
 // list is the safe kind.
-const opensEditor = auditPath.find(s => s.targetSelector.includes('guide-create-new-audit'))
+const opensEditor = auditPath.find(s => s.targetSelector.includes('new-data-option-audit'))
 check(
   'opening the editor accepts whichever modal appears',
   opensEditor.completion.targetSelector.includes('op-audit-editor') &&
     opensEditor.completion.targetSelector.includes('audit-setup-modal'),
   opensEditor.completion.targetSelector,
+)
+// The whole point of moving to the sidebar: a plan started from anywhere no longer
+// stops to tell the user to navigate somewhere first.
+check(
+  'the audit path needs no particular screen to begin',
+  auditPath[0].navContext === '*',
+  auditPath[0].navContext,
+)
+check(
+  'and starts from the sidebar, which every screen has',
+  auditPath[0].targetSelector === '[op-selector="sidebar-create-new"]',
+  auditPath[0].targetSelector,
 )
 // Naming after the switch is what makes one list work: Quick Audit auto-names to
 // "Simple Audit - <date>", so this either sets the name or replaces that default.
