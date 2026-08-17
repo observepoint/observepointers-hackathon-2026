@@ -38,7 +38,12 @@
 
 export const ACTORS = ['user', 'ai']
 export const EXECUTION_MODES = ['templated', 'generated', 'ad-hoc']
-export const ACTION_TYPES = ['click', 'fill_text', 'select_option']
+// 'input' and 'scrollIntoView' are Part 2's names, taken so their recipes pass
+// this validator too. 'input' and 'fill_text' mean the same thing — their
+// executeAiAction() descends to `input, textarea, select`, sets value, and fires
+// input+change, which is exactly fill_text's contract. Their runner does not yet
+// know the name 'fill_text'; see INTEGRATION.md for the one-line fix.
+export const ACTION_TYPES = ['click', 'fill_text', 'input', 'select_option', 'scrollIntoView']
 export const COMPLETION_TYPES = [
   'url_change',
   'dom_event',
