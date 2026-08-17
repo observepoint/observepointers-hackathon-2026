@@ -28,6 +28,7 @@ import {
   status as accountStatus,
   listConsentCategories,
   listRules,
+  listAlerts,
   probeApi,
   checkSelectors,
 } from '../planner/account.js'
@@ -43,6 +44,7 @@ let pendingQuestion = null // a `needs_input` result awaiting an answer
 // full library to go build a duplicate.
 let lastCategories
 let lastRules
+let lastAlerts
 let lastAccountState = null // e.g. whether this user gets Quick Audit or Advanced
 let lastGoal = ''
 let lastPlan = null // so the screen can be re-checked without asking again
@@ -301,13 +303,14 @@ function handleResult(result) {
 
 /** Whatever we managed to read from the account, for state-aware recipes. */
 function accountContext() {
-  if (!lastCategories && !lastRules && !lastAccountState) return { account: null }
+  if (!lastCategories && !lastRules && !lastAlerts && !lastAccountState) return { account: null }
   return {
     account: {
       // Passed through as-is, undefined included. Recipes already treat a
       // missing list as "can't see the account" rather than "it's empty".
       consentCategories: lastCategories,
       rules: lastRules,
+      alerts: lastAlerts,
     },
   }
 }
@@ -372,8 +375,9 @@ async function showAccount() {
   // library is empty, so a result that lands after the card has rendered is no
   // result at all. Failure leaves it undefined, which onboarding reads as unknown
   // rather than empty.
-  const [rules] = await Promise.allSettled([listRules()])
+  const [rules, alerts] = await Promise.allSettled([listRules(), listAlerts()])
   if (rules.status === 'fulfilled') lastRules = rules.value
+  if (alerts.status === 'fulfilled') lastAlerts = alerts.value
 
   try {
     const categories = await listConsentCategories()

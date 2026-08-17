@@ -23,7 +23,11 @@
 //   RulesRoute.scala:41   pathEndOrSingleSlash { get … getRules(pagination) }
 const API = {
   consentCategories: '/api/v3/consent-categories/library',
-  rules: '/api/v2/rules',
+  // withUsages=true swaps getRules for getRulesWihUsages (RulesRoute.scala:42), which
+  // is the only way to learn which rules the account's other audits already use.
+  rules: '/api/v2/rules?withUsages=true',
+  // A search implemented as a POST: filters in the body, paging in the query.
+  alerts: '/api/v3/alerts/library?page=0&size=200&sortBy=name&sortDesc=false',
 }
 
 function send(message) {
@@ -61,7 +65,15 @@ export async function status() {
 }
 
 async function get(path) {
-  const reply = await send({ type: 'OP_API_GET', path })
+  return unwrap(await send({ type: 'OP_API_GET', path }))
+}
+
+/** Reads only. The worker allowlists which paths a POST may reach. */
+async function post(path, body) {
+  return unwrap(await send({ type: 'OP_API_POST', path, body }))
+}
+
+function unwrap(reply) {
   if (!reply.ok) {
     const detail = [reply.status && `HTTP ${reply.status}`, reply.contentType]
       .filter(Boolean)
@@ -189,7 +201,35 @@ export async function listConsentCategories({ name } = {}) {
 export async function listRules() {
   const data = await get(API.rules)
   const rows = Array.isArray(data) ? data : (data?.rules ?? data?.items ?? data?.data ?? [])
-  return rows.map(row => ({ id: row.id, name: cleanText(row.name) || `Rule ${row.id}` }))
+  return rows.map(row => ({
+    id: row.id,
+    name: cleanText(row.name) || `Rule ${row.id}`,
+    // "What your other audits already use" is the only ranking signal a rule has.
+    // Unlike a consent category there is no site to match on — a rule is about a tag,
+    // not a domain — so popularity within the account is the honest recommendation.
+    usageCount: row.usageCount ?? row.auditCount ?? 0,
+  }))
+}
+
+/**
+ * The alerts library, for the same reason: so a plan can name alerts the account
+ * really has rather than saying "search your alerts".
+ *
+ * A POST, because that is how the library search is implemented
+ * (alerts-library.service.ts:30) — filters in the body, paging in the query. An
+ * empty body means no filters.
+ */
+export async function listAlerts() {
+  const data = await post(API.alerts, {})
+  const rows = Array.isArray(data) ? data : (data?.alerts ?? data?.items ?? data?.data ?? [])
+  return rows.map(row => ({
+    id: row.id,
+    name: cleanText(row.name) || `Alert ${row.id}`,
+    metricType: row.metricType ?? null,
+    // How many people watch it. The nearest thing an alert has to "your other audits
+    // use this", and it is the field the library itself sorts on.
+    subscribedCount: row.subscribedCount ?? 0,
+  }))
 }
 
 /**

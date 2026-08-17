@@ -281,6 +281,110 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
 }
 
 /**
+ * The last two or three steps of any standards leg, given what the account holds.
+ *
+ * Rules and alerts have the same three cases consent categories do, so they get the
+ * same treatment rather than a second implementation:
+ *
+ *   list unreadable  → generic search-then-attach; we cannot name anything
+ *   list empty       → creating one IS the plan, not a footnote on it
+ *   list has items   → name the one their other audits use, fill it, let them attach
+ *
+ * What differs is the ranking signal. A consent category can be matched to a site
+ * because CMP groups carry a domain. A rule cannot — it is about a tag, not a
+ * domain — and neither can an alert. So the honest recommendation for both is
+ * popularity inside the account: the rule other audits already check, the alert
+ * other people already watch. `weight` is how each caller says which field that is.
+ *
+ * @param {object}   options
+ * @param {Array|undefined} options.items  undefined/null means we could not read it
+ * @param {string}   options.kind      "rule" / "alert", for the copy
+ * @param {string}   options.plural    "rules" / "alerts"
+ * @param {Function} options.weight    item -> number, higher is more used
+ * @param {number}   options.startId
+ */
+export function standardsPickerSteps({ items, kind, plural, weight, startId }) {
+  const id = n => `s${startId + n}`
+
+  if (!Array.isArray(items)) {
+    return [
+      {
+        id: id(0),
+        actor: 'user',
+        targetSelector: SELECTORS.standardsSearch,
+        say: `Search your ${plural}.`,
+        targetFallback: { description: `the search box in the ${plural} picker` },
+        completion: { type: 'dom_event', value: 'input' },
+      },
+      {
+        id: id(1),
+        actor: 'user',
+        targetSelector: SELECTORS.standardsAddAll,
+        say: `Add the ${plural} you want.`,
+        targetFallback: { description: `the "add all" button in the ${plural} picker` },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+    ]
+  }
+
+  if (!items.length) {
+    return [
+      {
+        id: id(0),
+        actor: 'user',
+        targetSelector: SELECTORS.standardsCreateNew,
+        say: `You have no ${plural} yet, so create one here.`,
+        targetFallback: { description: `the "Create New" button in the ${plural} picker` },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+    ]
+  }
+
+  const ranked = [...items].sort((a, b) => weight(b) - weight(a))
+  const top = ranked[0]
+  const others = ranked.length - 1
+
+  return [
+    {
+      id: id(0),
+      actor: 'ai',
+      targetSelector: SELECTORS.standardsSearch,
+      say: `Filtering to "${top.name}".`,
+      targetFallback: { description: `the search box in the ${plural} picker` },
+      action: { type: 'fill_text', value: top.name },
+      completion: { type: 'dom_event', value: 'input' },
+    },
+    {
+      id: id(1),
+      actor: 'user',
+      targetSelector: SELECTORS.standardsAddAll,
+      say: others
+        ? `Attach it. ${others} other ${others === 1 ? kind : plural} in your library if you want more.`
+        : 'Attach it.',
+      targetFallback: { description: `the "add all" button in the ${plural} picker` },
+      completion: { type: 'dom_event', value: 'click' },
+    },
+  ]
+}
+
+/**
+ * One line for the summary, describing what we found. Same three cases.
+ */
+export function standardsPickerSummary({ items, kind, plural, weight }) {
+  if (!Array.isArray(items)) return ''
+  if (!items.length) {
+    return ` Your ${plural} library is empty, so we'll create the first ${kind} on the way through.`
+  }
+
+  const ranked = [...items].sort((a, b) => weight(b) - weight(a))
+  const used = weight(ranked[0]) > 0
+  const extra = ranked.length > 1 ? ` (${ranked.length - 1} more in your library)` : ''
+  return used
+    ? ` We'll attach "${ranked[0].name}", which your other audits already use${extra}.`
+    : ` We'll attach "${ranked[0].name}"${extra}.`
+}
+
+/**
  * The last step every audit recipe was missing.
  *
  * All four of them ended on "attach it" — which configures an audit and never

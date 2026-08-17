@@ -1,6 +1,7 @@
 import {
   SELECTORS,
   stepsToStandardsTab,
+  standardsPickerSteps,
   saveAuditStep,
   auditParameters,
 } from './_audit-standards.js'
@@ -105,8 +106,18 @@ export default {
 
   buildSummary(context) {
     const best = bestCategoryFor(context)
-    const named = best
-      ? ` For privacy we'll attach "${best.name}", which your account already has.`
+    const found = [
+      Array.isArray(context?.account?.rules) && context.account.rules.length
+        ? `${context.account.rules.length} rules`
+        : null,
+      best ? 'a matching consent category' : null,
+      Array.isArray(context?.account?.alerts) && context.account.alerts.length
+        ? `${context.account.alerts.length} alerts`
+        : null,
+    ].filter(Boolean)
+
+    const named = found.length
+      ? ` Your account has ${found.join(', ')} — we'll name the ones to attach as we go.`
       : ''
 
     return (
@@ -156,15 +167,28 @@ export default {
       consentLeg.push(attach('Attach the one that covers this site.'))
     }
 
+    // startId is irrelevant here — numbered() reassigns everything at the end — so
+    // the ids these come back with are placeholders.
+    const stripId = ({ id: _id, ...step }) => step
+    const picker = opts => standardsPickerSteps({ ...opts, startId: 1 }).map(stripId)
+
     return numbered([
-      ...stepsToStandardsTab().map(({ id: _id, ...step }) => step),
+      ...stepsToStandardsTab().map(stripId),
       openSubTab(SELECTORS.subTabRules, 'Tag & Variable Rules'),
-      attach('Add the rules this audit should check.'),
+      ...picker({
+        items: context?.account?.rules,
+        kind: 'rule',
+        plural: 'rules',
+        weight: r => r.usageCount ?? 0,
+      }),
       ...consentLeg,
       openSubTab(SELECTORS.subTabAlerts, 'Alerts'),
-      attach('Add the alerts that should fire when a run breaches them.'),
-      // numbered() assigns the id, so this stays correct however long the consent
-      // leg turns out to be.
+      ...picker({
+        items: context?.account?.alerts,
+        kind: 'alert',
+        plural: 'alerts',
+        weight: a => a.subscribedCount ?? 0,
+      }),
       saveAuditStep(null),
     ])
   },

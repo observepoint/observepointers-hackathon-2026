@@ -1,6 +1,8 @@
 import {
   SELECTORS,
   stepsToStandardsTab,
+  standardsPickerSteps,
+  standardsPickerSummary,
   saveAuditStep,
   auditParameters,
 } from './_audit-standards.js'
@@ -8,7 +10,22 @@ import {
 /**
  * The bread-and-butter flow: an audit that checks tag & variable rules on every
  * run. This is what someone means by "make sure our tags keep working".
+ *
+ * PLANS AGAINST THE LIVE ACCOUNT, like the consent recipe does.
+ *
+ * The generic version said "search your rule library" and "add the rules you want",
+ * which is the assistant admitting it does not know what is in there. A rule has no
+ * site to match on — it is about a tag, not a domain — so the ranking signal is
+ * usage: the rule the account's other audits already check. That is a genuinely good
+ * recommendation and it needs no guessing.
  */
+const RULES_PICKER = context => ({
+  items: context?.account?.rules,
+  kind: 'rule',
+  plural: 'rules',
+  weight: r => r.usageCount ?? 0,
+})
+
 export default {
   id: 'audit_with_rules',
   title: 'Create an audit that checks your tag rules',
@@ -37,46 +54,31 @@ export default {
     ],
   },
   parameters: auditParameters('Tag & variable rules'),
-  summaryTemplate:
-    'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}}, then attach ' +
-    'your Tag & Variable Rules under Standards so every run reports pass/fail against them.',
-  steps: [
-    ...stepsToStandardsTab(),
-    {
-      id: 's8',
-      actor: 'user',
-      targetSelector: SELECTORS.subTabRules,
-      say: 'Open Tag & Variable Rules.',
-      targetFallback: { description: 'the "Tag & Variable Rules" sub-tab' },
-      // See the note in audit-with-consent-categories.js: the standards picker is
-      // already on screen when Standards opens, so a visibility completion fires
-      // instantly and the user never clicks this tab.
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    {
-      id: 's9',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsSearch,
-      say: 'Search your rule library.',
-      targetFallback: { description: 'the search box in the rules picker' },
-      completion: { type: 'dom_event', value: 'input' },
-    },
-    {
-      id: 's10',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsAddAll,
-      say: 'Add the rules you want.',
-      targetFallback: { description: 'the "add all" button in the rules picker' },
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    {
-      id: 's11',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsCreateNew,
-      say: 'Nothing fits? Create a rule here instead.',
-      targetFallback: { description: 'the "Create New Rule" button' },
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    saveAuditStep('s12'),
-  ],
+  buildSummary(context) {
+    return (
+      'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and ' +
+      'attach Tag & Variable Rules under Standards, so every run reports pass/fail against them.' +
+      standardsPickerSummary(RULES_PICKER(context))
+    )
+  },
+
+  buildSteps(context) {
+    const picker = standardsPickerSteps({ ...RULES_PICKER(context), startId: 9 })
+    return [
+      ...stepsToStandardsTab(),
+      {
+        id: 's8',
+        actor: 'user',
+        targetSelector: SELECTORS.subTabRules,
+        say: 'Open Tag & Variable Rules.',
+        targetFallback: { description: 'the "Tag & Variable Rules" sub-tab' },
+        // See the note in audit-with-consent-categories.js: the standards picker is
+        // already on screen when Standards opens, so a visibility completion fires
+        // instantly and the user never clicks this tab.
+        completion: { type: 'dom_event', value: 'click' },
+      },
+      ...picker,
+      saveAuditStep(`s${9 + picker.length}`),
+    ]
+  },
 }

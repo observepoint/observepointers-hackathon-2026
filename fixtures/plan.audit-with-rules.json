@@ -1,7 +1,7 @@
 {
   "recipeId": "audit_with_rules",
   "goal": "set up an audit for https://www.example.com that checks my tag rules",
-  "summary": "We'll create an audit called \"example.com — Tag & variable rules\" against https://www.example.com, then attach your Tag & Variable Rules under Standards so every run reports pass/fail against them.",
+  "summary": "We'll create an audit called \"example.com — Tag & variable rules\" against https://www.example.com and attach Tag & Variable Rules under Standards, so every run reports pass/fail against them.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
@@ -131,7 +131,7 @@
       "id": "s9",
       "actor": "user",
       "targetSelector": ".op-standards-selector .search-input",
-      "say": "Search your rule library.",
+      "say": "Search your rules.",
       "targetFallback": {
         "description": "the search box in the rules picker"
       },
@@ -155,19 +155,6 @@
     },
     {
       "id": "s11",
-      "actor": "user",
-      "targetSelector": ".op-standards-selector .create-new-btn",
-      "say": "Nothing fits? Create a rule here instead.",
-      "targetFallback": {
-        "description": "the \"Create New Rule\" button"
-      },
-      "completion": {
-        "type": "dom_event",
-        "value": "click"
-      }
-    },
-    {
-      "id": "s12",
       "actor": "user",
       "targetSelector": "[op-selector=\"web-audit-create-save\"]",
       "say": "Save Audit — nothing exists until you do.",

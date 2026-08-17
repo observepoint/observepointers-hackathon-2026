@@ -144,7 +144,7 @@
       "id": "s10",
       "actor": "user",
       "targetSelector": ".op-standards-selector .add-all-standards-btn",
-      "say": "Attach them.",
+      "say": "Add the alerts you want.",
       "targetFallback": {
         "description": "the \"add all\" button in the alerts picker"
       },
@@ -155,19 +155,6 @@
     },
     {
       "id": "s11",
-      "actor": "user",
-      "targetSelector": ".op-standards-selector .create-new-btn",
-      "say": "Nothing fits? Create an alert here instead.",
-      "targetFallback": {
-        "description": "the \"Create New Alert\" button"
-      },
-      "completion": {
-        "type": "dom_event",
-        "value": "click"
-      }
-    },
-    {
-      "id": "s12",
       "actor": "user",
       "targetSelector": "[op-selector=\"web-audit-create-save\"]",
       "say": "Save Audit — nothing exists until you do.",

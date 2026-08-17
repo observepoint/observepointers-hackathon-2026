@@ -213,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 238 checks, no API key, no network
+npm test           # 249 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -362,6 +362,27 @@ tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
+
+**All three Standards plan against the live account, not just consent.** Consent
+categories got it first because CMP groups carry a domain to match on. Rules and
+alerts have no site — a rule is about a tag, not a domain — so the signal is
+popularity inside the account:
+
+|         | signal                                            | recommendation                             |
+| ------- | ------------------------------------------------- | ------------------------------------------ |
+| Rules   | `usageCount` (`/api/v2/rules?withUsages=true`)    | the rule your other audits already check   |
+| Alerts  | `subscribedCount` (`POST /api/v3/alerts/library`) | the alert most people already watch        |
+| Consent | `cmpDomain` + `cmpGeo`                            | the category covering this site and region |
+
+All three share the same three branches: **unreadable** → hedge and name nothing;
+**empty** → creating one _is_ the plan; **populated** → prefill the top one and say
+how many others there are. Unreadable is never treated as empty.
+
+> The alerts library is a **POST** (filters in the body). The worker therefore
+> supports POST — behind an **allowlist of exactly one path**. A GET-only bridge
+> bounds the worst case to reading the account; a general POST proxy would let a bug
+> in the panel write to it with the user's token. Add to `POST_ALLOWLIST` only for
+> reads.
 
 **OneTrust-imported category names carry their geography.** They come through as
 `Analytical Cookies | example.com | Canada, Alberta` — domain, country, state — so

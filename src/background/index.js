@@ -122,12 +122,17 @@ function apiBasesFor(origin, hostname) {
   return canonical === origin ? [origin] : [origin, canonical]
 }
 
-async function fetchJson(base, path, token) {
+async function fetchJson(base, path, token, init = {}) {
   const url = new URL(path, base).toString()
 
   try {
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        ...(init.body ? { 'content-type': 'application/json' } : {}),
+      },
       credentials: 'include',
     })
 
@@ -166,7 +171,34 @@ async function fetchJson(base, path, token) {
   }
 }
 
+/**
+ * The only paths a POST may reach.
+ *
+ * Deliberately an allowlist, not a general proxy. A GET-only bridge bounds the worst
+ * case to reading the account; the moment the panel can POST arbitrary paths with
+ * the user's bearer token, a bug up there can write to it. The alerts library
+ * happens to be a SEARCH implemented as a POST (filters in the body, paging in the
+ * query), which is the only reason POST is here at all.
+ *
+ * Add to this list only for reads. Anything that creates or changes an object stays
+ * with the user's own click — that is the standing rule for this whole extension,
+ * and it should hold at the transport layer too, not just in the recipes.
+ */
+const POST_ALLOWLIST = new Set(['/api/v3/alerts/library'])
+
+async function apiPost(path, body) {
+  const bare = String(path ?? '').split('?')[0]
+  if (!POST_ALLOWLIST.has(bare)) {
+    return { ok: false, error: `post-not-allowed: ${bare}` }
+  }
+  return apiRequest(path, { method: 'POST', body: JSON.stringify(body ?? {}) })
+}
+
 async function apiGet(path) {
+  return apiRequest(path)
+}
+
+async function apiRequest(path, init = {}) {
   const tab = await activeTab()
   await ensureContentScript(tab.id)
 
@@ -175,7 +207,7 @@ async function apiGet(path) {
 
   const attempts = []
   for (const base of apiBasesFor(auth.origin, auth.hostname)) {
-    const result = await fetchJson(base, path, auth.token)
+    const result = await fetchJson(base, path, auth.token, init)
     attempts.push(result)
     if (result.ok) return { ok: true, data: result.data, base, environment: auth.environment }
   }
@@ -242,6 +274,10 @@ async function handle(type, payload, message) {
     // Flat messages, so these read off `message` rather than `payload`.
     case 'OP_API_GET':
       return apiGet(message?.path)
+
+    // Only for reads that happen to be implemented as POSTs. See POST_ALLOWLIST.
+    case 'OP_API_POST':
+      return apiPost(message?.path, message?.body)
 
     default:
       if (FORWARD_TO_TAB.has(type)) {

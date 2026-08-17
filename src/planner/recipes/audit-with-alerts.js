@@ -1,6 +1,8 @@
 import {
   SELECTORS,
   stepsToStandardsTab,
+  standardsPickerSteps,
+  standardsPickerSummary,
   saveAuditStep,
   auditParameters,
 } from './_audit-standards.js'
@@ -15,6 +17,17 @@ import {
  * the audit produces the data it watches. Attaching alerts to a brand-new audit
  * is legitimate, but nothing fires until the first run completes.
  */
+/**
+ * Alerts have no site to match on either, so the signal is how many people already
+ * watch one — subscribedCount, which is what the alerts library itself sorts by.
+ */
+const ALERTS_PICKER = context => ({
+  items: context?.account?.alerts,
+  kind: 'alert',
+  plural: 'alerts',
+  weight: a => a.subscribedCount ?? 0,
+})
+
 export default {
   id: 'audit_with_alerts',
   title: 'Attach alerts to an audit',
@@ -42,46 +55,31 @@ export default {
     ],
   },
   parameters: auditParameters('Alerting'),
-  summaryTemplate:
-    'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and attach ' +
-    'alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.',
-  steps: [
-    ...stepsToStandardsTab(),
-    {
-      id: 's8',
-      actor: 'user',
-      targetSelector: SELECTORS.subTabAlerts,
-      say: 'Open Alerts.',
-      targetFallback: { description: 'the "Alerts" sub-tab' },
-      // See the note in audit-with-consent-categories.js. Alerts happens to be the
-      // sub-tab already selected, so this one worked by accident; a click is right
-      // for the same reason it is right for the other two.
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    {
-      id: 's9',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsSearch,
-      say: 'Search your alerts.',
-      targetFallback: { description: 'the search box in the alerts picker' },
-      completion: { type: 'dom_event', value: 'input' },
-    },
-    {
-      id: 's10',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsAddAll,
-      say: 'Attach them.',
-      targetFallback: { description: 'the "add all" button in the alerts picker' },
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    {
-      id: 's11',
-      actor: 'user',
-      targetSelector: SELECTORS.standardsCreateNew,
-      say: 'Nothing fits? Create an alert here instead.',
-      targetFallback: { description: 'the "Create New Alert" button' },
-      completion: { type: 'dom_event', value: 'click' },
-    },
-    saveAuditStep('s12'),
-  ],
+  buildSummary(context) {
+    return (
+      'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and attach ' +
+      'alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.' +
+      standardsPickerSummary(ALERTS_PICKER(context))
+    )
+  },
+
+  buildSteps(context) {
+    const picker = standardsPickerSteps({ ...ALERTS_PICKER(context), startId: 9 })
+    return [
+      ...stepsToStandardsTab(),
+      {
+        id: 's8',
+        actor: 'user',
+        targetSelector: SELECTORS.subTabAlerts,
+        say: 'Open Alerts.',
+        targetFallback: { description: 'the "Alerts" sub-tab' },
+        // See the note in audit-with-consent-categories.js. Alerts happens to be the
+        // sub-tab already selected, so this one worked by accident; a click is right
+        // for the same reason it is right for the other two.
+        completion: { type: 'dom_event', value: 'click' },
+      },
+      ...picker,
+      saveAuditStep(`s${9 + picker.length}`),
+    ]
+  },
 }

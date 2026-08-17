@@ -588,6 +588,102 @@ check(
 check('survives nonsense', normalizeSiteUrl('') === '')
 
 /* ---------------------------------------------------------------- */
+section('rules and alerts plan against the account too')
+
+// Consent categories got this first because CMP groups carry a domain to match on.
+// Rules and alerts have no site -- a rule is about a tag, not a domain -- so the
+// honest signal is popularity inside the account: the rule other audits already
+// check, the alert other people already watch.
+const pickerFor = (id, account) =>
+  RECIPES.find(r => r.id === id)
+    .buildSteps({ account, parameters: { siteUrl: 'gap.com' }, goal: 'g' })
+    .slice(8)
+
+for (const [id, key, items, top] of [
+  [
+    'audit_with_rules',
+    'rules',
+    [
+      { id: 1, name: 'Consent banner present', usageCount: 1 },
+      { id: 2, name: 'GA4 fires on every page', usageCount: 4 },
+    ],
+    'GA4 fires on every page',
+  ],
+  [
+    'audit_with_alerts',
+    'alerts',
+    [
+      { id: 1, name: 'GA4 missing', subscribedCount: 2 },
+      { id: 2, name: 'Broken pages above 10', subscribedCount: 5 },
+    ],
+    'Broken pages above 10',
+  ],
+]) {
+  // Populated: name the most-used one and prefill it.
+  const populated = pickerFor(id, { [key]: items })
+  check(
+    `${id} prefills the most-used ${key.slice(0, -1)}`,
+    populated.some(step => step.action?.value === top),
+    JSON.stringify(populated.map(step => step.action?.value)),
+  )
+  check(
+    `${id} says how many others there are`,
+    populated.some(step => /1 other/.test(step.say)),
+    populated.map(step => step.say).join(' | '),
+  )
+
+  // Empty: creating one IS the plan, as with consent categories.
+  const empty = pickerFor(id, { [key]: [] })
+  check(
+    `${id} sends an empty library to Create New`,
+    empty.some(step => step.targetSelector.includes('create-new-btn')),
+    empty.map(step => step.targetSelector).join(' | '),
+  )
+
+  // Unreadable is NOT empty. Guessing either way is worse than hedging.
+  const blindPicker = pickerFor(id, undefined)
+  check(
+    `${id} hedges when it cannot read the library`,
+    blindPicker.some(step => /^Search your/.test(step.say)) &&
+      !blindPicker.some(step => step.targetSelector.includes('create-new-btn')),
+    blindPicker.map(step => step.say).join(' | '),
+  )
+  // And never prefills a name it does not have.
+  check(
+    `${id} invents no ${key.slice(0, -1)} name when blind`,
+    blindPicker.every(step => !step.action),
+  )
+}
+
+// The combined recipe names all three, not just consent -- it would be odd for the
+// breadth recipe to be the least specific one.
+const allThree = RECIPES.find(r => r.id === 'audit_with_all_standards').buildSteps({
+  account: {
+    rules: [{ id: 1, name: 'GA4 fires on every page', usageCount: 4 }],
+    alerts: [{ id: 1, name: 'Broken pages above 10', subscribedCount: 5 }],
+    consentCategories: [
+      {
+        id: 1,
+        name: 'gap.com | USA, California',
+        labels: [],
+        cmpDomain: 'gap.com',
+        cmpGeo: 'USA, California',
+        auditCount: 2,
+      },
+    ],
+  },
+  parameters: { siteUrl: 'gap.com' },
+  goal: 'g',
+})
+check(
+  'the combined recipe names something in all three legs',
+  ['GA4 fires on every page', 'gap.com | USA, California', 'Broken pages above 10'].every(name =>
+    allThree.some(step => step.action?.value === name),
+  ),
+  JSON.stringify(allThree.filter(s => s.action).map(s => s.action.value)),
+)
+
+/* ---------------------------------------------------------------- */
 section('an audit recipe actually creates the audit')
 
 // Every audit recipe used to end on "attach it", which configures an audit and
