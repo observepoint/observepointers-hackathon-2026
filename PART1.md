@@ -323,7 +323,7 @@ flows for an account that has none of them yet.
 | `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
 | `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
 | `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 3/5 swept |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
@@ -396,13 +396,18 @@ is empty.
 
 ## Known gaps
 
-- **`alert_from_report`, the consent-category starter and the Quick Audit branch
-  aren't swept.** All are source-accurate — every selector was read out of the template
-  that renders it — but nobody has watched them resolve. `alert_from_report`
-  needs an audit with a completed run; the starters need someone to walk the
-  rule and consent-category builders; Quick Audit needs an account with no data
-  sources, or advanced mode turned off in user settings. Stand on the screen and
-  press **Check screen** — that's what clears an `unverified` flag.
+- **`alert_from_report` and the Quick Audit branch aren't swept.** Both are
+  source-accurate — every selector was read out of the template that renders it —
+  but nobody has watched them resolve, and on the evidence so far that is the
+  weaker claim by some distance. `alert_from_report` needs an audit with a
+  completed run; Quick Audit needs an account with no data sources, or advanced
+  mode turned off in user settings. Stand on the screen and press **Check
+  screen** — that's what clears an `unverified` flag.
+- **One consent-category step is awkward rather than unvisited.** The create menu
+  row (`s3`) exists only while the menu is open, a state that lasts between two
+  steps. It is catchable — an earlier sweep caught it, which is how we found the
+  selector was pointing at the wrong row — it just needs Check screen pressed
+  with the menu still up. Everything either side of it is confirmed.
 - **The report bell is per-widget, and we can't say which one.**
   `.create-new-alert-icon` matches the first bell in the document, not the
   widget the user cares about, and it only exists on widgets with no alerts yet

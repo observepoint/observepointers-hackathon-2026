@@ -24,7 +24,8 @@ import { unswept } from './_unswept.js'
  *           zero-state variant is in the same comma list; the two are mutually
  *           exclusive, so only one ever exists.
  *   Swept — cc-name, bound onto the <input matInput> itself, so no descend.
- *   Sourced — cc-create-without-report, the only enabled primary on that screen.
+ *   Swept — cc-create-without-report, echoed back as "Create without selecting a
+ *           report", visible and enabled once the name is filled.
  *   Were wrong, both caught by sweeping rather than by reading:
  *           · the menu item resolved to the wrong ROW (see s3)
  *           · cc-create-next and cc-create-save are both HIDDEN on the create
@@ -77,9 +78,11 @@ export default {
     'A consent category is your definition of "approved" — without one, a privacy audit runs and ' +
     'reports nothing. We\'ll create one called "{{parameters.categoryName}}". You add the tags and ' +
     'cookies you actually allow, because that list is a policy decision, not a technical one.',
-  // Swept a screen at a time, so the outstanding steps are interleaved: s4
-  // (cc-name) was confirmed visible, while s3 and s5 both changed *because* of
-  // that sweep and have not been looked at since.
+  // Everything is swept except s3, and s3 is awkward for a structural reason
+  // rather than an unvisited one: the menu row only exists while the menu is
+  // open, which is the transient state between s2 and s4. Check screen can catch
+  // it — an earlier sweep did — it just needs someone to press the button with
+  // the menu still up.
   steps: unswept(
     [
       ...stepsToLibrary({
@@ -162,6 +165,6 @@ export default {
         completion: { type: 'dom_event', value: 'click' },
       },
     ],
-    ['s3', 's5'],
+    ['s3'],
   ),
 }

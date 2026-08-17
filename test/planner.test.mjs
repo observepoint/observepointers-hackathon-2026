@@ -953,18 +953,19 @@ check(
   RECIPES.find(r => r.id === 'create_first_rule').steps.every(s => !s.unverified),
 )
 // …and its neighbour still does, which is the point of splitting the wrapper.
-// Sweeping proceeds a screen at a time, so swept and unswept steps interleave:
-// cc-name (s4) is confirmed, while s3 and s5 both changed *because* of that
-// sweep. unswept()'s id list is what keeps that honest.
+// Everything here is swept except the menu row, and that one is awkward
+// structurally rather than unvisited: it exists only while the menu is open, a
+// state that lasts between two steps. unswept()'s id list is what lets a single
+// hole sit in the middle of a confirmed sequence without rounding either way.
 check(
-  'create_first_consent_category flags only the two steps that changed after the sweep',
+  'create_first_consent_category has only the transient menu row left unswept',
   (() => {
     const steps = RECIPES.find(r => r.id === 'create_first_consent_category').steps
     return (
       steps
         .filter(s => s.unverified)
         .map(s => s.id)
-        .join() === 's3,s5'
+        .join() === 's3'
     )
   })(),
   RECIPES.find(r => r.id === 'create_first_consent_category')

@@ -23,7 +23,8 @@
  *                    visible at once, so nothing gates Save on finishing the
  *                    conditions step
  *   CC library       button[aria-label="CREATE"], and the open create menu
- *   CC create form   cc-name
+ *   CC create form   cc-name, cc-create-without-report ("Create without
+ *                    selecting a report" — the only enabled primary there)
  *
  * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
  *
@@ -41,9 +42,13 @@
  *    the hidden one. Reading the template found all eight buttons; only the
  *    sweep said which one was on screen.
  *
- * Still unlooked-at: the two consent-category selectors that changed after the
- * sweep above (the menu row and the create button), report widgets, the alert
- * quick-create dialog, and the whole Quick Audit screen.
+ * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole
+ * Quick Audit screen.
+ *
+ * Plus one that is awkward rather than unvisited — the consent-category menu row
+ * exists only while the menu is open, a state that lasts between two steps. It is
+ * catchable (an earlier sweep caught the row, which is how we learned the
+ * selector was wrong), it just needs Check screen pressed with the menu still up.
  *
  * To clear a flag: stand on the screen, press Check screen, and if it resolves
  * — to the RIGHT element, per note 1 — drop its id from the call and add the
@@ -52,9 +57,9 @@
  * @param {Array} steps
  * @param {string[]} [ids] flag only these step ids. Omit to flag all of them.
  *   Sweeping proceeds a screen at a time, so the swept and unswept steps end up
- *   interleaved — create_first_consent_category has s3 and s5 outstanding with a
- *   confirmed s4 between them. An id list says that in one place; splitting the
- *   array around each gap says it in three and drifts.
+ *   interleaved — create_first_consent_category is confirmed either side of s3.
+ *   An id list says that in one place; splitting the array around each gap says
+ *   it in three and drifts.
  */
 export const unswept = (steps, ids) =>
   steps.map(step => (!ids || ids.includes(step.id) ? { ...step, unverified: true } : step))
