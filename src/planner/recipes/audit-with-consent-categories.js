@@ -66,7 +66,7 @@ const genericEnding = context => [
     id: 's9',
     actor: 'ai',
     targetSelector: SELECTORS.standardsSearch,
-    say: `Filtering to "${hostFrom(context.parameters?.siteUrl)}" — I can't read your account from here, so this is a guess at the name.`,
+    say: `Filtering to "${hostFrom(context.parameters?.siteUrl)}" — best guess at the name.`,
     targetFallback: { description: 'the search box in the consent categories picker' },
     action: { type: 'fill_text', value: hostFrom(context.parameters?.siteUrl) },
     completion: { type: 'dom_event', value: 'input' },
@@ -168,6 +168,35 @@ const mentionsCoded = (rawGoal, term) =>
   new RegExp(`(^|[^A-Za-z0-9])${escapeRe(term.toUpperCase())}([^A-Za-z0-9]|$)`).test(rawGoal)
 
 /**
+ * A search string has to be long enough to filter. "US" typed into a picker that
+ * matches on substring hits every name containing those two letters, which is
+ * most of them.
+ */
+const MIN_SEARCH = 3
+
+/**
+ * What to type into the picker's search box.
+ *
+ * OneTrust-imported names follow one shape — "Analytical Cookies | example.com |
+ * Canada, Alberta" — so the country is IN the name, and typing the country is the
+ * filter that matches how these are actually organised.
+ *
+ * Which makes the full name the wrong thing to type when several categories
+ * qualify: it narrows to exactly one and takes the choice away, when the whole
+ * point of that branch is that we cannot know which region they audit from. So:
+ *
+ *   one category qualifies   -> its full name; there is nothing to choose
+ *   several, region named    -> the region, as the account spells it
+ *   region too short to type -> fall back to a full name
+ *   no region named          -> the most-used name, as a concrete recommendation
+ */
+function searchFor({ exact, stated, pick }) {
+  if (exact) return exact.name
+  if (stated && stated.term.length >= MIN_SEARCH) return stated.term
+  return pick.name
+}
+
+/**
  * Did the user name a region? "…observepoint.com for Canada" should pick the
  * Canadian groups rather than shrugging at 79 of them.
  */
@@ -242,22 +271,28 @@ export function bestCategoryFor(context) {
     // One region named and one category for it: that is an answer. Several, or
     // none named, and the honest move is to filter rather than choose.
     if (stated?.hits.length === 1) {
-      return { name: stated.hits[0].name, others: matches.length - 1, term: stated.term }
+      const only = stated.hits[0]
+      return { name: only.name, search: only.name, others: matches.length - 1, term: stated.term }
     }
-    // Same rule as the recipe's own steps: a region token is not a search term. Pick
-    // a real category from among the ones covering the region they named.
     if (stated) {
       const pick = mostUsed(stated.hits) ?? stated.hits[0]
-      return { name: pick.name, others: stated.hits.length - 1, term: stated.term }
+      return {
+        name: pick.name,
+        // Same rule as the recipe's own steps: type the region when it is long
+        // enough to filter, because these names carry the country. A full name
+        // would narrow to one and take the choice away.
+        search: searchFor({ stated, pick }),
+        others: stated.hits.length - 1,
+        term: stated.term,
+      }
     }
 
     const popular = mostUsed(matches)
-    return popular
-      ? { name: popular.name, others: matches.length - 1, term: null }
-      : { name: hostFrom(context.parameters?.siteUrl), others: matches.length - 1, term: null }
+    const fallback = popular?.name ?? hostFrom(context.parameters?.siteUrl)
+    return { name: fallback, search: fallback, others: matches.length - 1, term: null }
   }
 
-  return { name: matches[0].name, others: matches.length - 1, term: null }
+  return { name: matches[0].name, search: matches[0].name, others: matches.length - 1, term: null }
 }
 
 export default {
@@ -372,9 +407,16 @@ export default {
       const pick = exact ?? mostUsed(within) ?? within[0]
       const others = within.length - 1
 
+      const search = searchFor({ exact, stated, pick })
+      // Did we type the region, or one specific category? It changes what the next
+      // step can honestly ask for.
+      const filteredToRegion = search === stated?.term
+
       let attachSay
       if (exact) attachSay = 'Attach it.'
-      else if (stated) {
+      else if (filteredToRegion) {
+        attachSay = `Pick the one for your part of ${stated.term} and attach it — ${stated.hits.length} match.`
+      } else if (stated) {
         attachSay = `Attach it, or pick another — ${others} more ${
           others === 1 ? 'category covers' : 'categories cover'
         } ${stated.term}.`
@@ -390,10 +432,12 @@ export default {
           targetSelector: SELECTORS.standardsSearch,
           say: exact
             ? `Searching for "${pick.name}".`
-            : stated
-              ? `Filtering to "${pick.name}" — one of ${stated.hits.length} covering ${stated.term}.`
-              : `Filtering to "${pick.name}" — ${matches.length} categories cover ${host}, one per geography.`,
-          action: { type: 'fill_text', value: pick.name },
+            : filteredToRegion
+              ? `Filtering to ${stated.term} — ${stated.hits.length} of your ${matches.length} categories cover it.`
+              : stated
+                ? `Filtering to "${pick.name}" — one of ${stated.hits.length} covering ${stated.term}.`
+                : `Filtering to "${pick.name}" — ${matches.length} categories cover ${host}, one per geography.`,
+          action: { type: 'fill_text', value: search },
           completion: { type: 'dom_event', value: 'input' },
         },
         {

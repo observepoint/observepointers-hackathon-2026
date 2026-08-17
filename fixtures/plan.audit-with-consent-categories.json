@@ -42,7 +42,7 @@
       "actor": "user",
       "optional": true,
       "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
-      "say": "If you landed on the quick setup, switch to Advanced Setup — Standards lives there.",
+      "say": "Switch to Advanced Setup — Standards lives there.",
       "targetFallback": {
         "description": "the \"Switch to Advanced Setup\" button"
       },
@@ -131,7 +131,7 @@
       "id": "s9",
       "actor": "ai",
       "targetSelector": ".op-standards-selector .search-input",
-      "say": "Filtering to \"example.com\" — I can't read your account from here, so this is a guess at the name.",
+      "say": "Filtering to \"example.com\" — best guess at the name.",
       "targetFallback": {
         "description": "the search box in the consent categories picker"
       },
@@ -161,7 +161,7 @@
       "id": "s11",
       "actor": "user",
       "targetSelector": "[op-selector=\"web-audit-create-save\"]",
-      "say": "Save Audit — nothing exists until you do. \"Save Changes & Run Now\" next to it also kicks off the first run.",
+      "say": "Save Audit — nothing exists until you do.",
       "targetFallback": {
         "description": "the \"Save Audit\" button at the bottom of the editor"
       },

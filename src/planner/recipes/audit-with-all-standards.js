@@ -124,16 +124,21 @@ export default {
       consentLeg.push({
         actor: 'ai',
         targetSelector: SELECTORS.standardsSearch,
-        say: `Filtering to "${best.name}".`,
+        say:
+          best.search === best.name
+            ? `Filtering to "${best.name}".`
+            : `Filtering to ${best.search} — ${best.others + 1} of your categories cover it.`,
         targetFallback: { description: 'the search box in the consent categories picker' },
-        action: { type: 'fill_text', value: best.name },
+        action: { type: 'fill_text', value: best.search },
         completion: { type: 'dom_event', value: 'input' },
       })
       consentLeg.push(
         attach(
-          best.others
-            ? `Attach it. ${best.others} other categor${best.others === 1 ? 'y covers' : 'ies cover'} this site if you need more than one.`
-            : 'Attach it.',
+          best.search !== best.name
+            ? `Pick the one for your region and attach it — ${best.others + 1} match.`
+            : best.others
+              ? `Attach it. ${best.others} other categor${best.others === 1 ? 'y covers' : 'ies cover'} this site if you need more than one.`
+              : 'Attach it.',
         ),
       )
     } else {
@@ -143,7 +148,7 @@ export default {
       consentLeg.push({
         actor: 'ai',
         targetSelector: SELECTORS.standardsSearch,
-        say: `Filtering to "${host}" — I can't read your account from here, so this is a guess at the name.`,
+        say: `Filtering to "${host}" — best guess at the name.`,
         targetFallback: { description: 'the search box in the consent categories picker' },
         action: { type: 'fill_text', value: host },
         completion: { type: 'dom_event', value: 'input' },

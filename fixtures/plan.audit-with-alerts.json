@@ -42,7 +42,7 @@
       "actor": "user",
       "optional": true,
       "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
-      "say": "If you landed on the quick setup, switch to Advanced Setup — Standards lives there.",
+      "say": "Switch to Advanced Setup — Standards lives there.",
       "targetFallback": {
         "description": "the \"Switch to Advanced Setup\" button"
       },
@@ -170,7 +170,7 @@
       "id": "s12",
       "actor": "user",
       "targetSelector": "[op-selector=\"web-audit-create-save\"]",
-      "say": "Save Audit — nothing exists until you do. \"Save Changes & Run Now\" next to it also kicks off the first run.",
+      "say": "Save Audit — nothing exists until you do.",
       "targetFallback": {
         "description": "the \"Save Audit\" button at the bottom of the editor"
       },

@@ -124,7 +124,7 @@ export default {
         // moves. The attribute exists so that stops mattering.
         targetSelector:
           '[op-selector="cc-create-new-category"], .mat-menu-op-button-2021 button[mat-menu-item]:last-child',
-        say: 'Choose "Create a New Consent Category" — the other two import from a template or OneTrust.',
+        say: 'Choose "Create a New Consent Category".',
         targetFallback: { description: '"Create a New Consent Category" in the open menu' },
         completion: {
           type: 'dom_mutation',
@@ -160,7 +160,7 @@ export default {
         // Enabled as soon as the name is non-empty and no report is selected
         // (cc-create.component.ts:1072), which is exactly the state s4 leaves.
         targetSelector: '[op-selector="cc-create-without-report"]',
-        say: 'Create it. You add the approved tags and cookies afterwards — that list is the policy, so it is yours to set.',
+        say: 'Create it. You add the approved tags and cookies afterwards.',
         targetFallback: { description: 'the "Create without selecting a report" button' },
         completion: { type: 'dom_event', value: 'click' },
       },

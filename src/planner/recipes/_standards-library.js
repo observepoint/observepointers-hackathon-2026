@@ -70,7 +70,7 @@ export function stepsToLibrary({ link, label, route, startId = 1 }) {
       id: `s${startId}`,
       actor: 'user',
       targetSelector: link,
-      say: `Open ${label} in the sidebar, under Standards. If the sidebar is collapsed to icons, widen it first.`,
+      say: `Open ${label} under Standards in the sidebar.`,
       targetFallback: { description: `the "${label}" link under Standards in the left sidebar` },
       completion: { type: 'url_change', value: route },
     },

@@ -12,7 +12,7 @@
       "id": "s1",
       "actor": "user",
       "targetSelector": "[op-selector=\"sidebar-standards-consent-categories\"]",
-      "say": "Open Consent Categories in the sidebar, under Standards. If the sidebar is collapsed to icons, widen it first.",
+      "say": "Open Consent Categories under Standards in the sidebar.",
       "targetFallback": {
         "description": "the \"Consent Categories\" link under Standards in the left sidebar"
       },
@@ -39,7 +39,7 @@
       "id": "s3",
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-create-new-category\"], .mat-menu-op-button-2021 button[mat-menu-item]:last-child",
-      "say": "Choose \"Create a New Consent Category\" — the other two import from a template or OneTrust.",
+      "say": "Choose \"Create a New Consent Category\".",
       "targetFallback": {
         "description": "\"Create a New Consent Category\" in the open menu"
       },
@@ -71,7 +71,7 @@
       "id": "s5",
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-create-without-report\"]",
-      "say": "Create it. You add the approved tags and cookies afterwards — that list is the policy, so it is yours to set.",
+      "say": "Create it. You add the approved tags and cookies afterwards.",
       "targetFallback": {
         "description": "the \"Create without selecting a report\" button"
       },

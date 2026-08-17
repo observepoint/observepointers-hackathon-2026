@@ -228,7 +228,9 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
       actor: 'user',
       optional: true,
       targetSelector: SELECTORS.switchToAdvanced,
-      say: 'If you landed on the quick setup, switch to Advanced Setup — Standards lives there.',
+      // No "if you landed on the quick setup" hedge: the step is optional, so it
+      // only ever appears when that button is actually on screen.
+      say: 'Switch to Advanced Setup — Standards lives there.',
       targetFallback: { description: 'the "Switch to Advanced Setup" button' },
       unverified: true,
       completion: {
@@ -290,15 +292,16 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
  * fills fields and the person commits the change; if there is one button that must
  * never be clicked on someone's behalf, it is the one that creates the object.
  *
- * "Save Changes & Run Now" is mentioned rather than targeted. It is the more
- * satisfying ending and it spends real crawl budget, so it should be a deliberate
- * choice rather than the step we point at.
+ * The copy is one clause. An earlier version also mentioned "Save Changes & Run
+ * Now" as the alternative, which is true and not what a step is for — `say` is the
+ * instruction, and the sibling button is visible right next to the one we are
+ * pointing at. Anyone who wants it will see it.
  */
 export const saveAuditStep = id => ({
   id,
   actor: 'user',
   targetSelector: SELECTORS.saveAudit,
-  say: 'Save Audit — nothing exists until you do. "Save Changes & Run Now" next to it also kicks off the first run.',
+  say: 'Save Audit — nothing exists until you do.',
   targetFallback: { description: 'the "Save Audit" button at the bottom of the editor' },
   completion: { type: 'dom_event', value: 'click' },
 })

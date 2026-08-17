@@ -423,7 +423,8 @@ check(
 )
 check(
   'and admits it is guessing at the name',
-  blind.plan.steps.some(s => /can't read your account/.test(s.say)),
+  blind.plan.steps.some(s => /best guess at the name/.test(s.say)),
+  blind.plan.steps.map(s => s.say).join(' | '),
 )
 
 // A match: name it, and drop the branch entirely.
@@ -519,10 +520,35 @@ check(
 
 const canada = planFor('privacy audit for gap.com for Canada')
 check('a region covering several narrows to those', canada.plan.summary.includes('2 of your 5'))
+// OneTrust-imported names carry the country -- "Analytical Cookies | example.com |
+// Canada, Alberta" -- so when several qualify, the COUNTRY is the filter that
+// matches how they are organised. A full name would narrow to exactly one and take
+// away the choice the branch exists to offer.
 check(
-  'prefills a Canadian category rather than the word Canada',
-  canada.plan.steps.some(s => /\| Canada/.test(s.action?.value ?? '')),
+  'types the country when several categories qualify',
+  canada.plan.steps.find(s => s.id === 's9')?.action.value === 'Canada',
   canada.plan.steps.find(s => s.id === 's9')?.action.value,
+)
+check(
+  'and asks the user to pick within it',
+  /pick the one for your part of Canada/i.test(
+    canada.plan.steps.find(s => s.id === 's10')?.say ?? '',
+  ),
+  canada.plan.steps.find(s => s.id === 's10')?.say,
+)
+// But when only one qualifies there is nothing to choose, so name it exactly.
+check(
+  'types a full name when the region resolves to one category',
+  alberta.plan.steps.find(s => s.id === 's9')?.action.value.includes('Canada, Alberta'),
+  alberta.plan.steps.find(s => s.id === 's9')?.action.value,
+)
+// Never a two-letter code: typed into a substring picker it matches most names.
+check(
+  'never types something too short to filter',
+  RECIPES.filter(r => r.id.startsWith('audit_with')).every(r => {
+    const steps = r.steps ?? r.buildSteps({ parameters: { siteUrl: 'gap.com' }, goal: 'for US' })
+    return steps.every(st => !st.action?.value || st.action.value.length >= 3)
+  }),
 )
 check(
   "keeps the account's own casing",

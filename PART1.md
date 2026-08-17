@@ -213,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 235 checks, no API key, no network
+npm test           # 238 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -362,6 +362,20 @@ tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
+
+**OneTrust-imported category names carry their geography.** They come through as
+`Analytical Cookies | example.com | Canada, Alberta` — domain, country, state — so
+the country is _in the name_, and typing the country is the filter that matches how
+they are actually organised. That is why the picker search fills:
+
+| the user says           | typed              | why                                 |
+| ----------------------- | ------------------ | ----------------------------------- |
+| "for Canada" (3 match)  | `Canada`           | the country; they pick the province |
+| "for Alberta" (1 match) | the full name      | nothing to choose                   |
+| no region               | the most-used name | a concrete recommendation           |
+
+Never a two-letter code. `US` typed into a picker that matches on substring hits
+most of the names in the account — a live run filtered to 67 of 79 that way.
 
 _A ✓ can be the wrong element._ On the Consent Categories create menu,
 `.mat-menu-op-button-2021 button[mat-menu-item]` reported _visible_ while

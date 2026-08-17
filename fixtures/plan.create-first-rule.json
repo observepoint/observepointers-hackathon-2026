@@ -12,7 +12,7 @@
       "id": "s1",
       "actor": "user",
       "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
-      "say": "Open Tag & Variable Rules in the sidebar, under Standards. If the sidebar is collapsed to icons, widen it first.",
+      "say": "Open Tag & Variable Rules under Standards in the sidebar.",
       "targetFallback": {
         "description": "the \"Tag & Variable Rules\" link under Standards in the left sidebar"
       },
