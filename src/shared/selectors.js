@@ -78,10 +78,13 @@ export const ANCHOR = {
 
   // --- Audit report --------------------------------------------------------
   auditCard: '[op-selector^="sources-view-card-audit"]',
+  journeyCard: '[op-selector^="sources-view-card-webJourney"]',
   auditViewPagesReport: 'span.nav-to-link',
+  auditPageRow: 'td.mat-column-page_url',
   auditReportFilterBtn: 'button.add-filter-button',
   auditReportFilterDataSourceType: 'filter-menu:data-source-type',
   auditReportFilterAudits: 'filter-menu:audits',
+  auditReportFilterJourneys: 'filter-menu:journeys',
 
   // --- Page Details report tabs -------------------------------------------
   // From EPageDetailsOPSelectors, rendered by the app's own op-tabs component as

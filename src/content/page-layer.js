@@ -213,17 +213,19 @@ const OP_TAB_MAP = {
   '[op-selector="standards-tab-consent-categories"]': 'Consent Categories',
   'filter-menu:data-source-type': 'Data Source Type',
   'filter-menu:audits': 'Audits',
+  'filter-menu:journeys': 'Journeys',
 }
 
 function findOpTab(selector) {
   const text = OP_TAB_MAP[selector]
   if (!text) return null
+  const cssQuery = selector.startsWith('filter-menu:')
+    ? 'button.filter-bar-menu-item, div.filter-bar-menu-item'
+    : 'div.op-tab, button.filter-bar-menu-item, mat-checkbox.filter-bar-menu-item'
   return (
-    Array.from(
-      document.querySelectorAll(
-        'div.op-tab, button.filter-bar-menu-item, mat-checkbox.filter-bar-menu-item',
-      ),
-    ).find(el => el.textContent.includes(text)) ?? null
+    Array.from(document.querySelectorAll(cssQuery)).find(el =>
+      el.textContent.includes(text),
+    ) ?? null
   )
 }
 
@@ -345,7 +347,14 @@ export async function startWalkthrough(plans) {
 
       if (signal.aborted) return
 
-      const element = findVisible(step.targetSelector)
+      let element = findVisible(step.targetSelector)
+      // let element = null
+      // for (let attempt = 0; attempt < 5; attempt++) {
+      //   element = findVisible(step.targetSelector)
+      //   if (element) break
+      //   await new Promise(r => setTimeout(r, 500))
+      //   if (signal.aborted) return
+      // }
 
       if (!element && step.optional) continue
 
