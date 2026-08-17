@@ -207,15 +207,23 @@ function findJourneyTab(selector) {
 // real div.op-tab element by its label.
 const OP_TAB_MAP = {
   'audit-tab:url-sources': 'URL Sources',
+  '[op-selector="audit-tab-url-sources"]': 'URL Sources',
   'audit-tab:schedule': 'Schedule',
+  '[op-selector="audit-tab-standards"]': 'Standards',
+  '[op-selector="standards-tab-consent-categories"]': 'Consent Categories',
+  'filter-menu:data-source-type': 'Data Source Type',
+  'filter-menu:audits': 'Audits',
 }
 
 function findOpTab(selector) {
   const text = OP_TAB_MAP[selector]
   if (!text) return null
   return (
-    Array.from(document.querySelectorAll('div.op-tab')).find(el => el.textContent.includes(text)) ??
-    null
+    Array.from(
+      document.querySelectorAll(
+        'div.op-tab, button.filter-bar-menu-item, mat-checkbox.filter-bar-menu-item',
+      ),
+    ).find(el => el.textContent.includes(text)) ?? null
   )
 }
 
