@@ -76,6 +76,13 @@ export const ANCHOR = {
   // 'exlude' is not our typo -- that is the value shipped in the enum.
   auditExcludeList: '[op-selector="audit-setup-exlude-list"]',
 
+  // --- Audit report --------------------------------------------------------
+  auditCard: '[op-selector^="sources-view-card-audit"]',
+  auditViewPagesReport: 'span.nav-to-link',
+  auditReportFilterBtn: 'button.add-filter-button',
+  auditReportFilterDataSourceType: 'filter-menu:data-source-type',
+  auditReportFilterAudits: 'filter-menu:audits',
+
   // --- Page Details report tabs -------------------------------------------
   // From EPageDetailsOPSelectors, rendered by the app's own op-tabs component as
   // real, visible, clickable div.op-tab elements. The active one carries .selected.
