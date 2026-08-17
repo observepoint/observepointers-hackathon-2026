@@ -28,7 +28,7 @@ listen with the same code.
 real recipes, committed to the repo:
 
 ```
-fixtures/plan.audit-with-rules.json                    10 steps, all selectors confirmed
+fixtures/plan.audit-with-rules.json                    12 steps, all selectors confirmed
 fixtures/plan.audit-with-consent-categories.json        9 steps, all selectors confirmed
 fixtures/plan.audit-with-alerts.json                   11 steps, all selectors confirmed
 fixtures/plan.audit-with-all-standards.json            13 steps, all selectors confirmed
@@ -213,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 219 checks, no API key, no network
+npm test           # 232 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -428,6 +428,13 @@ Two facts make that safe rather than lucky:
 
 **Part 2: an `optional` step whose target is missing must be skipped, not
 failed.** That is the whole mechanism, and it is the one thing this depends on.
+
+**The audit editor is a modal, so an unsaved audit is a discarded audit.** Every
+audit recipe therefore ends on `web-audit-create-save` ("Save Audit"). They used to
+end on "attach it", which configures an audit and never creates one — the
+walkthrough reported Complete having produced nothing, which is the worst kind of
+failure because it looks like success. That step stays `actor: "user"`: the copilot
+fills fields, the person commits the change.
 
 **Alerts watch report widget data, not websites.** So an alert is only meaningful
 once the audit has run at least once, and the sane way to create one is the bell

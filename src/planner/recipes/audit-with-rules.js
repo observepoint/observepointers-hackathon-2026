@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  saveAuditStep,
+  auditParameters,
+} from './_audit-standards.js'
 
 /**
  * The bread-and-butter flow: an audit that checks tag & variable rules on every
@@ -72,5 +77,6 @@ export default {
       targetFallback: { description: 'the "Create New Rule" button' },
       completion: { type: 'dom_event', value: 'click' },
     },
+    saveAuditStep('s12'),
   ],
 }

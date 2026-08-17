@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  saveAuditStep,
+  auditParameters,
+} from './_audit-standards.js'
 
 /**
  * Attach existing alerts to an audit, so a run that goes out of compliance
@@ -77,5 +82,6 @@ export default {
       targetFallback: { description: 'the "Create New Alert" button' },
       completion: { type: 'dom_event', value: 'click' },
     },
+    saveAuditStep('s12'),
   ],
 }

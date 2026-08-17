@@ -559,6 +559,39 @@ check(
 check('survives nonsense', normalizeSiteUrl('') === '')
 
 /* ---------------------------------------------------------------- */
+section('an audit recipe actually creates the audit')
+
+// Every audit recipe used to end on "attach it", which configures an audit and
+// never creates one -- and the editor is a modal, so closing it discards
+// everything. The walkthrough reported Complete having produced nothing, which is
+// the worst kind of failure because it looks like success.
+for (const recipe of RECIPES.filter(r => r.id.startsWith('audit_with'))) {
+  const steps = recipe.steps ?? recipe.buildSteps({ parameters: { siteUrl: 'gap.com' } })
+  const last = steps.at(-1)
+
+  check(
+    `${recipe.id} ends on Save Audit`,
+    last.targetSelector.includes('web-audit-create-save'),
+    last.targetSelector,
+  )
+  // The standing rule: the copilot fills fields, the person commits the change. If
+  // there is one button never to click on someone's behalf it is this one.
+  check(`${recipe.id}: saving is the user's click, not ours`, last.actor === 'user')
+  check(
+    `${recipe.id}: step ids stay sequential after appending it`,
+    steps.every((step, i) => step.id === `s${i + 1}`),
+    steps.map(s => s.id).join(),
+  )
+}
+
+// Not a descend: op-modal-footer-buttons puts op-selector on the <button> itself,
+// the same trap that made quick-create-save-button unresolvable.
+check(
+  'the Save Audit selector does not descend into a child button',
+  !allKnownSelectors().some(s => /web-audit-create-save"\] button/.test(s.selector)),
+)
+
+/* ---------------------------------------------------------------- */
 section('one audit path, both entry points')
 
 // This used to branch: read the audit count, predict whether Create -> Audit
@@ -1290,8 +1323,9 @@ const unreadLibraryPlan = buildPlan(
 
 check(
   'an unread library keeps the generic hedge',
-  unreadLibraryPlan.steps.at(-1).targetSelector.includes('add-all-standards-btn'),
-  unreadLibraryPlan.steps.at(-1).targetSelector,
+  // -2, not -1: the last step is Save Audit now.
+  unreadLibraryPlan.steps.at(-2).targetSelector.includes('add-all-standards-btn'),
+  unreadLibraryPlan.steps.at(-2).targetSelector,
 )
 
 /* ---------------------------------------------------------------- */

@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  saveAuditStep,
+  auditParameters,
+} from './_audit-standards.js'
 import { rankForSite } from '../account.js'
 import { hostFrom } from '../naming.js'
 
@@ -333,6 +338,12 @@ export default {
   },
 
   buildSteps(context) {
+    // Wrapped rather than appended to each branch: there are four endings here and
+    // three of them would have been missed.
+    return [...this.consentSteps(context), saveAuditStep('s11')]
+  },
+
+  consentSteps(context) {
     const start = [...stepsToStandardsTab(), openSubTab]
     const matches = matchesFor(context)
 

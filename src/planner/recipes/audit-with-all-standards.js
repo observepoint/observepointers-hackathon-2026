@@ -1,4 +1,9 @@
-import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
+import {
+  SELECTORS,
+  stepsToStandardsTab,
+  saveAuditStep,
+  auditParameters,
+} from './_audit-standards.js'
 import { bestCategoryFor } from './audit-with-consent-categories.js'
 import { hostFrom } from '../naming.js'
 
@@ -153,6 +158,9 @@ export default {
       ...consentLeg,
       openSubTab(SELECTORS.subTabAlerts, 'Alerts'),
       attach('Add the alerts that should fire when a run breaches them.'),
+      // numbered() assigns the id, so this stays correct however long the consent
+      // leg turns out to be.
+      saveAuditStep(null),
     ])
   },
 }

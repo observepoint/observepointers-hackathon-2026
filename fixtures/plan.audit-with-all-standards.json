@@ -207,6 +207,19 @@
         "value": "click"
       },
       "id": "s14"
+    },
+    {
+      "id": "s15",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"web-audit-create-save\"]",
+      "say": "Save Audit — nothing exists until you do. \"Save Changes & Run Now\" next to it also kicks off the first run.",
+      "targetFallback": {
+        "description": "the \"Save Audit\" button at the bottom of the editor"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
     }
   ]
 }

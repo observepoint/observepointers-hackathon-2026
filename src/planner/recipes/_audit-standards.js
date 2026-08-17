@@ -114,6 +114,11 @@ export const SELECTORS = {
   subTabConsentCategories: '[op-selector="standards-tab-consent-categories"]',
   subTabAlerts: '[op-selector="standards-tab-alerts"]',
 
+  // The editor footer. op-modal-footer-buttons binds op-selector straight onto the
+  // <button>, so no descend. Label is literally "Save Audit"
+  // (audit-editor.component.ts:155), and "Save Changes & Run Now" is the sibling.
+  saveAudit: '[op-selector="web-audit-create-save"]',
+
   // op-standards-selector — identical markup for all three standard types.
   standardsSearch: '.op-standards-selector .search-input',
   standardsCreateNew: '.op-standards-selector .create-new-btn',
@@ -235,6 +240,31 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
     },
   ]
 }
+
+/**
+ * The last step every audit recipe was missing.
+ *
+ * All four of them ended on "attach it" — which configures an audit and never
+ * creates one. The walkthrough then reported Complete, having produced nothing:
+ * the editor is a modal, so closing it discards everything. That is the worst
+ * possible ending, because it looks like it worked.
+ *
+ * Stays `actor: 'user'`. The standing rule on this project is that the copilot
+ * fills fields and the person commits the change; if there is one button that must
+ * never be clicked on someone's behalf, it is the one that creates the object.
+ *
+ * "Save Changes & Run Now" is mentioned rather than targeted. It is the more
+ * satisfying ending and it spends real crawl budget, so it should be a deliberate
+ * choice rather than the step we point at.
+ */
+export const saveAuditStep = id => ({
+  id,
+  actor: 'user',
+  targetSelector: SELECTORS.saveAudit,
+  say: 'Save Audit — nothing exists until you do. "Save Changes & Run Now" next to it also kicks off the first run.',
+  targetFallback: { description: 'the "Save Audit" button at the bottom of the editor' },
+  completion: { type: 'dom_event', value: 'click' },
+})
 
 /**
  * Every recipe here needs these two. `purpose` is what the audit name says it
