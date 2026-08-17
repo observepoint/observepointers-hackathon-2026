@@ -26,6 +26,11 @@
  * PLUS the empty-account pair, sharing `_standards-library.js`:
  *   create_first_rule                 fill the rule library
  *   create_first_consent_category     fill the consent category library
+ *   create_first_alert                fill the alerts library — the weakest of the
+ *                                     three, because the Library makes you describe
+ *                                     the metric from scratch. Prefer the bell on a
+ *                                     report widget (alert_from_report) when there
+ *                                     is a run to point at.
  *
  * Those exist because the three audit recipes all end in "pick from your
  * library", which is a dead end on an account whose library is empty — which
@@ -51,6 +56,7 @@ import auditWithAllStandards from './audit-with-all-standards.js'
 import alertFromReport from './alert-from-report.js'
 import createFirstRule from './create-first-rule.js'
 import createFirstConsentCategory from './create-first-consent-category.js'
+import createFirstAlert from './create-first-alert.js'
 
 export const RECIPES = [
   auditWithRules,
@@ -60,6 +66,7 @@ export const RECIPES = [
   alertFromReport,
   createFirstRule,
   createFirstConsentCategory,
+  createFirstAlert,
 ]
 
 export const getRecipe = id => RECIPES.find(r => r.id === id) || null

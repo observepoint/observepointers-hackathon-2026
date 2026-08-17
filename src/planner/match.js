@@ -118,6 +118,51 @@ export function extractParameters(goal, recipe) {
  * Deterministic matcher
  * ---------------------------------------------------------------------- */
 
+/**
+ * Asking for two of the three Standards is asking for a multi-standard audit.
+ *
+ * Keywords alone cannot see this. "check our tags still fire, only approved cookies
+ * drop before consent, and alert me if either breaks" names all three concepts and
+ * not one of them by its product name, so it scored highest on whichever area used
+ * the most matching words — and answering with one silently drops the other two,
+ * which is the bug audit_with_all_standards exists to fix.
+ *
+ * So the evidence is read across recipes rather than within one: if two or more of
+ * the single-standard audits independently clear the floor, the user asked for more
+ * than one. That generalises to phrasings nobody enumerated, which a keyword list
+ * cannot.
+ *
+ * Only the three audit recipes count. The starters (create_first_rule and friends)
+ * are a different intent — "make me a rule" is not "audit against rules" — and
+ * folding them in here would turn "create a rule and an alert" into an audit.
+ */
+const ALL_STANDARDS = 'audit_with_all_standards'
+
+/**
+ * The distinctive vocabulary of each area — deliberately separate from the recipes'
+ * own keyword lists, which answer a different question.
+ *
+ * A recipe's keywords decide "should this recipe win". These decide "did the user
+ * mention this area at all", and the two are not the same. audit_with_rules claims
+ * "set up an audit" and "create an audit" so that a bare audit request lands
+ * somewhere sensible — but those phrases say nothing about rules, so counting them
+ * here would read "set up an audit and alert me if something breaks" as two areas
+ * when it is plainly one.
+ *
+ * Kept small. If it grows past a line per area, the honest move is a model call, not
+ * a longer regex.
+ */
+const AREA_SIGNALS = {
+  rules: /tag rules|variable rules|validate tags|check(ing)? tags|tags? (still )?fir/,
+  consent: /consent|gdpr|ccpa|approved (tags|cookies)|cookie compliance|unapproved|\bcmp\b/,
+  alerts: /alert|notify me|email me|tell me when|threshold/,
+}
+
+function areasMentioned(goal) {
+  const said = String(goal ?? '').toLowerCase()
+  return Object.values(AREA_SIGNALS).filter(re => re.test(said)).length
+}
+
 export function matchDeterministic(goal) {
   const wanted = tokens(goal)
   const lower = (goal || '').toLowerCase()
@@ -145,6 +190,24 @@ export function matchDeterministic(goal) {
   }
 
   scored.sort((a, b) => b.score - a.score)
+
+  // Read across recipes before picking one. See preferCombined().
+  if (areasMentioned(goal) >= 2 && getRecipe(ALL_STANDARDS)) {
+    const combined = scored.find(s => s.recipeId === ALL_STANDARDS)
+    const recipe = getRecipe(ALL_STANDARDS)
+    return {
+      recipeId: ALL_STANDARDS,
+      parameters: extractParameters(goal, recipe),
+      // Floor it above MIN_CONFIDENCE: the evidence is two independent area hits,
+      // which is stronger than either one alone even when the combined recipe's own
+      // keyword score is low.
+      confidence: Math.max(
+        0.6,
+        Math.min(0.9, 0.35 + ((combined?.score ?? 0) - MIN_RAW_SCORE) / 20),
+      ),
+      matchedBy: 'keywords',
+    }
+  }
 
   const winner = scored[0]
   if (!winner || winner.score < MIN_RAW_SCORE) {

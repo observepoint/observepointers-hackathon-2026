@@ -213,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 249 checks, no API key, no network
+npm test           # 269 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -355,6 +355,7 @@ flows for an account that has none of them yet.
 | `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
 | `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept |
+| `create_first_alert`            | Fill an empty alerts library                   | ⚠️ 0/6 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
@@ -362,6 +363,21 @@ tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
+
+**Asking for two of the three means you asked for both.** Keyword scoring cannot
+see that: _"check our tags still fire, only approved cookies drop before consent, and
+alert me if either breaks"_ names all three concepts and not one of them by its
+product name, so it scored highest on whichever area happened to share the most words
+— and answering with one silently drops the rest.
+
+So the evidence is read **across** recipes. `AREA_SIGNALS` in `match.js` holds the
+distinctive vocabulary of each area, and two or more matches routes to
+`audit_with_all_standards`. That is deliberately separate from the recipes' own
+keyword lists, which answer a different question: `audit_with_rules` claims _"set up
+an audit"_ so a bare audit request lands somewhere sensible, but that phrase says
+nothing about rules — counting it here would read the alerts onboarding goal as two
+areas. If `AREA_SIGNALS` ever grows past a line per area, the honest move is a model
+call rather than a longer regex.
 
 **All three Standards plan against the live account, not just consent.** Consent
 categories got it first because CMP groups carry a domain to match on. Rules and

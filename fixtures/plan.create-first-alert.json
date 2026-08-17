@@ -1,0 +1,101 @@
+{
+  "recipeId": "create_first_alert",
+  "goal": "create an alert",
+  "summary": "Alerts are thresholds on report data, so the Library makes you describe the metric from scratch. If you already have an audit that has run, the bell on its report widget is easier — it fills the metric in for you. Otherwise: we'll start one called \"Alert: Broken pages go above 10\" and you set the number.",
+  "executionMode": "templated",
+  "parameters": {
+    "conditionSummary": "broken pages go above 10",
+    "alertName": "Alert: Broken pages go above 10"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"sidebar-alerts\"]",
+      "say": "Open Alerts under Standards in the sidebar.",
+      "targetFallback": {
+        "description": "the \"Alerts\" link under Standards in the left sidebar"
+      },
+      "completion": {
+        "type": "url_change",
+        "value": "/alerts"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "targetSelector": "button[aria-label=\"Create Alert\"]",
+      "say": "Start a new alert.",
+      "targetFallback": {
+        "description": "the \"Create Alert\" button"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "alert-name-control input"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s3",
+      "actor": "ai",
+      "targetSelector": "alert-name-control input",
+      "say": "Naming it \"Alert: Broken pages go above 10\".",
+      "targetFallback": {
+        "description": "the alert name field at the top of the designer"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "Alert: Broken pages go above 10"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s4",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+      "say": "Pick the report and metric to watch, set the threshold, then continue.",
+      "targetFallback": {
+        "description": "the Next button in the alert designer"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+      "say": "Add who should be notified, then continue.",
+      "targetFallback": {
+        "description": "the Next button in the alert designer"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"alert-designer-save-btn\"]",
+      "say": "Choose the audits it applies to, then Save.",
+      "targetFallback": {
+        "description": "the Save button in the alert designer"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "unverified": true
+    }
+  ]
+}

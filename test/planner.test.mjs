@@ -588,6 +588,80 @@ check(
 check('survives nonsense', normalizeSiteUrl('') === '')
 
 /* ---------------------------------------------------------------- */
+section('asking for two areas means you asked for both')
+
+// Keywords alone cannot see this. The phrasing a person actually uses names all
+// three concepts and not one of them by its product name, so it scored highest on
+// whichever area used the most matching words -- and answering with one silently
+// drops the rest, which is the bug audit_with_all_standards exists to fix.
+const routeOf = goal => matchDeterministic(goal).recipeId
+
+check(
+  'a natural sentence covering all three reaches the combined recipe',
+  routeOf(
+    'Audit gap.com to check our tags still fire, only approved cookies drop before consent, and alert me if either breaks',
+  ) === 'audit_with_all_standards',
+  routeOf(
+    'Audit gap.com to check our tags still fire, only approved cookies drop before consent, and alert me if either breaks',
+  ),
+)
+check(
+  'two of three is enough',
+  routeOf('audit gap.com for consent compliance and alert me if it breaks') ===
+    'audit_with_all_standards',
+  routeOf('audit gap.com for consent compliance and alert me if it breaks'),
+)
+
+// And the single-area phrasings must NOT be dragged in. The area vocabulary is kept
+// separate from the recipes' keywords precisely because audit_with_rules claims
+// "set up an audit" -- a phrase that says nothing about rules, and would otherwise
+// read the alerts onboarding goal as two areas.
+for (const [goal, expected] of [
+  ['set up an audit for https://www.example.com that checks my tag rules', 'audit_with_rules'],
+  ['audit example.com for GDPR consent compliance', 'audit_with_consent_categories'],
+  ['set up an audit and alert me if something breaks', 'audit_with_alerts'],
+  ['add alerts to my audit', 'audit_with_alerts'],
+  ['alert me when the purchase tag stops firing', 'alert_from_report'],
+]) {
+  check(`"${goal.slice(0, 44)}…" stays on ${expected}`, routeOf(goal) === expected, routeOf(goal))
+}
+
+/* ---------------------------------------------------------------- */
+section('creating a first rule, consent category or alert')
+
+for (const [id, params, ends] of [
+  ['create_first_rule', { ruleSubject: 'GA4 fires on every page' }, 'rule-setup-save-btn'],
+  ['create_first_consent_category', { siteUrl: 'gap.com' }, 'cc-create-without-report'],
+  [
+    'create_first_alert',
+    { conditionSummary: 'broken pages go above 10' },
+    'alert-designer-save-btn',
+  ],
+]) {
+  const built = buildPlan(
+    RECIPES.find(r => r.id === id),
+    'g',
+    params,
+  )
+  check(`${id} builds a valid plan`, built.status === 'plan', built.message)
+  check(
+    `${id} ends on its own save`,
+    built.plan?.steps.at(-1).targetSelector.includes(ends),
+    built.plan?.steps.at(-1).targetSelector,
+  )
+  // Same rule as everywhere else: we name the thing, the user commits it.
+  check(`${id} leaves the save to the user`, built.plan?.steps.at(-1).actor === 'user')
+}
+
+// The alerts starter is the weakest of the three and should not steal the better
+// path: a report widget's bell pre-fills the metric, which the Library cannot.
+check(
+  'a concrete "alert me when X" still prefers the report-widget path',
+  routeOf('notify me if checkout breaks') !== 'create_first_alert',
+  routeOf('notify me if checkout breaks'),
+)
+
+/* ---------------------------------------------------------------- */
 section('rules and alerts plan against the account too')
 
 // Consent categories got this first because CMP groups carry a domain to match on.

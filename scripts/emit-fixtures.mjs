@@ -50,6 +50,11 @@ const cases = [
     goal: 'create a consent category',
     answer: 'https://www.example.com',
   },
+  {
+    file: 'plan.create-first-alert.json',
+    goal: 'create an alert',
+    answer: 'broken pages go above 10',
+  },
 ]
 
 for (const { file, goal, answer } of cases) {
