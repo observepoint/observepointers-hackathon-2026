@@ -174,6 +174,7 @@ let abortController = null
 // Used when the app renders a different element than what op-selector targets.
 const SELECTOR_OVERRIDES = {
   '[op-selector="audit-setup-name"]': 'audit-editor-header-name-control',
+  '[op-selector="audit-setup-frequency"]': 'mat-form-field:has(.frequency-hint)',
 }
 
 function resolveSelector(selector) {
@@ -201,41 +202,21 @@ function findJourneyTab(selector) {
   )
 }
 
-// After a step's completion watcher fires, run a sequence of clicks before the
-// next step starts. Needed when the app requires a tab switch or modal dismiss.
-//
-// Key format: 'recipeId:stepId'
-// Value: array of actions, each with:
-//   selector    — CSS selector to find the target element
-//   text        — optional text to narrow to a specific element among matches
-//   waitBefore  — ms to wait before clicking (default 0)
-//   waitAfter   — ms to wait after clicking (default 0)
-const POST_STEP_ACTIONS = {
-  'orientation-left-nav:nav-create-new': [
-    { selector: '[op-selector="close-btn"]', waitBefore: 1000, waitAfter: 500 },
-  ],
-  'create-first-audit:name-the-audit': [
-    { selector: '.op-tab', text: 'URL Sources', waitBefore: 0, waitAfter: 500 },
-  ],
-  'create-first-audit:page-limit': [
-    { selector: '.op-tab', text: 'Schedule', waitBefore: 0, waitAfter: 500 },
-  ],
+// Audit setup tab selectors in recipes use namespaced keys (e.g. 'audit-tab:url-sources')
+// that don't exist in the DOM. Map them to visible text so findOpTab can locate the
+// real div.op-tab element by its label.
+const OP_TAB_MAP = {
+  'audit-tab:url-sources': 'URL Sources',
+  'audit-tab:schedule': 'Schedule',
 }
 
-async function runPostStepAction(recipeId, stepId) {
-  const actions = POST_STEP_ACTIONS[`${recipeId}:${stepId}`]
-  if (!actions) return
-  for (const action of actions) {
-    if (action.waitBefore) await new Promise(r => setTimeout(r, action.waitBefore))
-    const candidates = Array.from(document.querySelectorAll(action.selector))
-    const target = action.text
-      ? candidates.find(el => el.textContent.includes(action.text))
-      : candidates[0]
-    if (target) {
-      target.click()
-      if (action.waitAfter) await new Promise(r => setTimeout(r, action.waitAfter))
-    }
-  }
+function findOpTab(selector) {
+  const text = OP_TAB_MAP[selector]
+  if (!text) return null
+  return (
+    Array.from(document.querySelectorAll('div.op-tab')).find(el => el.textContent.includes(text)) ??
+    null
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +262,8 @@ async function executeAiAction(element, action) {
 function findVisible(selector) {
   const journeyTab = findJourneyTab(selector)
   if (journeyTab) return journeyTab
+  const opTab = findOpTab(selector)
+  if (opTab) return opTab
   const candidates = Array.from(document.querySelectorAll(resolveSelector(selector)))
   const visible = candidates.find(el => {
     const rect = el.getBoundingClientRect()
@@ -369,18 +352,27 @@ export async function startWalkthrough(plans) {
 
       activeElement = element
       highlightElement(element)
-      showTooltip(element, step.say, stepIndex, plan.steps.length)
+
+      const isDomMutation = step.completion?.type === 'dom_mutation'
+      let resolveNext = null
+      const nextPromise = isDomMutation
+        ? new Promise(resolve => {
+            resolveNext = resolve
+          })
+        : null
+
+      showTooltip(element, step.say, stepIndex, plan.steps.length, resolveNext)
       reportState({ status: 'running', goal: plan.goal })
 
       if (step.actor === 'ai') {
         await executeAiAction(element, step.action)
+      } else if (isDomMutation) {
+        await nextPromise
       } else {
         await waitForCompletion(step, signal)
       }
 
       if (signal.aborted) return
-
-      await runPostStepAction(plan.recipeId, step.id)
 
       removeTooltip()
       unhighlightElement(element)
@@ -407,7 +399,10 @@ function waitForCompletion(step, signal) {
 
   if (completion.type === 'click') {
     return new Promise(resolve => {
-      const target = findJourneyTab(rawSelector) ?? document.querySelector(watchSelector)
+      const target =
+        findJourneyTab(rawSelector) ??
+        findOpTab(rawSelector) ??
+        document.querySelector(watchSelector)
       if (!target) return resolve()
 
       const handler = () => {
@@ -445,31 +440,31 @@ function waitForCompletion(step, signal) {
     })
   }
 
-  if (completion.type === 'dom_mutation') {
-    return new Promise(resolve => {
-      const target = document.querySelector(watchSelector)
-      if (!target) return resolve()
-
-      const observer = new MutationObserver(() => {
-        observer.disconnect()
-        resolve()
-      })
-      observer.observe(target, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-      })
-      signal?.addEventListener(
-        'abort',
-        () => {
-          observer.disconnect()
-          resolve()
-        },
-        { once: true },
-      )
-    })
-  }
+  // if (completion.type === 'dom_mutation') {
+  //   return new Promise(resolve => {
+  //     const target = document.querySelector(watchSelector)
+  //     if (!target) return resolve()
+  //
+  //     const observer = new MutationObserver(() => {
+  //       observer.disconnect()
+  //       resolve()
+  //     })
+  //     observer.observe(target, {
+  //       childList: true,
+  //       subtree: true,
+  //       characterData: true,
+  //       attributes: true,
+  //     })
+  //     signal?.addEventListener(
+  //       'abort',
+  //       () => {
+  //         observer.disconnect()
+  //         resolve()
+  //       },
+  //       { once: true },
+  //     )
+  //   })
+  // }
 
   return Promise.resolve()
 }

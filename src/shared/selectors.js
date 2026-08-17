@@ -69,6 +69,7 @@ export const ANCHOR = {
   auditStartingUrlsToggle: '[op-selector="audit-setup-starting-urls-toggle"]',
   auditPageLimit: '[op-selector="audit-setup-page-limit"]',
   auditFrequency: '[op-selector="audit-setup-frequency"]',
+  auditSave: '[op-selector="web-audit-create-save"]',
   auditLabels: '[op-selector="audit-setup-labels"]',
   auditGpcToggle: '[op-selector="audit-setup-gpc-toggle"]',
   auditBlockThirdPartyCookies: '[op-selector="audit-setup-block-3rd-party-cookies-toggle"]',
@@ -102,6 +103,12 @@ export const ANCHOR = {
   journeyTabHostRules: 'mat-tab[op-selector="rules-tab"]',
   matTabLabel: 'div.mat-mdc-tab',
   matTabLabelText: '.mdc-tab__text-label',
+
+  // --- Audit setup tabs ----------------------------------------------------
+  // These use namespaced keys resolved by findOpTab() in page-layer.js via
+  // OP_TAB_MAP, not direct CSS selectors.
+  auditTabUrlSources: 'audit-tab:url-sources',
+  auditTabSchedule: 'audit-tab:schedule',
 }
 
 // Route patterns, matched against location.pathname. The app uses

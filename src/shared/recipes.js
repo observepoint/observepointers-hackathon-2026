@@ -32,6 +32,15 @@ const orientationLeftNav = {
       completion: { type: 'click', targetSelector: ANCHOR.navCreateNew },
     },
     {
+      id: 'close-create-menu',
+      actor: 'user',
+      navContext: '*',
+      targetSelector: '[op-selector="close-btn"]',
+      say: 'Close this menu to continue the tour.',
+      optional: true,
+      completion: { type: 'click', targetSelector: '[op-selector="close-btn"]' },
+    },
+    {
       id: 'nav-data-sources',
       actor: 'user',
       navContext: '*',
@@ -99,6 +108,14 @@ const createFirstAudit = {
       completion: { type: 'dom_mutation', targetSelector: ANCHOR.auditName },
     },
     {
+      id: 'switch-to-url-sources',
+      actor: 'user',
+      navContext: '*',
+      targetSelector: ANCHOR.auditTabUrlSources,
+      say: 'Switch to the URL Sources tab to enter where the crawl should start.',
+      completion: { type: 'click', targetSelector: ANCHOR.auditTabUrlSources },
+    },
+    {
       id: 'starting-urls',
       actor: 'user',
       navContext: '*',
@@ -116,6 +133,15 @@ const createFirstAudit = {
       completion: { type: 'dom_mutation', targetSelector: ANCHOR.auditPageLimit },
     },
     {
+      id: 'switch-to-schedule',
+      actor: 'user',
+      navContext: '*',
+      targetSelector: ANCHOR.auditTabSchedule,
+      say: 'Open the Schedule tab to set how often this Audit runs.',
+      optional: true,
+      completion: { type: 'click', targetSelector: ANCHOR.auditTabSchedule },
+    },
+    {
       id: 'frequency',
       actor: 'user',
       navContext: '*',
@@ -123,6 +149,14 @@ const createFirstAudit = {
       say: 'Frequency turns this into ongoing monitoring. Leave it manual for now — you can schedule it once you trust the setup.',
       optional: true,
       completion: { type: 'dom_mutation', targetSelector: ANCHOR.auditFrequency },
+    },
+    {
+      id: 'save-audit',
+      actor: 'user',
+      navContext: '*',
+      targetSelector: ANCHOR.auditSave,
+      say: 'Hit Save Audit to kick off your first crawl. Results will be ready in a few minutes.',
+      completion: { type: 'click', targetSelector: ANCHOR.auditSave },
     },
   ],
 }
