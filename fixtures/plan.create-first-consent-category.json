@@ -65,30 +65,15 @@
       "completion": {
         "type": "dom_event",
         "value": "change"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s5",
       "actor": "user",
-      "targetSelector": "[op-selector=\"cc-create-next\"]",
-      "say": "Add the tags and cookies you approve of — that list is what \"approved\" means here.",
+      "targetSelector": "[op-selector=\"cc-create-without-report\"]",
+      "say": "Create it. You add the approved tags and cookies afterwards — that list is the policy, so it is yours to set.",
       "targetFallback": {
-        "description": "the Next button in the consent category form"
-      },
-      "completion": {
-        "type": "dom_event",
-        "value": "click"
-      },
-      "unverified": true
-    },
-    {
-      "id": "s6",
-      "actor": "user",
-      "targetSelector": "[op-selector=\"cc-create-save\"]",
-      "say": "Save it. Any audit can now attach this under Standards.",
-      "targetFallback": {
-        "description": "the Save button in the consent category form"
+        "description": "the \"Create without selecting a report\" button"
       },
       "completion": {
         "type": "dom_event",

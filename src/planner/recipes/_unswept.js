@@ -23,19 +23,38 @@
  *                    visible at once, so nothing gates Save on finishing the
  *                    conditions step
  *   CC library       button[aria-label="CREATE"], and the open create menu
+ *   CC create form   cc-name
  *
- * One sweep result worth keeping: on the CC create menu,
- * `.mat-menu-op-button-2021 button[mat-menu-item]` reported VISIBLE and was
- * pointing at the wrong row — "Import Category Data from Template" instead of
- * "Create a New Consent Category". So a ✓ from Check screen is necessary and not
- * sufficient: read the text it echoes back. That is what the echo is for.
+ * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
  *
- * Still unlooked-at: the consent-category form (everything past the menu),
- * report widgets, the alert quick-create dialog, and the whole Quick Audit
- * screen. Those steps go through unswept().
+ * 1. A ✓ can be the wrong element. On the CC create menu,
+ *    `.mat-menu-op-button-2021 button[mat-menu-item]` reported VISIBLE while
+ *    pointing at "Import Category Data from Template" instead of "Create a New
+ *    Consent Category". So a tick is necessary and not sufficient — read the text
+ *    the checker echoes back. That is what the echo is for.
  *
- * To clear a flag: stand on the screen, press Check screen, and if it resolves,
- * drop the step out of the wrapper and add the screen to the list above. Do not
- * clear one because the code looks right.
+ * 2. "in DOM but hidden" is a finding, not a near miss. cc-create-next and
+ *    cc-create-save both came back hidden on the consent-category create screen.
+ *    That was not a timing problem: initFooterButtons() hides five of the eight
+ *    footer buttons on the create path, and the step we wanted was a third
+ *    button entirely. cc-create-save was also on TWO buttons, so it resolved to
+ *    the hidden one. Reading the template found all eight buttons; only the
+ *    sweep said which one was on screen.
+ *
+ * Still unlooked-at: the two consent-category selectors that changed after the
+ * sweep above (the menu row and the create button), report widgets, the alert
+ * quick-create dialog, and the whole Quick Audit screen.
+ *
+ * To clear a flag: stand on the screen, press Check screen, and if it resolves
+ * — to the RIGHT element, per note 1 — drop its id from the call and add the
+ * selector to the list above. Do not clear one because the code looks right.
+ *
+ * @param {Array} steps
+ * @param {string[]} [ids] flag only these step ids. Omit to flag all of them.
+ *   Sweeping proceeds a screen at a time, so the swept and unswept steps end up
+ *   interleaved — create_first_consent_category has s3 and s5 outstanding with a
+ *   confirmed s4 between them. An id list says that in one place; splitting the
+ *   array around each gap says it in three and drifts.
  */
-export const unswept = steps => steps.map(step => ({ ...step, unverified: true }))
+export const unswept = (steps, ids) =>
+  steps.map(step => (!ids || ids.includes(step.id) ? { ...step, unverified: true } : step))

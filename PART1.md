@@ -33,7 +33,7 @@ fixtures/plan.audit-with-consent-categories.json        9 steps, all selectors c
 fixtures/plan.audit-with-alerts.json                   10 steps, all selectors confirmed
 fixtures/plan.alert-from-report.json                    6 steps
 fixtures/plan.create-first-rule.json                    5 steps, all selectors confirmed
-fixtures/plan.create-first-consent-category.json        6 steps
+fixtures/plan.create-first-consent-category.json        5 steps
 ```
 
 Start with `plan.audit-with-rules.json` — every selector in it has been confirmed
@@ -212,7 +212,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 192 checks, no API key, no network
+npm test           # 196 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -323,20 +323,30 @@ flows for an account that has none of them yet.
 | `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
 | `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
 | `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 2/6 swept |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 3/5 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
 tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
-**A ✓ from Check screen is necessary, not sufficient — read the text it echoes
-back.** On the Consent Categories create menu,
+**Two things sweeping taught us that reading the source did not.**
+
+_A ✓ can be the wrong element._ On the Consent Categories create menu,
 `.mat-menu-op-button-2021 button[mat-menu-item]` reported _visible_ while
 pointing at "Import Category Data from Template" instead of "Create a New
 Consent Category". A selector that resolves to the wrong control is worse than
 one that misses: the miss falls through to `targetFallback`, the wrong hit walks
-the user into an import dialog. That echo is the only reason it was caught.
+the user into an import dialog. Read the text the checker echoes back — that echo
+is the only reason it was caught.
+
+_"in DOM but hidden" is a finding, not a near miss._ `cc-create-next` and
+`cc-create-save` both came back hidden on the consent-category create screen. Not
+a timing problem: `initFooterButtons()` hides five of that modal's **eight**
+footer buttons on the create path, and the button we actually wanted was a third
+one, "Create without selecting a report". `cc-create-save` was also on two
+buttons at once, so it resolved to the hidden one — fixed on the moonbeam branch.
+Reading the template found all eight; only the sweep said which was on screen.
 
 "Verified" means somebody stood on the screen and pressed **Check screen**, not
 that the selector was read out of moonbeam source — every selector in this

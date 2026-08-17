@@ -14,6 +14,7 @@ import { rankModels } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
 import { rankForSite } from '../src/planner/account.js'
 import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
+import { unswept } from '../src/planner/recipes/_unswept.js'
 import {
   ONBOARDING_QUESTION,
   onboardingOptions,
@@ -952,12 +953,51 @@ check(
   RECIPES.find(r => r.id === 'create_first_rule').steps.every(s => !s.unverified),
 )
 // …and its neighbour still does, which is the point of splitting the wrapper.
+// Sweeping proceeds a screen at a time, so swept and unswept steps interleave:
+// cc-name (s4) is confirmed, while s3 and s5 both changed *because* of that
+// sweep. unswept()'s id list is what keeps that honest.
 check(
-  'create_first_consent_category flags exactly the steps past the create button',
+  'create_first_consent_category flags only the two steps that changed after the sweep',
   (() => {
     const steps = RECIPES.find(r => r.id === 'create_first_consent_category').steps
-    return steps.slice(0, 2).every(s => !s.unverified) && steps.slice(2).every(s => s.unverified)
+    return (
+      steps
+        .filter(s => s.unverified)
+        .map(s => s.id)
+        .join() === 's3,s5'
+    )
   })(),
+  RECIPES.find(r => r.id === 'create_first_consent_category')
+    .steps.filter(s => s.unverified)
+    .map(s => s.id)
+    .join(),
+)
+check(
+  'unswept() with no id list still flags everything',
+  unswept([{ id: 'a' }, { id: 'b' }]).every(s => s.unverified),
+)
+check(
+  'unswept() leaves steps outside the id list untouched',
+  (() => {
+    const out = unswept([{ id: 'a' }, { id: 'b' }], ['b'])
+    return !out[0].unverified && out[1].unverified
+  })(),
+)
+
+// A sweep reported cc-create-next and cc-create-save "in DOM but hidden".
+// initFooterButtons() hides five of the eight footer buttons on the create path,
+// and cc-create-save sat on two buttons so it resolved to the hidden one. The
+// only enabled primary after naming is "Create without selecting a report".
+const ccSteps = RECIPES.find(r => r.id === 'create_first_consent_category').steps
+check(
+  'the consent category is created without a report, in one step',
+  ccSteps.at(-1).targetSelector === '[op-selector="cc-create-without-report"]',
+  ccSteps.at(-1).targetSelector,
+)
+check(
+  'nothing targets the footer buttons that are hidden on the create path',
+  !ccSteps.some(s => /cc-create-(next|prev|save)"/.test(s.targetSelector)),
+  ccSteps.map(s => s.targetSelector).join(' | '),
 )
 
 // The sweep that mattered: `.mat-menu-op-button-2021 button[mat-menu-item]`

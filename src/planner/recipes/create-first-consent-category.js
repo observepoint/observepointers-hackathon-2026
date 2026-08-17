@@ -23,11 +23,12 @@ import { unswept } from './_unswept.js'
  *           op-button-2021 gives aria-label="CREATE" from its labelText. The
  *           zero-state variant is in the same comma list; the two are mutually
  *           exclusive, so only one ever exists.
- *   Sourced — cc-name, cc-create-next, cc-create-save
- *           (ConsentCategoriesUIConstants.selectors). cc-name is bound onto the
- *           <input matInput> itself, so it needs no descend.
- *   Was wrong — the menu item. See the note on s3: a sweep found the obvious
- *           selector resolving to the wrong row.
+ *   Swept — cc-name, bound onto the <input matInput> itself, so no descend.
+ *   Sourced — cc-create-without-report, the only enabled primary on that screen.
+ *   Were wrong, both caught by sweeping rather than by reading:
+ *           · the menu item resolved to the wrong ROW (see s3)
+ *           · cc-create-next and cc-create-save are both HIDDEN on the create
+ *             path (see s5), and cc-create-save was on two buttons at once
  */
 export default {
   id: 'create_first_consent_category',
@@ -76,30 +77,32 @@ export default {
     'A consent category is your definition of "approved" — without one, a privacy audit runs and ' +
     'reports nothing. We\'ll create one called "{{parameters.categoryName}}". You add the tags and ' +
     'cookies you actually allow, because that list is a policy decision, not a technical one.',
-  // The sidebar step is swept; nothing past it is. Splitting the wrapper keeps
-  // that distinction honest rather than rounding the whole recipe down.
-  steps: [
-    ...stepsToLibrary({
-      link: NAV.consentCategoriesLink,
-      label: 'Consent Categories',
-      route: '/consent-categories',
-    }),
-    {
-      id: 's2',
-      actor: 'user',
-      // Two buttons, never both: the page swaps in cc-zero-state when the
-      // account has none, and that is exactly the account this recipe is for.
-      // A comma list is safe when the halves are mutually exclusive.
-      targetSelector: 'button[aria-label="Create a consent category"], button[aria-label="CREATE"]',
-      say: 'Open the create menu.',
-      targetFallback: { description: 'the create button on the Consent Categories page' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: '.mat-menu-op-button-2021',
+  // Swept a screen at a time, so the outstanding steps are interleaved: s4
+  // (cc-name) was confirmed visible, while s3 and s5 both changed *because* of
+  // that sweep and have not been looked at since.
+  steps: unswept(
+    [
+      ...stepsToLibrary({
+        link: NAV.consentCategoriesLink,
+        label: 'Consent Categories',
+        route: '/consent-categories',
+      }),
+      {
+        id: 's2',
+        actor: 'user',
+        // Two buttons, never both: the page swaps in cc-zero-state when the
+        // account has none, and that is exactly the account this recipe is for.
+        // A comma list is safe when the halves are mutually exclusive.
+        targetSelector:
+          'button[aria-label="Create a consent category"], button[aria-label="CREATE"]',
+        say: 'Open the create menu.',
+        targetFallback: { description: 'the create button on the Consent Categories page' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: '.mat-menu-op-button-2021',
+        },
       },
-    },
-    ...unswept([
       {
         id: 's3',
         actor: 'user',
@@ -138,19 +141,27 @@ export default {
       {
         id: 's5',
         actor: 'user',
-        targetSelector: '[op-selector="cc-create-next"]',
-        say: 'Add the tags and cookies you approve of — that list is what "approved" means here.',
-        targetFallback: { description: 'the Next button in the consent category form' },
+        // Not cc-create-next, and not cc-create-save. A sweep reported both
+        // "in DOM but hidden", and cc-create.component.ts::initFooterButtons()
+        // says why: on the create path (not editing, not skipCreate) it hides
+        // Prev, Next, "Create & Close" and the selection button, leaving only
+        // "Create without selecting a report" and "Pull In Data From Selected
+        // Report". There is no Next step to walk — the modal is a wizard only
+        // once you pick a report to seed from.
+        //
+        // cc-create-save was doubly wrong: moonbeam had it on TWO buttons, so it
+        // resolved to the hidden "Create & Close" rather than the visible one.
+        // Fixed upstream on the hackathon branch; irrelevant here now that we
+        // target neither.
+        //
+        // Enabled as soon as the name is non-empty and no report is selected
+        // (cc-create.component.ts:1072), which is exactly the state s4 leaves.
+        targetSelector: '[op-selector="cc-create-without-report"]',
+        say: 'Create it. You add the approved tags and cookies afterwards — that list is the policy, so it is yours to set.',
+        targetFallback: { description: 'the "Create without selecting a report" button' },
         completion: { type: 'dom_event', value: 'click' },
       },
-      {
-        id: 's6',
-        actor: 'user',
-        targetSelector: '[op-selector="cc-create-save"]',
-        say: 'Save it. Any audit can now attach this under Standards.',
-        targetFallback: { description: 'the Save button in the consent category form' },
-        completion: { type: 'dom_event', value: 'click' },
-      },
-    ]),
-  ],
+    ],
+    ['s3', 's5'],
+  ),
 }
