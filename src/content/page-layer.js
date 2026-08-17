@@ -302,6 +302,16 @@ function findVisible(selector) {
   return applyOperators(visible, ops)[0] ?? null
 }
 
+/**
+ * The runtime's own element lookup, for the Check-screen sweep.
+ *
+ * Exported so the sweep and the run cannot disagree. They used to: the sweep called
+ * document.querySelector directly, which knows nothing about the compatibility tables
+ * or the `>>` operators — so every step using one came back "invalid-selector", on
+ * exactly the recipes with the most unswept steps in them.
+ */
+export const resolveTarget = selector => findVisible(selector)
+
 /** Wired at boot by content/index.js. You don't need to call this. */
 export function registerHostCallbacks({ onState, onCompleted }) {
   callbacks.onState = onState

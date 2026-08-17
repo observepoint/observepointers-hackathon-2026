@@ -108,6 +108,77 @@ Guarantees the validator enforces, so you don't have to defend against them:
 - **No `{{placeholders}}` survive.** An unsubstituted one would have you typing
   `{{parameters.auditName}}` into a real form.
 
+### Selectors may carry `>>` operators
+
+Three of the screens this now drives — the rule conditions grid, the alert's
+report-metric menu, the OneTrust location picker — are an Angular `@for` over a config
+array. That has two consequences plain CSS cannot express:
+
+- **The stable handle on a generated option is its visible label.** The labels come
+  from constants that are part of the product's vocabulary (`AlertReportsToAuditMetrics`,
+  `TagVariableOperators`, `FilterTypes`), so they are as durable as an `op-selector`
+  and there are hundreds of them. Naming every option upstream is a losing race.
+- **Repeating rows are identical.** Every variable row renders
+  `input[formControlName="variable"]`, and "add a variable, now fill it in" always means
+  the row just added. CSS has `:nth-of-type` but no `:nth-of-class`, and the grid
+  interleaves `.grid-row` with `.row-separator`, so counting children is wrong.
+
+So a `targetSelector` may end in one or more `>>` operators:
+
+```jsonc
+"button[mat-menu-item] >> text=Tag & Variable Rules"   // by visible label
+"input[formControlName=\"variable\"] >> last"          // the row just added
+"mat-option.loc-autocomplete >> text=Utah"
+"then-condition mat-select >> nth=2"                   // 1-based
+```
+
+`>>` is never valid CSS, so a selector without one behaves exactly as before and
+nothing existing changes. `text=` prefers an exact label over a partial one, which is
+load-bearing: the alert menu offers both "Greater than (>)" and "Greater than or equal
+to (≥)", and a contains-match alone resolves to whichever comes first.
+
+`src/content/selector-query.js` is the parser — a pure function over arrays, so it is
+covered by `npm test` rather than only by a browser. `page-layer.js` supplies the
+`querySelectorAll` and the visibility filter, and filters to visible **before**
+applying `last`/`nth` so those count what the user can see. `Check screen` resolves
+selectors through the same path, so the sweep and the run cannot disagree.
+
+### Who gets a Continue button, and why it isn't in the recipes
+
+The rule: **a click the user performs advances by itself; anything we type waits for
+Continue.** It's derived from the operation in `advanceModeFor()` rather than restated
+on every step:
+
+| Step                      | Button                  | Advances on              |
+| ------------------------- | ----------------------- | ------------------------ |
+| `actor: "ai"` (a fill)    | Continue, immediately   | the button               |
+| `actor: "user"` (a click) | hidden for the first 8s | the click, or the button |
+| `advance: "continue"`     | Continue, immediately   | the button only          |
+
+The 8-second reveal is the compromise between the stated rule and not stranding
+anyone: detection is good and not perfect, and a walkthrough with no way forward is
+worse than a button nobody needed. It appears as "Skip this step →".
+
+`advance` is the only new step field, and it exists for exactly one shape the rule
+cannot infer: a step that only **remarks** on a value the app already set — "OPERATOR
+is already equals, which is what we want" — where no click is coming and racing a
+completion would skip it instantly. A test asserts no `ai` step ever declares it and
+that every "already"-worded user step does.
+
+### `chain` takes an array
+
+`chain` is now a recipeId **or an ordered list of them**, and `plans` on the result is
+the whole sequence already built. The handoff carries both:
+
+```js
+chrome.runtime.sendMessage({ type: 'PLAN_READY', plan, plans })
+```
+
+`plan` is the head, unchanged, so nothing that reads it breaks. `plans` is what
+`startWalkthrough` should take when present — it already accepts an ordered array, so
+this is the shape it was designed for. Every fixture except `plan.demo-chain.json` is
+still a single plan object.
+
 ### One additive field, and it is no longer optional
 
 **Every** step carries
@@ -346,17 +417,27 @@ the tests use.
 Focused on audits and the three things you attach to them, plus the two starter
 flows for an account that has none of them yet.
 
-| Recipe                          | Covers                                         | Verified     |
-| ------------------------------- | ---------------------------------------------- | ------------ |
-| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps |
-| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps |
-| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
-| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps |
-| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
-| `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept |
-| `create_first_alert`            | Fill an empty alerts library                   | ⚠️ 0/6 swept |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 0/7 swept |
+| Recipe                          | Covers                                         | Verified      |
+| ------------------------------- | ---------------------------------------------- | ------------- |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps  |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps  |
+| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps  |
+| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps  |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept  |
+| `create_first_rule`             | Fill an empty rule library, named and no more  | ✅ all steps  |
+| `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
+| `create_first_alert`            | An alert, metric and threshold included        | ⚠️ 0/16 swept |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 0/9 swept  |
+
+`create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
+and the split is about the REQUEST rather than the recipe. "Make me a rule" says
+nothing about what correct means, so filling in a conditions grid from defaults would
+produce a rule that passes or fails for reasons nobody intended — it stops with the
+rule named. "Follow the Timing Value best practice on Google Universal Analytics"
+names a tag and implies three variables, and every field in the grid follows from
+them, so stopping early would leave someone in front of the hardest screen in the app
+having been told the walkthrough was finished.
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
@@ -368,23 +449,50 @@ and all three improve. The two starters share `_standards-library.js`.
 ### The demo sentence
 
 ```
-gap.com uses OneTrust — import our consent categories for USA, Utah, then audit
-the site against them with tag rules and alert me if anything breaks
+observepoint.com uses OneTrust — import our consent categories for Utah, then audit
+the site against them with tag rules, follow the Timing Value best practice on
+Google Universal Analytics, and alert me if anything breaks
 ```
 
-One sentence, and it produces a **chained** pair of plans: import the categories
-first, then the audit that attaches them. Both the sentence and its routing are in
-the test suite, so neither can rot quietly.
+One sentence, **four walkthroughs, 72 steps**, in dependency order:
 
-**A prerequisite beats the thing it feeds.** Before this, the two-areas rule below
-fired first and routed straight to the audit — skipping the import, so the audit had
-nothing to attach. Naming a CMP _and_ an import verb now wins, and `chain` carries
-the audit on afterwards, which is what "import ours for Utah, **then** audit"
-literally asks for.
+| #   | Walkthrough                    | Steps | What it does                                      |
+| --- | ------------------------------ | ----- | ------------------------------------------------- |
+| 1   | `import_consent_from_onetrust` | 9     | Pull the approved cookies for Utah out of the CMP |
+| 2   | `create_tag_variable_rule`     | 30    | `utt`, `utc`, `utv` set on GUA timing beacons     |
+| 3   | `create_first_alert`           | 16    | Rule failures > 0, emailed to you                 |
+| 4   | `audit_with_all_standards`     | 17    | One audit, attaching all three                    |
 
-Both halves are required: _"audit gap.com, we use OneTrust"_ mentions the CMP without
-asking to import from it, and re-importing categories someone already has is not a
-helpful reading of that.
+`fixtures/plan.demo-chain.json` is the whole thing, in the array shape
+`startWalkthrough` takes. The sentence, its routing and its ordering are all in the
+test suite, so none of it can rot quietly.
+
+**Prerequisites first, because that is the actual dependency.** The audit's Standards
+picker can only attach a rule or an alert that already exists, so the three library
+walkthroughs run before it. Before this, the two-areas rule fired first and routed
+straight to the audit — which then had nothing to attach.
+
+**The chain is decided from the request, not fixed on the recipe.** `buildChain(context)`
+mirrors `buildSteps(context)`: _"import our OneTrust categories"_ is finished when they
+are imported and queues nothing, while _"import ours, **then** audit"_ queues the other
+three. Queueing an audit onto the first phrasing would be inventing work; dropping
+three quarters of the second is the bug `audit_with_all_standards` exists to fix, one
+level up.
+
+Both halves of the OneTrust rule are required: _"audit gap.com, we use OneTrust"_
+mentions the CMP without asking to import from it, and re-importing categories someone
+already has is not a helpful reading of that.
+
+**Parameters accumulate down the chain.** Each link sees everything the earlier ones
+resolved, which is what carries the rule's derived name (`Google Universal Analytics
+sets utt, utc and utv`) into the audit's picker. Without it the audit would rank a
+rule out of an account snapshot taken before the rule existed — and attach the wrong
+one, convincingly.
+
+**A link that needs an answer blocks the whole request.** The alert needs an email
+address and nothing before it does. Discovering that on step 53 of 72 would be the
+worst possible place to ask, so a successor's `needs_input` is returned as the result
+of the entire call — attributed to the head recipe, so answering re-plans all four.
 
 **Asking for two of the three means you asked for both.** Keyword scoring cannot
 see that: _"check our tags still fire, only approved cookies drop before consent, and
@@ -563,8 +671,15 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
+- **The three longest recipes are entirely unswept, and one of them is the demo.**
+  `create_tag_variable_rule` (30 steps), `create_first_alert` (16) and
+  `import_consent_from_onetrust` (9) are all source-accurate and none has been watched
+  resolve. That is 55 of the demo's 72 steps. They also need the newest moonbeam
+  branch: five of the rule selectors and six of the OneTrust ones were added there.
+- **Two fields we type and cannot commit.** The alert's URL filter reads its input on
+  `keyup`, and the subscriber list turns text into a chip on Enter. Setting `.value`
+  and firing `input`/`change` puts the text in the box without registering it, so both
+  steps say "press Enter" and wait for Continue. Honest, and still a limitation.
 - **No page awareness.** The planner doesn't know what screen the user is on, so
   it always plans from the start. If Part 2/3 feed the current route back in,
   recipes could skip steps the user has already done.
-- **One recipe per goal.** "Set up an audit _and_ alert me when it fails" needs
-  chaining, which isn't built — today it picks whichever intent matched strongest.

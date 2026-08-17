@@ -20,6 +20,7 @@ import * as pageLayer from './page-layer.js'
 import { openPicker } from './ui/picker.js'
 import { openOnboarding } from './ui/onboarding.js'
 import * as endButton from './ui/end-button.js'
+import { cssPartOf } from './selector-query.js'
 
 /* ---------------------------------------------------------------------- *
  * PART 1's ACCOUNT BRIDGE
@@ -166,22 +167,45 @@ function describeScreen() {
 
 function checkSelectors(selectors) {
   return selectors.map(({ id, selector }) => {
+    // The runtime's own lookup, not a raw querySelector. A sweep that resolves
+    // selectors differently from the run it is verifying answers the wrong question
+    // -- and would report every `>>` selector as invalid, on precisely the recipes
+    // with the most unswept steps.
     let element
     try {
-      element = document.querySelector(selector)
+      element = pageLayer.resolveTarget(selector)
     } catch {
       return { id, selector, found: false, visible: false, error: 'invalid-selector' }
     }
 
-    if (!element) return { id, selector, found: false, visible: false }
+    // resolveTarget already filters to laid-out elements, so anything it returns is
+    // on screen. The fallback below is what distinguishes "not in the DOM at all"
+    // from "there but hidden", which is a finding rather than a near miss.
+    if (element) {
+      return {
+        id,
+        selector,
+        found: true,
+        visible: true,
+        text: (element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+      }
+    }
 
-    const rect = element.getBoundingClientRect()
+    let hidden
+    try {
+      hidden = document.querySelector(cssPartOf(selector))
+    } catch {
+      return { id, selector, found: false, visible: false, error: 'invalid-selector' }
+    }
+
+    if (!hidden) return { id, selector, found: false, visible: false }
+
     return {
       id,
       selector,
       found: true,
-      visible: rect.width > 1 && rect.height > 1 && element.offsetParent !== null,
-      text: (element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+      visible: false,
+      text: (hidden.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
     }
   })
 }
