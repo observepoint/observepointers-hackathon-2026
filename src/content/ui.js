@@ -55,7 +55,9 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
       STEP ${stepIndex + 1} OF ${totalSteps}
     </div>
     <div>${text}</div>
-    ${onNext ? `
+    ${
+      onNext
+        ? `
     <button id="op-wt-next-btn" style="
       margin-top: 10px;
       width: 100%;
@@ -67,7 +69,9 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-    ">Next →</button>` : ''}
+    ">Next →</button>`
+        : ''
+    }
   `
   document.body.appendChild(tip)
 
@@ -75,6 +79,29 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
     document.getElementById('op-wt-next-btn').addEventListener('click', onNext)
   }
 
+  placeAbove(tip, element)
+}
+
+// Shared card styling for the step tooltip and the guard tooltip, so the two read as the same
+// object rather than two things that happen to be dark and gold.
+const TOOLTIP_CARD_CSS = `
+  position: fixed;
+  z-index: 2147483002;
+  background: #1a1a2e;
+  color: #fff;
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 12px 16px;
+  max-width: 300px;
+  font-family: sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+`
+
+// Sit above the target, flip below when that would clip the top, and stay inside the viewport
+// horizontally. Measured after insertion because we need the card's real height.
+function placeAbove(tip, element) {
   const rect = element.getBoundingClientRect()
   const tipRect = tip.getBoundingClientRect()
 
@@ -90,6 +117,40 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
 
 export function removeTooltip() {
   document.getElementById(TOOLTIP_ID)?.remove()
+}
+
+const GUARD_TOOLTIP_ID = 'op-wt-guard-tooltip'
+
+/**
+ * Point at the control that would resolve a violated guard.
+ *
+ * The step tooltip's sibling, with the remedy's title where STEP n OF m goes and no Next
+ * button: this one is dismissed by the user fixing the state, not by acknowledging it.
+ */
+export function showGuardTooltip(element, { title, say }) {
+  hideGuardTooltip()
+
+  const tip = document.createElement('div')
+  tip.id = GUARD_TOOLTIP_ID
+  tip.setAttribute('role', 'alert')
+  tip.style.cssText = `${TOOLTIP_CARD_CSS} pointer-events: none;`
+
+  const heading = document.createElement('div')
+  heading.style.cssText =
+    'font-size:11px;color:#ffd700;font-weight:600;letter-spacing:0.5px;margin-bottom:6px;'
+  heading.textContent = title.toUpperCase()
+
+  const body = document.createElement('div')
+  body.textContent = say
+
+  tip.append(heading, body)
+  document.body.appendChild(tip)
+
+  placeAbove(tip, element)
+}
+
+export function hideGuardTooltip() {
+  document.getElementById(GUARD_TOOLTIP_ID)?.remove()
 }
 
 export function showConfetti() {
@@ -168,6 +229,56 @@ export function showCompletionPopup(goal) {
   document.body.appendChild(popup)
   document.getElementById('op-wt-close-popup').addEventListener('click', () => popup.remove())
   setTimeout(() => popup.remove(), 6000)
+}
+
+const GUARD_ID = 'op-wt-guard-popup'
+
+/**
+ * Show the "put this back" prompt for a violated guard.
+ *
+ * Unlike every other popup here this one does NOT auto-dismiss and has no button: it is
+ * removed by hideGuardPopup() the moment the state it is asking for comes back. A timeout
+ * would leave the walkthrough silently stalled with nothing on screen explaining why.
+ */
+export function showGuardPopup({ title, say }) {
+  if (document.getElementById(GUARD_ID)) return
+
+  const popup = document.createElement('div')
+  popup.id = GUARD_ID
+  popup.setAttribute('role', 'alert')
+  popup.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2147483004;
+    background: #1a1a2e;
+    border: 2px solid #ffd700;
+    border-radius: 12px;
+    padding: 28px 36px;
+    text-align: center;
+    font-family: sans-serif;
+    color: #fff;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    min-width: 320px;
+    max-width: 400px;
+  `
+  popup.innerHTML = `
+    <div style="font-size:28px;margin-bottom:12px;">📌</div>
+    <div style="font-size:16px;font-weight:700;color:#ffd700;margin-bottom:8px;"></div>
+    <div style="font-size:14px;color:#fff;line-height:1.5;"></div>
+    <div style="font-size:12px;color:#888;margin-top:16px;">This closes itself once you do. Or end the walkthrough from the bar at the top.</div>
+  `
+  // textContent rather than interpolation: the copy is ours, but every other popup here
+  // interpolates and that is a habit worth not spreading.
+  popup.children[1].textContent = title
+  popup.children[2].textContent = say
+
+  document.body.appendChild(popup)
+}
+
+export function hideGuardPopup() {
+  document.getElementById(GUARD_ID)?.remove()
 }
 
 export function showPrerequisitePopup(goal, instruction) {

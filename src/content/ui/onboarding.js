@@ -3,11 +3,21 @@
 // Q1 gates everything. Answering "no thanks" means no initial walkthrough and no
 // contextual offers later -- someone who knows the app should never see this again.
 //
-// Q2 decides which walkthroughs we recommend and, more importantly, the order of the
-// chain we queue up. The chain is why these are separate small walkthroughs rather
-// than one long tour: we assemble exactly the ones this user needs.
+// Q2 decides which walkthroughs we recommend, and which nav items the orientation tour
+// points out -- see shared/orientation.js, which composes itself from these answers.
+//
+// Onboarding starts exactly ONE walkthrough: the composed orientation. It used to queue a
+// chain, so finishing the nav tour dropped you straight into the Audit setup form; that
+// read as the extension taking over rather than helping. Anything deeper is suggested when
+// orientation ends, and the user chooses.
+//
+// The orientation tour itself is only for people who said they are new -- someone who
+// knows the app does not need Create New pointed out. But everyone needs to know where
+// walkthroughs live, since the Settings item is the only way back in. New users get that
+// as the first steps of their tour; returning users get the final screen below instead.
 
-import { PURPOSES, buildChain } from '../../shared/purposes.js'
+import { PURPOSES } from '../../shared/purposes.js'
+import { ORIENTATION_RECIPE_ID } from '../../shared/orientation.js'
 import { storage, KEYS } from '../../shared/utils.js'
 import { openModal } from './modal.js'
 
@@ -113,14 +123,47 @@ export async function openOnboarding({ onComplete } = {}) {
 
     await storage.sync.set(KEYS.PROFILE, profile)
 
-    // Someone new gets the orientation tour first; someone who has used the app
-    // before goes straight to the walkthroughs for their stated purposes.
-    const chain = profile.wantsGuidance
-      ? buildChain(purposeIds, { includeOrientation: guidanceId === 'new' })
-      : []
+    // The orientation tour, and nothing else. Someone who has used the app before gets no
+    // tour at all -- just the pointer to the Settings menu below, so they can pick what
+    // they actually want from the picker.
+    const chain = guidanceId === 'new' ? [ORIENTATION_RECIPE_ID] : []
 
-    close()
-    onComplete?.(profile, chain)
+    const finish = () => {
+      close()
+      onComplete?.(profile, chain)
+    }
+
+    // Skipping the nav tour means skipping the two steps that would have shown them the
+    // Settings item, so say it here instead.
+    if (guidanceId === 'walkthroughs') {
+      renderWhereToFind(finish)
+      return
+    }
+
+    finish()
+  }
+
+  // -------------------------------------------------------------- returning users only
+
+  function renderWhereToFind(finish) {
+    body.innerHTML = ''
+    body.appendChild(sectionLabel('One last thing'))
+
+    const note = document.createElement('p')
+    note.className = 'op-modal-sub'
+    note.style.margin = '0 0 12px'
+    note.textContent =
+      'Walkthroughs live in the Settings menu, top right — the same place as Keyboard Shortcuts. Open it whenever you want one; the ones matching what you picked are at the top.'
+    body.appendChild(note)
+
+    // Nothing to go back to from here. The spacer that right-aligns the footer lives on
+    // `skip`, so it has to move with it.
+    skip.style.display = 'none'
+    primary.classList.add('op-spacer')
+
+    primary.disabled = false
+    primary.textContent = 'Got it'
+    primary.onclick = finish
   }
 
   // ------------------------------------------------------------------ question 2

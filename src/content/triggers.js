@@ -64,17 +64,26 @@ async function loadState() {
   return { profile, progress: progress ?? {} }
 }
 
-function isSuppressed(trigger, progress) {
-  const seen = progress.seenTriggers?.[trigger.id]
+/**
+ * Should we stay quiet about this offer?
+ *
+ * Exported because the suggestion shown when orientation finishes is the same kind of
+ * promise to the user -- two dismissals and we stop -- and it would be a bad look for one
+ * offer surface to honour that and another to ignore it.
+ *
+ * @param {object} offer { id, recipeId }
+ */
+export function isSuppressed(offer, progress) {
+  const seen = progress.seenTriggers?.[offer.id]
 
   if (seen?.suppressed) return true
   if ((seen?.count ?? 0) >= MAX_DISMISSALS) return true
 
   // Already done this walkthrough -- no reason to keep suggesting it.
-  return Boolean(progress.completedRecipes?.[trigger.recipeId])
+  return Boolean(progress.completedRecipes?.[offer.recipeId])
 }
 
-function recordSeen(triggerId, patch) {
+export function recordSeen(triggerId, patch) {
   return storage.local.update(KEYS.PROGRESS, (progress = {}) => {
     const seenTriggers = progress.seenTriggers ?? {}
     const previous = seenTriggers[triggerId] ?? { count: 0, suppressed: false }

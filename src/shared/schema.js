@@ -19,9 +19,15 @@ export const WalkthroughSchema = {
     summary: { type: 'string' },
     executionMode: { type: 'string', enum: EXECUTION_MODES },
     parameters: { type: 'object' },
-    // Successor recipe. Onboarding is delivered as several small chained
-    // walkthroughs rather than one long one, so each declares what follows it.
+    // Successor recipe. Nothing auto-starts a successor any more -- we offer the
+    // next walkthrough instead of chaining into it -- but the field is kept because
+    // it still records which walkthrough naturally follows this one.
     chain: { type: 'string' },
+    // App states that must hold for the whole run, by id from shared/guards.js.
+    // Checked before every step and watched while a step waits, so a user who
+    // unpins the left nav mid-tour gets asked to put it back rather than watching
+    // the rest of the walkthrough skip itself.
+    guards: { type: 'array', items: { type: 'string' } },
     steps: {
       type: 'array',
       items: {
@@ -37,6 +43,9 @@ export const WalkthroughSchema = {
           // Steps whose target is hidden by permissions or feature flags are
           // skipped rather than failing the whole walkthrough.
           optional: { type: 'boolean' },
+          // How long an actor:'ai' step holds before advancing, in ms. Only useful
+          // when the step exists to be read rather than to change something.
+          dwellMs: { type: 'number' },
           action: {
             type: 'object',
             properties: {
