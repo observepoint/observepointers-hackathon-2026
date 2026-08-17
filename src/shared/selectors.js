@@ -23,6 +23,15 @@ export const ANCHOR = {
   // Anchor our item just below Keyboard Shortcuts, above the first divider.
   menuItemAnchor: '[op-selector="top-nav-keyboard-shortcuts"]',
   menuItemSample: 'button.mat-mdc-menu-item',
+  // Our own injected "Walkthroughs" item -- content/settings-menu.js puts this
+  // op-selector on the clone, so unlike everything else here we own the value. Only
+  // exists while the Settings panel is open, hence the orientation tour opening the
+  // menu before it points at this.
+  settingsWalkthroughsItem: '[op-selector="top-nav-walkthroughs"]',
+  // The hamburger. Only rendered in the app's mobile layout, so its VISIBILITY is our
+  // narrow-screen test -- no breakpoint constant of our own to drift out of sync with the
+  // app's media queries the next time they change them.
+  mobileNavToggle: '[op-selector="top-nav-mobile-menu"]',
 
   // --- App shell -----------------------------------------------------------
   // Everything inside #application is gated on @if (user), so it is absent on the
@@ -30,27 +39,50 @@ export const ANCHOR = {
   appRoot: 'div#application',
 
   // --- Left nav ------------------------------------------------------------
-  // MUST stay scoped to global-sidebar. <mobile-sidebar> is instantiated at the
-  // same time and duplicates every one of these ids; an unscoped getElementById
-  // returns whichever comes first in document order.
-  navCreateNew: 'global-sidebar #guide-left-nav-create-new',
-  navReports: 'global-sidebar #guide-left-nav-reports',
-  navDataSources: 'global-sidebar #guide-left-nav-data-sources',
-  navTriggeredAlerts: 'global-sidebar #guide-left-nav-triggered-alerts',
-  navStandards: 'global-sidebar #guide-left-nav-standards',
-  navConfigs: 'global-sidebar #guide-left-nav-configs',
-  navUsage: 'global-sidebar #guide-left-nav-usage',
+  // Deliberately NOT scoped to global-sidebar, though the ids below ARE duplicated:
+  // <mobile-sidebar> is instantiated at the same time and repeats every one of them.
+  //
+  // page-layer's findVisible() is what disambiguates, by taking the first match with a
+  // non-zero bounding rect -- exactly the case it was written for, and the same thing the
+  // createNew* and audit-setup selectors already rely on. Scoping to global-sidebar would
+  // be stricter but would also make every nav step unresolvable in the app's mobile
+  // layout, where global-sidebar is the hidden one and the drawer is what the user sees.
+  //
+  // The catch: a closed mat-drawer is translated off-screen rather than collapsed, so its
+  // children can keep a non-zero rect. The 'nav-available' guard is what keeps us honest
+  // there -- it requires the drawer to actually be open before any of these are used.
+  navCreateNew: '#guide-left-nav-create-new',
+  // The mat-drawer carries this class only while it is open, which is how the guard knows
+  // the mobile nav is usable.
+  mobileNavOpened: '.mat-drawer-opened',
+  // The pin-state probe for the 'nav-pinned' guard in shared/guards.js. Confirmed against
+  // the live app: this div is in the DOM while the nav is pinned and REMOVED once it is
+  // not, so querySelector returning null is the signal that the nav collapsed. Don't
+  // "harden" the guard by ignoring absence -- absence is the whole point.
+  navExpanded: '[op-selector="sidebar-collapse-nav"]',
+  // Click target for pinning the nav back open. NOT interchangeable with navExpanded above,
+  // even though that element also carries class="collapse-wrapper": navExpanded is the state
+  // probe (absent when unpinned) and this is the control you click. Keep them separate.
+  navPinToggle: '.sidebar .collapse-wrapper[op-selector="sidebar-expand-nav"]',
+  navCloseCreateNew: 'op-modal [op-selector="close-btn"]',
+  navReports: '#guide-left-nav-reports',
+  navDataSources:
+    '#guide-left-nav-data-sources [op-selector="sidebar-data-sources-audits-journeys"]',
+  navTriggeredAlerts: '#guide-left-nav-triggered-alerts',
+  navStandards: '#guide-left-nav-standards',
+  navConfigs: '#guide-left-nav-configs',
+  navUsage: '#guide-left-nav-usage',
 
   // Left nav sub-items, via the opLinkSelectorMap in sidebar.constants.ts.
   // Deliberately omitted: 'notification center', 'folders', 'subfolders',
   // 'labels', 'shared links', 'alerts' and 'custom headers' are looked up by
   // getOpLinkAttr() but missing from that map, so they render op-selector="".
-  navAuditsJourneys: 'global-sidebar [op-selector="sidebar-data-sources-audits-journeys"]',
-  navRules: 'global-sidebar [op-selector="sidebar-standards-rules"]',
-  navConsentPreferences: 'global-sidebar [op-selector="sidebar-standards-consent-preferences"]',
-  navActionSets: 'global-sidebar [op-selector="sidebar-configurations-action-sets"]',
-  navDataLayers: 'global-sidebar [op-selector="sidebar-data-layers"]',
-  navEmailInboxes: 'global-sidebar [op-selector="sidebar-email-inboxes"]',
+  navAuditsJourneys: '[op-selector="sidebar-data-sources-audits-journeys"]',
+  navRules: '[op-selector="sidebar-standards-rules"]',
+  navConsentPreferences: '[op-selector="sidebar-standards-consent-preferences"]',
+  navActionSets: '[op-selector="sidebar-configurations-action-sets"]',
+  navDataLayers: '[op-selector="sidebar-data-layers"]',
+  navEmailInboxes: '[op-selector="sidebar-email-inboxes"]',
 
   // --- Data Sources page ---------------------------------------------------
   // The createNew* items only exist while the createNewDataSrcMenu is open, and
@@ -120,6 +152,31 @@ export const ANCHOR = {
   auditTabUrlSources: 'audit-tab:url-sources',
   auditTabSchedule: 'audit-tab:schedule',
 }
+
+/**
+ * Every anchor that lives inside the left nav.
+ *
+ * Exists so the 'nav-available' guard can tell which steps depend on the sidebar. That used
+ * to be a substring test for 'global-sidebar', which broke the moment those selectors were
+ * unscoped -- the guard silently stopped applying to anything. An explicit set can't rot that
+ * way: add a nav anchor above without adding it here and the guard just won't cover it, which
+ * is at least visible from this list.
+ */
+export const SIDEBAR_ANCHORS = new Set([
+  ANCHOR.navCreateNew,
+  ANCHOR.navReports,
+  ANCHOR.navDataSources,
+  ANCHOR.navTriggeredAlerts,
+  ANCHOR.navStandards,
+  ANCHOR.navConfigs,
+  ANCHOR.navUsage,
+  ANCHOR.navAuditsJourneys,
+  ANCHOR.navRules,
+  ANCHOR.navConsentPreferences,
+  ANCHOR.navActionSets,
+  ANCHOR.navDataLayers,
+  ANCHOR.navEmailInboxes,
+])
 
 // Route patterns, matched against location.pathname. The app uses
 // PathLocationStrategy (pushState, no hash routing) with <base href="/">.

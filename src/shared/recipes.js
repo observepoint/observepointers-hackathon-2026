@@ -1,8 +1,9 @@
 // Hand-authored walkthrough templates.
 //
-// Deliberately small and separate rather than one long tour: each recipe covers one
-// idea and declares its successor via `chain`, so onboarding can string together
-// exactly the ones a given user needs and nothing more.
+// Deliberately small and separate rather than one long tour: each recipe covers one idea,
+// so we can put exactly the one a given user needs in front of them and nothing more.
+// Nothing auto-starts a successor -- `chain` records what naturally follows a walkthrough,
+// but the next one is offered when this one finishes and the user decides.
 //
 // Every selector here comes from shared/selectors.js. Text uses ObservePoint's real
 // UI terminology -- "Journeys" not "Web Journeys", "Data Source Scans" not
@@ -10,62 +11,18 @@
 //
 // Every recipe is validated at import time, so a typo fails the moment the content
 // script boots instead of halfway through a demo.
+//
+// One recipe is not hand-authored: orientation-left-nav is composed per profile in
+// shared/orientation.js, because what it should point out depends on the purposes the
+// user picked during onboarding. The entry below is its core-only default, which is what
+// anything reading RECIPES for metadata sees. Callers that want the personalised version
+// go through resolveRecipe().
 
 import { ANCHOR } from './selectors.js'
 import { assertValidRecipe } from './schema.js'
+import { ORIENTATION_RECIPE_ID, buildOrientation } from './orientation.js'
 
-const orientationLeftNav = {
-  recipeId: 'orientation-left-nav',
-  goal: 'Get oriented in the ObservePoint left navigation',
-  summary:
-    'A short tour of the main navigation: Create New, Data Source Scans, Standards, and Reports.',
-  executionMode: 'templated',
-  parameters: {},
-  chain: 'create-first-audit',
-  steps: [
-    {
-      id: 'nav-create-new',
-      actor: 'user',
-      navContext: '*',
-      targetSelector: ANCHOR.navCreateNew,
-      say: 'Start here. Create New is where every Audit, Journey, and Folder begins. Give it a click.',
-      completion: { type: 'click', targetSelector: ANCHOR.navCreateNew },
-    },
-    {
-      id: 'close-create-menu',
-      actor: 'user',
-      navContext: '*',
-      targetSelector: '[op-selector="close-btn"]',
-      say: 'Close this menu to continue the tour.',
-      optional: true,
-      completion: { type: 'click', targetSelector: '[op-selector="close-btn"]' },
-    },
-    {
-      id: 'nav-data-sources',
-      actor: 'user',
-      navContext: '*',
-      targetSelector: ANCHOR.navDataSources,
-      say: 'Data Source Scans holds Audits & Journeys — every scan you have set up, and its results.',
-      completion: { type: 'click', targetSelector: ANCHOR.navDataSources },
-    },
-    {
-      id: 'nav-standards',
-      actor: 'user',
-      navContext: '*',
-      targetSelector: ANCHOR.navStandards,
-      say: 'Standards is where you define what "correct" means: Alerts, Tag & Variable Rules, and Consent Categories.',
-      completion: { type: 'click', targetSelector: ANCHOR.navStandards },
-    },
-    {
-      id: 'nav-reports',
-      actor: 'user',
-      navContext: '*',
-      targetSelector: ANCHOR.navReports,
-      say: 'And Reports is the Report Gallery plus anything you have saved. That is the tour — next, your first Audit.',
-      completion: { type: 'click', targetSelector: ANCHOR.navReports },
-    },
-  ],
-}
+const orientationLeftNav = buildOrientation()
 
 const createFirstAudit = {
   recipeId: 'create-first-audit',
@@ -74,6 +31,9 @@ const createFirstAudit = {
     'Walks through creating a Web Audit: naming it, adding starting URLs, and setting the page limit and frequency.',
   executionMode: 'templated',
   parameters: { auditName: 'My First Audit' },
+  // Only the first step needs the sidebar, and appliesTo means the guard leaves the audit
+  // form steps alone -- so declaring it costs nothing and stops step 1 stalling.
+  guards: ['nav-available'],
   steps: [
     {
       id: 'go-to-data-sources',
@@ -353,6 +313,8 @@ const privacyConsentCategories = {
     'Introduces Standards and Consent Categories — the approved and unapproved lists that drive every privacy compliance report.',
   executionMode: 'templated',
   parameters: {},
+  // Every step here points at a global-sidebar anchor, so a collapsed nav breaks all of them.
+  guards: ['nav-available'],
   steps: [
     {
       id: 'open-standards',
@@ -403,6 +365,24 @@ const BY_ID = new Map(RECIPES.map(r => [r.recipeId, r]))
 
 export function getRecipe(recipeId) {
   return BY_ID.get(recipeId)
+}
+
+/**
+ * Resolve a recipe id to a plan, personalising the ones that are composed rather than
+ * hand-authored.
+ *
+ * Every entry point that is about to RUN a walkthrough should go through this instead of
+ * getRecipe, so there is one seam rather than one per caller. getRecipe stays the right
+ * call for metadata and existence checks.
+ *
+ * @param {string} recipeId
+ * @param {object} context { purposeIds, includeSettingsIntro }
+ */
+export function resolveRecipe(recipeId, { purposeIds, includeSettingsIntro } = {}) {
+  if (recipeId === ORIENTATION_RECIPE_ID)
+    return buildOrientation(purposeIds ?? [], { includeSettingsIntro })
+
+  return getRecipe(recipeId)
 }
 
 /** Lightweight list for the picker and for Pipeline A's recipe selection. */
