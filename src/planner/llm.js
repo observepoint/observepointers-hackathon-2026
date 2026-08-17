@@ -17,6 +17,39 @@
  */
 
 const HOST = 'https://generativelanguage.googleapis.com/v1beta'
+
+/**
+ * Why there is a timeout at all.
+ *
+ * createPlan() already degrades to keyword matching when the model fails — and
+ * that works: a live session hit "This model is currently experiencing high
+ * demand", fell back, and produced a usable plan. But that path only runs on a
+ * THROWN error. A hang throws nothing. The panel sits on "Working out the
+ * steps…" forever and the fallback we wrote never fires, which on stage reads as
+ * frozen rather than as degraded.
+ *
+ * Eight seconds is chosen against the demo, not against the API: past that the
+ * keyword matcher's instant answer is worth more than a better match.
+ */
+export const TIMEOUT_MS = 8000
+
+/**
+ * fetch with a deadline, and an error message that says which call gave up.
+ *
+ * AbortError's own message is "The operation was aborted", which tells whoever
+ * reads the warning line nothing about what happened. This turns it into
+ * something that names the cause.
+ */
+async function fetchWithTimeout(url, options, what) {
+  try {
+    return await fetch(url, { ...options, signal: AbortSignal.timeout(TIMEOUT_MS) })
+  } catch (error) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      throw new Error(`Gemini ${what} timed out after ${TIMEOUT_MS / 1000}s`, { cause: error })
+    }
+    throw error
+  }
+}
 const NOT_CHAT = /embedding|aqa|imagen|veo|tts|audio|image|live|gemma|learnlm/i
 
 /** Newest first, flash before pro (latency matters here), stable over preview. */
@@ -47,9 +80,11 @@ export class GeminiClient {
   }
 
   async listModels() {
-    const res = await fetch(`${HOST}/models?pageSize=200`, {
-      headers: { 'x-goog-api-key': this.apiKey },
-    })
+    const res = await fetchWithTimeout(
+      `${HOST}/models?pageSize=200`,
+      { headers: { 'x-goog-api-key': this.apiKey } },
+      'model discovery',
+    )
     const data = await res.json()
     if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`)
     return data.models || []
@@ -71,18 +106,22 @@ export class GeminiClient {
   async generateJson(prompt, schema) {
     const model = await this.resolveModel()
 
-    const res = await fetch(`${HOST}/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': this.apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: schema,
-          maxOutputTokens: 2048,
-        },
-      }),
-    })
+    const res = await fetchWithTimeout(
+      `${HOST}/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': this.apiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+            maxOutputTokens: 2048,
+          },
+        }),
+      },
+      'generation',
+    )
 
     const data = await res.json()
 

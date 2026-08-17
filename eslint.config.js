@@ -15,6 +15,9 @@ export default [
         console: 'readonly',
         document: 'readonly',
         setTimeout: 'readonly',
+        // AbortSignal.timeout() puts a deadline on the model call, so a hang
+        // reaches the keyword fallback instead of sitting there forever.
+        AbortSignal: 'readonly',
         // The side panel and options pages are ordinary web pages: they use
         // fetch for the model call, and window/navigator for speech input.
         window: 'readonly',

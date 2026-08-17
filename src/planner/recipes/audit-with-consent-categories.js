@@ -99,13 +99,40 @@ function isGeoFanout(matches) {
 }
 
 /**
+ * The few places where a person and a CMP reliably disagree on spelling.
+ *
+ * Everything else is matched against the geo strings in the *account*, on
+ * purpose: their CMP already knows how it spells its own regions, so borrowing
+ * that vocabulary handles "Alberta", "EMEA" and any internal naming we would
+ * never have thought to enumerate — and it cannot match a region they don't
+ * have. This table is not a country list and must not grow into one. It exists
+ * because "check compliance for gap.com in the United States" matched NOTHING
+ * against an account that writes USA, and silently fell through to picking the
+ * first of four by ordering.
+ *
+ * Note the omission: bare "us". It collides with the pronoun in "check our site
+ * for us", which is a phrasing this product invites.
+ */
+const GEO_ALIASES = {
+  usa: ['united states of america', 'united states', 'u.s.a.', 'u.s.', 'america'],
+  uk: ['united kingdom', 'great britain', 'britain', 'england', 'scotland', 'wales'],
+  eu: ['european union', 'europe', 'eea'],
+}
+
+const escapeRe = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Does `said` name this term?
+ *
+ * Bounded rather than a bare substring test, which is what makes short geo codes
+ * safe to match at all — "EU" as a substring hits "queue" and "reused".
+ */
+const mentions = (said, term) =>
+  new RegExp(`(^|[^a-z0-9])${escapeRe(term.toLowerCase())}([^a-z0-9]|$)`).test(said)
+
+/**
  * Did the user name a region? "…observepoint.com for Canada" should pick the
  * Canadian groups rather than shrugging at 79 of them.
- *
- * Matched against the geo strings in *their* account rather than a hardcoded
- * country list. Their CMP already knows how it spells its regions, so borrowing
- * that vocabulary handles "Alberta", "EMEA" or any internal naming we'd never
- * have thought to enumerate — and it can't match a region they don't have.
  */
 function narrowByStatedGeo(matches, goal) {
   const said = String(goal ?? '').toLowerCase()
@@ -113,17 +140,26 @@ function narrowByStatedGeo(matches, goal) {
 
   // Any comma-separated part counts: "Canada, Alberta" should answer to both
   // "for Canada" and "for Alberta".
-  // Keep the account's own casing — echoing "canada" back at someone who wrote
-  // "Canada" looks like a bug even though the match is right.
+  // Two-character parts are kept now that matching is bounded — dropping them
+  // meant an account that files things under "EU" or "UK" could never be
+  // narrowed at all.
   const partsOf = category =>
     (category.cmpGeo ?? '')
       .split(',')
       .map(part => part.trim())
-      .filter(part => part.length > 2)
+      .filter(part => part.length >= 2)
+
+  const said_ = said
+  const namesPart = part =>
+    mentions(said_, part) ||
+    (GEO_ALIASES[part.toLowerCase()] ?? []).some(alias => mentions(said_, alias))
 
   let term = null
   const hits = matches.filter(category => {
-    const hit = partsOf(category).find(part => said.includes(part.toLowerCase()))
+    // Keep the account's own casing and its own spelling. Someone who wrote
+    // "United States" gets USA searched for, because USA is what is in the
+    // picker — echoing their words back would filter to nothing.
+    const hit = partsOf(category).find(namesPart)
     // Keep the most specific term the user actually said, so a follow-up search
     // filters to what they asked for rather than to the whole domain.
     if (hit && (!term || hit.length > term.length)) term = hit

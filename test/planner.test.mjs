@@ -10,7 +10,7 @@ import { createPlan, buildPlan, answerAndRetry, suggestions } from '../src/plann
 import { validatePlan } from '../src/planner/schema.js'
 import { render, placeholdersIn } from '../src/planner/template.js'
 import { matchDeterministic } from '../src/planner/match.js'
-import { rankModels } from '../src/planner/llm.js'
+import { rankModels, TIMEOUT_MS } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
 import { rankForSite } from '../src/planner/account.js'
 import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
@@ -790,6 +790,86 @@ check(
     )
   })(),
 )
+
+/* ---------------------------------------------------------------- */
+section('naming a region the way a person would')
+
+const aliasCat = (id, geo, n = 0) => ({
+  id,
+  name: `gap.com | ${geo}`,
+  labels: [],
+  cmpDomain: 'gap.com',
+  cmpGeo: geo,
+  auditCount: n,
+})
+const aliasAccount = {
+  consentCategories: [
+    aliasCat(1, 'USA, California', 2),
+    aliasCat(2, 'USA, Alabama'),
+    aliasCat(3, 'Canada'),
+    aliasCat(4, 'Canada, Alberta'),
+    aliasCat(5, 'EU'),
+    aliasCat(6, 'UK'),
+  ],
+  webAudits: [{ id: 1 }],
+  advancedAuditMode: true,
+}
+const searchesFor = async goal => {
+  const r = await createPlan(goal, { forceLocal: true, account: aliasAccount })
+  return r.plan?.steps?.find(step => step.id === 's8')?.action?.value ?? `(${r.status})`
+}
+const privacy = region => `check gap.com for privacy compliance in ${region}`
+
+// The reported failure: an account that writes USA matched nothing for "the
+// United States", so the plan picked the first of four by ordering.
+for (const [said, expected] of [
+  ['the United States', 'USA'],
+  ['the U.S.', 'USA'],
+  ['America', 'USA'],
+  ['Canada', 'Canada'],
+]) {
+  check(
+    `"${said}" narrows to ${expected}`,
+    (await searchesFor(privacy(said))) === expected,
+    await searchesFor(privacy(said)),
+  )
+}
+
+// Two-character geos used to be dropped outright by a length > 2 filter, so an
+// account filing things under EU or UK could never be narrowed at all.
+check(
+  'a two-letter geo can be named',
+  (await searchesFor(privacy('the European Union'))).includes('EU'),
+  await searchesFor(privacy('the European Union')),
+)
+check(
+  'and matched through its alias',
+  (await searchesFor(privacy('the United Kingdom'))).includes('UK'),
+)
+
+// The reason bare "us" is deliberately absent from the alias table.
+check(
+  'the pronoun in "for us" is not a region',
+  (await searchesFor('check our site for privacy compliance for us, gap.com')) === 'gap.com',
+  await searchesFor('check our site for privacy compliance for us, gap.com'),
+)
+// Bounded matching, not substring: "eu" inside another word must not count.
+check(
+  'a geo code inside a longer word is not a mention',
+  !(await searchesFor('check gap.com for privacy compliance, reuse the queue setup')).includes(
+    'EU',
+  ),
+)
+check(
+  'a sub-region still wins over its country',
+  (await searchesFor(privacy('Alberta'))).includes('Alberta'),
+  await searchesFor(privacy('Alberta')),
+)
+
+/* ---------------------------------------------------------------- */
+section('the model gets a deadline')
+
+check('a timeout is declared', TIMEOUT_MS > 0 && TIMEOUT_MS <= 15000, String(TIMEOUT_MS))
 
 /* ---------------------------------------------------------------- */
 section('mid-conversation edits')
