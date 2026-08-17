@@ -212,7 +212,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 189 checks, no API key, no network
+npm test           # 192 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -323,12 +323,20 @@ flows for an account that has none of them yet.
 | `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps |
 | `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept |
 | `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 1/6 swept |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 2/6 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
 tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
+
+**A ✓ from Check screen is necessary, not sufficient — read the text it echoes
+back.** On the Consent Categories create menu,
+`.mat-menu-op-button-2021 button[mat-menu-item]` reported _visible_ while
+pointing at "Import Category Data from Template" instead of "Create a New
+Consent Category". A selector that resolves to the wrong control is worse than
+one that misses: the miss falls through to `targetFallback`, the wrong hit walks
+the user into an import dialog. That echo is the only reason it was caught.
 
 "Verified" means somebody stood on the screen and pressed **Check screen**, not
 that the selector was read out of moonbeam source — every selector in this

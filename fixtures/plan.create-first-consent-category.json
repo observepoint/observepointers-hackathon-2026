@@ -33,13 +33,12 @@
         "type": "dom_mutation",
         "condition": "visible",
         "targetSelector": ".mat-menu-op-button-2021"
-      },
-      "unverified": true
+      }
     },
     {
       "id": "s3",
       "actor": "user",
-      "targetSelector": ".mat-menu-op-button-2021 button[mat-menu-item]",
+      "targetSelector": "[op-selector=\"cc-create-new-category\"], .mat-menu-op-button-2021 button[mat-menu-item]:last-child",
       "say": "Choose \"Create a New Consent Category\" — the other two import from a template or OneTrust.",
       "targetFallback": {
         "description": "\"Create a New Consent Category\" in the open menu"

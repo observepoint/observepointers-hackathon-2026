@@ -22,10 +22,17 @@
  *                    rule-setup-save-btn ("Save") — both footer buttons are
  *                    visible at once, so nothing gates Save on finishing the
  *                    conditions step
+ *   CC library       button[aria-label="CREATE"], and the open create menu
  *
- * Still unlooked-at: the consent-category library and form, report widgets, the
- * alert quick-create dialog, and the whole Quick Audit screen. Those steps go
- * through unswept().
+ * One sweep result worth keeping: on the CC create menu,
+ * `.mat-menu-op-button-2021 button[mat-menu-item]` reported VISIBLE and was
+ * pointing at the wrong row — "Import Category Data from Template" instead of
+ * "Create a New Consent Category". So a ✓ from Check screen is necessary and not
+ * sufficient: read the text it echoes back. That is what the echo is for.
+ *
+ * Still unlooked-at: the consent-category form (everything past the menu),
+ * report widgets, the alert quick-create dialog, and the whole Quick Audit
+ * screen. Those steps go through unswept().
  *
  * To clear a flag: stand on the screen, press Check screen, and if it resolves,
  * drop the step out of the wrapper and add the screen to the list above. Do not

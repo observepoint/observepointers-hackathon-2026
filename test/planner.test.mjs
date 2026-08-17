@@ -953,11 +953,35 @@ check(
 )
 // …and its neighbour still does, which is the point of splitting the wrapper.
 check(
-  'create_first_consent_category keeps its swept sidebar step and flags the rest',
+  'create_first_consent_category flags exactly the steps past the create button',
   (() => {
     const steps = RECIPES.find(r => r.id === 'create_first_consent_category').steps
-    return !steps[0].unverified && steps.slice(1).every(s => s.unverified)
+    return steps.slice(0, 2).every(s => !s.unverified) && steps.slice(2).every(s => s.unverified)
   })(),
+)
+
+// The sweep that mattered: `.mat-menu-op-button-2021 button[mat-menu-item]`
+// resolved to "Import Category Data from Template", the FIRST of three rows,
+// and reported itself visible. A wrong hit is worse than a miss, because a miss
+// falls through to targetFallback.
+const menuStep = RECIPES.find(r => r.id === 'create_first_consent_category').steps[2]
+check(
+  'the menu item is addressed by position from the end, not the start',
+  menuStep.targetSelector.includes(':last-child'),
+  menuStep.targetSelector,
+)
+check(
+  'and prefers the op-selector when the moonbeam patch is present',
+  menuStep.targetSelector.startsWith('[op-selector="cc-create-new-category"]'),
+)
+// Same rule as the audit tabs: a comma list is only safe when both halves are
+// the same element. Here the attribute sits on the very button :last-child
+// picks. It is NOT safe to point at the containing panel as a fallback — the
+// panel precedes the button in document order, so querySelector would always
+// return the panel and the attribute would never win.
+check(
+  'the fallback half does not widen to the containing menu panel',
+  !/,\s*\.mat-menu-op-button-2021$/.test(menuStep.targetSelector),
 )
 
 check(
