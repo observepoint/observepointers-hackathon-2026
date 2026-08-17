@@ -125,7 +125,12 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
   if (unresolvedSteps.length) {
     warnings.push(`Unfilled placeholders defaulted: ${unresolvedSteps.join(', ')}`)
   }
-  const unverified = steps.filter(s => s.unverified).length
+  // Optional steps are excluded on purpose. An optional step exists precisely
+  // because its target may be absent — behind a permission, or on a screen this
+  // run didn't pass through — so "unverified and optional" is the designed
+  // behaviour rather than a risk. Counting it would put a permanent warning on
+  // three fully-swept recipes and teach everyone to ignore the warning line.
+  const unverified = steps.filter(s => s.unverified && !s.optional).length
   if (unverified) {
     warnings.push(
       `${unverified} of ${steps.length} steps use unverified selectors — the pointer may miss on those.`,

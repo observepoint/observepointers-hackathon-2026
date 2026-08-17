@@ -1,9 +1,4 @@
-import {
-  SELECTORS,
-  stepsToStandardsTab,
-  usesAdvancedPath,
-  auditParameters,
-} from './_audit-standards.js'
+import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 
 /**
  * The bread-and-butter flow: an audit that checks tag & variable rules on every
@@ -40,45 +35,43 @@ export default {
   summaryTemplate:
     'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}}, then attach ' +
     'your Tag & Variable Rules under Standards so every run reports pass/fail against them.',
-  buildSteps(context) {
-    return [
-      ...stepsToStandardsTab({ advanced: usesAdvancedPath(context.account) }),
-      {
-        id: 's7',
-        actor: 'user',
-        targetSelector: SELECTORS.subTabRules,
-        say: 'Open Tag & Variable Rules.',
-        targetFallback: { description: 'the "Tag & Variable Rules" sub-tab' },
-        completion: {
-          type: 'dom_mutation',
-          condition: 'visible',
-          targetSelector: '.op-standards-selector',
-        },
+  steps: [
+    ...stepsToStandardsTab(),
+    {
+      id: 's8',
+      actor: 'user',
+      targetSelector: SELECTORS.subTabRules,
+      say: 'Open Tag & Variable Rules.',
+      targetFallback: { description: 'the "Tag & Variable Rules" sub-tab' },
+      completion: {
+        type: 'dom_mutation',
+        condition: 'visible',
+        targetSelector: '.op-standards-selector',
       },
-      {
-        id: 's8',
-        actor: 'user',
-        targetSelector: SELECTORS.standardsSearch,
-        say: 'Search your rule library.',
-        targetFallback: { description: 'the search box in the rules picker' },
-        completion: { type: 'dom_event', value: 'input' },
-      },
-      {
-        id: 's9',
-        actor: 'user',
-        targetSelector: SELECTORS.standardsAddAll,
-        say: 'Add the rules you want.',
-        targetFallback: { description: 'the "add all" button in the rules picker' },
-        completion: { type: 'dom_event', value: 'click' },
-      },
-      {
-        id: 's10',
-        actor: 'user',
-        targetSelector: SELECTORS.standardsCreateNew,
-        say: 'Nothing fits? Create a rule here instead.',
-        targetFallback: { description: 'the "Create New Rule" button' },
-        completion: { type: 'dom_event', value: 'click' },
-      },
-    ]
-  },
+    },
+    {
+      id: 's9',
+      actor: 'user',
+      targetSelector: SELECTORS.standardsSearch,
+      say: 'Search your rule library.',
+      targetFallback: { description: 'the search box in the rules picker' },
+      completion: { type: 'dom_event', value: 'input' },
+    },
+    {
+      id: 's10',
+      actor: 'user',
+      targetSelector: SELECTORS.standardsAddAll,
+      say: 'Add the rules you want.',
+      targetFallback: { description: 'the "add all" button in the rules picker' },
+      completion: { type: 'dom_event', value: 'click' },
+    },
+    {
+      id: 's11',
+      actor: 'user',
+      targetSelector: SELECTORS.standardsCreateNew,
+      say: 'Nothing fits? Create a rule here instead.',
+      targetFallback: { description: 'the "Create New Rule" button' },
+      completion: { type: 'dom_event', value: 'click' },
+    },
+  ],
 }

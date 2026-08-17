@@ -61,7 +61,6 @@ export const SELECTORS = {
   // audit-setup-name and audit-setup-starting-urls-textarea here; neither
   // exists on this screen.
   quickAuditModal: '.audit-setup-modal', // panelClass, audit-modal.helpers.ts:21
-  quickAuditUrl: '#scanURL',
   // opSelector on the footer button itself (op-modal-footer-buttons binds
   // [attr.op-selector] straight onto <button>), so no descend.
   switchToAdvanced: '[op-selector="web-audit-switch-to-advanced-setup"]',
@@ -122,32 +121,43 @@ export const SELECTORS = {
 }
 
 /**
- * Which of the two screens will Create → Audit open?
+ * Data Sources → create the audit → Standards tab. All three audit recipes start
+ * here, so fixing this path fixes all three at once.
  *
- * Mirrors manage-cards.component.ts::createWebAudit() exactly, including the
- * order of the two conditions. Both signals are optional: a list we never read
- * cannot say "empty", so an unread account falls through to the advanced
- * default, which is what an established account gets.
+ * ONE PATH, BOTH ENTRY POINTS.
+ *
+ * This used to branch. createWebAudit() opens Quick Audit when
+ * `totalCardsCount === 0 || useAdvancedAuditMode() !== true`, so we read the
+ * audit count and the stored preference, predicted which modal would appear, and
+ * emitted one of two step lists. That worked and it was the wrong shape:
+ *
+ *   · It needed an extra API call per boot purely to guess.
+ *   · The guess used the count of ALL data source cards, which we approximated
+ *     with the audit count — so an account with journeys and no audits got the
+ *     wrong branch.
+ *   · A wrong guess is not a degraded walkthrough, it is a walkthrough pointing
+ *     at a modal that never opened.
+ *
+ * Now there is no guess. "Switch to Advanced Setup" is marked `optional`, so the
+ * runtime skips it when it isn't on screen. In Quick Audit it resolves and the
+ * user clicks it; in the advanced editor it is absent and the run moves on.
+ * Every step after it is the advanced editor either way, which is what makes one
+ * list sufficient.
+ *
+ * Two facts make this safe rather than lucky:
+ *   · switchToAdvancedView() carries the URL across
+ *     (`url: quickAuditForm.get('scanURL')?.value`), so nothing typed is lost.
+ *   · Quick Audit auto-names the audit "Simple Audit - <date>"
+ *     (quick-audit.component.ts:124), so naming AFTER the switch is correct for
+ *     both routes — it either sets the name or replaces that default.
+ *
+ * VERIFIED against a running local moonbeam except the switch step itself, which
+ * needs an account with no data sources or advanced mode turned off.
  */
-export function usesAdvancedPath(account) {
-  if (Array.isArray(account?.webAudits) && account.webAudits.length === 0) return false
-  return account?.advancedAuditMode !== false
-}
-
-/**
- * Data Sources → create the audit → Standards tab. All three audit recipes
- * start here, so fixing this path fixes all three at once.
- *
- * The advanced branch is VERIFIED against a running local moonbeam
- * (2026-08-16). The quick branch is source-accurate but unswept — it needs an
- * account with no data sources, or advanced mode turned off in user settings.
- *
- * Both branches emit s1..s6, so callers can append s7 onward either way.
- */
-export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
+export function stepsToStandardsTab({ startId = 1 } = {}) {
   const id = n => `s${startId + n}`
 
-  const entry = [
+  return [
     {
       id: id(0),
       actor: 'user',
@@ -166,77 +176,17 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
-        targetSelector: advanced ? SELECTORS.auditEditor : SELECTORS.quickAuditModal,
+        // Either modal satisfies this. A comma list is safe when the halves are
+        // mutually exclusive, and exactly one of these two opens.
+        targetSelector: `${SELECTORS.auditEditor}, ${SELECTORS.quickAuditModal}`,
       },
     },
-  ]
-
-  if (advanced) {
-    return [
-      ...entry,
-      {
-        id: id(2),
-        actor: 'ai',
-        targetSelector: SELECTORS.advancedName,
-        say: 'Naming it "{{parameters.auditName}}".',
-        targetFallback: { description: 'the audit name field in the editor header' },
-        action: { type: 'fill_text', value: '{{parameters.auditName}}' },
-        completion: { type: 'dom_event', value: 'change' },
-      },
-      {
-        id: id(3),
-        actor: 'user',
-        targetSelector: SELECTORS.urlSourcesTab,
-        say: 'Open URL Sources.',
-        targetFallback: { description: 'the URL Sources tab in the audit editor' },
-        completion: { type: 'dom_event', value: 'click' },
-      },
-      {
-        id: id(4),
-        actor: 'ai',
-        targetSelector: SELECTORS.startingUrls,
-        say: 'Setting the starting URL.',
-        targetFallback: { description: 'the "URLs to Scan" box on the URL Sources tab' },
-        action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
-        completion: { type: 'dom_event', value: 'change' },
-      },
-      {
-        id: id(5),
-        actor: 'user',
-        targetSelector: SELECTORS.standardsTab,
-        say: 'Open the Standards tab.',
-        targetFallback: { description: 'the Standards tab in the audit editor' },
-        completion: {
-          type: 'dom_mutation',
-          condition: 'visible',
-          targetSelector: '.op-tabs.sub-menu',
-        },
-      },
-    ]
-  }
-
-  // Quick Audit's only field is the URL, and switchToAdvancedView() passes it
-  // through (`url: quickAuditForm.get('scanURL')?.value`), so it is worth
-  // filling before the switch rather than after. The name is not worth filling
-  // here — there is nowhere to put it — so it lands on the advanced header,
-  // replacing the auto-generated "Simple Audit - <date>".
-  return [
-    ...entry,
     {
       id: id(2),
-      actor: 'ai',
-      targetSelector: SELECTORS.quickAuditUrl,
-      say: 'Setting the site to scan.',
-      targetFallback: { description: 'the "Website url/domain to Audit" field' },
-      action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
-      unverified: true,
-      completion: { type: 'dom_event', value: 'change' },
-    },
-    {
-      id: id(3),
       actor: 'user',
+      optional: true,
       targetSelector: SELECTORS.switchToAdvanced,
-      say: 'Switch to Advanced Setup — Quick Audit has no Standards section.',
+      say: 'If you landed on the quick setup, switch to Advanced Setup — Standards lives there.',
       targetFallback: { description: 'the "Switch to Advanced Setup" button' },
       unverified: true,
       completion: {
@@ -246,16 +196,33 @@ export function stepsToStandardsTab({ startId = 1, advanced = true } = {}) {
       },
     },
     {
-      id: id(4),
+      id: id(3),
       actor: 'ai',
       targetSelector: SELECTORS.advancedName,
-      say: 'Renaming it "{{parameters.auditName}}" — it came through as "Simple Audit".',
+      say: 'Naming it "{{parameters.auditName}}".',
       targetFallback: { description: 'the audit name field in the editor header' },
       action: { type: 'fill_text', value: '{{parameters.auditName}}' },
       completion: { type: 'dom_event', value: 'change' },
     },
     {
+      id: id(4),
+      actor: 'user',
+      targetSelector: SELECTORS.urlSourcesTab,
+      say: 'Open URL Sources.',
+      targetFallback: { description: 'the URL Sources tab in the audit editor' },
+      completion: { type: 'dom_event', value: 'click' },
+    },
+    {
       id: id(5),
+      actor: 'ai',
+      targetSelector: SELECTORS.startingUrls,
+      say: 'Setting the starting URL.',
+      targetFallback: { description: 'the "URLs to Scan" box on the URL Sources tab' },
+      action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
+      completion: { type: 'dom_event', value: 'change' },
+    },
+    {
+      id: id(6),
       actor: 'user',
       targetSelector: SELECTORS.standardsTab,
       say: 'Open the Standards tab.',

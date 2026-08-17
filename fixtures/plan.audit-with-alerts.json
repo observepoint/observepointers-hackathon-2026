@@ -33,11 +33,27 @@
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
-        "targetSelector": ".op-audit-editor"
+        "targetSelector": ".op-audit-editor, .audit-setup-modal"
       }
     },
     {
       "id": "s3",
+      "actor": "user",
+      "optional": true,
+      "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
+      "say": "If you landed on the quick setup, switch to Advanced Setup — Standards lives there.",
+      "targetFallback": {
+        "description": "the \"Switch to Advanced Setup\" button"
+      },
+      "unverified": true,
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".op-audit-editor"
+      }
+    },
+    {
+      "id": "s4",
       "actor": "ai",
       "targetSelector": "audit-editor-header-name-control input",
       "say": "Naming it \"example.com — Alerting\".",
@@ -54,7 +70,7 @@
       }
     },
     {
-      "id": "s4",
+      "id": "s5",
       "actor": "user",
       "targetSelector": "[op-selector=\"audit-tab-url-sources\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)",
       "say": "Open URL Sources.",
@@ -67,7 +83,7 @@
       }
     },
     {
-      "id": "s5",
+      "id": "s6",
       "actor": "ai",
       "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
       "say": "Setting the starting URL.",
@@ -84,7 +100,7 @@
       }
     },
     {
-      "id": "s6",
+      "id": "s7",
       "actor": "user",
       "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
       "say": "Open the Standards tab.",
@@ -98,7 +114,7 @@
       }
     },
     {
-      "id": "s7",
+      "id": "s8",
       "actor": "user",
       "targetSelector": "[op-selector=\"standards-tab-alerts\"]",
       "say": "Open Alerts.",
@@ -112,7 +128,7 @@
       }
     },
     {
-      "id": "s8",
+      "id": "s9",
       "actor": "user",
       "targetSelector": ".op-standards-selector .search-input",
       "say": "Search your alerts.",
@@ -125,7 +141,7 @@
       }
     },
     {
-      "id": "s9",
+      "id": "s10",
       "actor": "user",
       "targetSelector": ".op-standards-selector .add-all-standards-btn",
       "say": "Attach them.",
@@ -138,7 +154,7 @@
       }
     },
     {
-      "id": "s10",
+      "id": "s11",
       "actor": "user",
       "targetSelector": ".op-standards-selector .create-new-btn",
       "say": "Nothing fits? Create an alert here instead.",

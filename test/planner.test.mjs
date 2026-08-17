@@ -307,14 +307,22 @@ check(
   alertPlan.status === 'plan' && alertPlan.warnings.some(w => w.includes('unverified')),
   JSON.stringify(alertPlan.warnings),
 )
+// The audit path carries one unverified step — the optional "Switch to Advanced
+// Setup" — and that must NOT warn. An optional step exists because its target may
+// be absent, so not resolving is the design. Warning on it would put a permanent
+// notice on three fully-swept recipes and train everyone to ignore the line.
+const verifiedPlan = await createPlan('privacy audit for gap.com', {
+  forceLocal: true,
+  account: { consentCategories: [] },
+})
 check(
   'and stays quiet once a path is verified',
-  (
-    await createPlan('privacy audit for gap.com', {
-      forceLocal: true,
-      account: { consentCategories: [], advancedAuditMode: true },
-    })
-  ).warnings.length === 0,
+  verifiedPlan.warnings.length === 0,
+  JSON.stringify(verifiedPlan.warnings),
+)
+check(
+  'even though it carries an optional unverified step',
+  verifiedPlan.plan.steps.some(s => s.optional && s.unverified),
 )
 
 /* ---------------------------------------------------------------- */
@@ -535,125 +543,53 @@ check(
 check('survives nonsense', normalizeSiteUrl('') === '')
 
 /* ---------------------------------------------------------------- */
-section('quick vs advanced audit creation')
+section('one audit path, both entry points')
 
-// moonbeam's createWebAudit() opens the ADVANCED editor unless advanced mode is
-// explicitly off, and storage.service returns `value ?? true` — so advanced is
-// the default. A live check confirmed it. Planning the Quick Audit path for
-// everyone pointed half the steps at a modal that never opens.
-const pathFor = advanced =>
-  buildPlan(
-    RECIPE,
-    'g',
-    { siteUrl: 'gap.com' },
-    { account: { consentCategories: [], advancedAuditMode: advanced } },
-  ).plan.steps.map(s => s.targetSelector)
-
-const advancedPath = pathFor(true)
-const quickPath = pathFor(false)
-
-check(
-  'advanced path never waits on the Quick Audit modal',
-  !advancedPath.some(sel => sel.includes('web-audit-switch-to-advanced-setup')),
-  advancedPath.join(' | '),
-)
-check(
-  'advanced path names the audit in the editor header',
-  advancedPath.some(sel => sel.startsWith('audit-editor-header-name-control')),
-)
-check(
-  'quick path still switches to advanced for Standards',
-  quickPath.some(sel => sel.includes('web-audit-switch-to-advanced-setup')),
-)
-// Quick Audit is not a subset of the editor: one field, no name control. The
-// old expectation here (audit-setup-name) was for a control that does not exist
-// on that screen.
-check(
-  'quick path fills the one field Quick Audit actually has',
-  quickPath.includes('#scanURL'),
-  quickPath.join(' | '),
-)
-check(
-  'quick path does not look for a name field that is not there',
-  !quickPath.some(sel => sel.includes('audit-setup-name')),
-)
-check(
-  'quick path renames after the switch, since Quick Audit auto-names',
-  (() => {
-    const steps = quickPath
-    return (
-      steps.indexOf('audit-editor-header-name-control input') >
-      steps.findIndex(s => s.includes('web-audit-switch-to-advanced-setup'))
-    )
-  })(),
-  quickPath.join(' | '),
-)
-check(
-  'both reach the Standards tab',
-  [advancedPath, quickPath].every(p => p.some(sel => sel.includes('audit-tab-standards'))),
-)
-check(
-  'both emit the same step ids, so recipes can append either way',
-  (() => {
-    const ids = advanced =>
-      buildPlan(
-        RECIPE,
-        'g',
-        { siteUrl: 'gap.com' },
-        { account: { consentCategories: [], advancedAuditMode: advanced } },
-      ).plan.steps.map(s => s.id)
-    return ids(true).join() === ids(false).join()
-  })(),
-)
-check(
-  'defaults to advanced when the account state is unknown',
-  pathFor(undefined).join() === advancedPath.join(),
-)
-
-// The branch moonbeam actually uses is an OR, and the half we were missing is
-// the one that matters: a brand-new account gets Quick Audit even with advanced
-// mode on, and a brand-new account is who this product is for.
-const pathForAccount = account =>
-  buildPlan(RECIPE, 'g', { siteUrl: 'gap.com' }, { account }).plan.steps.map(s => s.targetSelector)
-
-check(
-  'an account with no audits gets Quick Audit even with advanced mode on',
-  pathForAccount({ consentCategories: [], webAudits: [], advancedAuditMode: true }).includes(
-    '#scanURL',
-  ),
-)
-check(
-  'an account with audits keeps the advanced editor',
-  !pathForAccount({
-    consentCategories: [],
-    webAudits: [{ id: 1 }],
-    advancedAuditMode: true,
-  }).includes('#scanURL'),
-)
-check(
-  'an unread audit list is not an empty one',
-  !pathForAccount({ consentCategories: [], advancedAuditMode: true }).includes('#scanURL'),
-)
-check(
-  'advanced mode off still wins even when audits exist',
-  pathForAccount({
-    consentCategories: [],
-    webAudits: [{ id: 1 }],
-    advancedAuditMode: false,
-  }).includes('#scanURL'),
-)
-
-// Honest warnings: the quick path is source-accurate but nobody has swept it.
-const quickWarnings = buildPlan(
+// This used to branch: read the audit count, predict whether Create -> Audit
+// opens Quick Audit or the advanced editor, emit one of two step lists. The
+// prediction was the problem -- getting it wrong doesn't degrade the walkthrough,
+// it points at a modal that never opened. Now the switch step is `optional`, so
+// the runtime skips it when it isn't there.
+const auditPath = buildPlan(
   RECIPE,
   'g',
   { siteUrl: 'gap.com' },
-  { account: { consentCategories: [], webAudits: [], advancedAuditMode: true } },
-).warnings
+  { account: { consentCategories: [] } },
+).plan.steps
+
+const switchStep = auditPath.find(s => s.targetSelector.includes('switch-to-advanced'))
+check('the path includes a switch-to-advanced step', Boolean(switchStep))
+check('and marks it optional, so the advanced entry point skips it', switchStep?.optional === true)
 check(
-  'the unswept quick path says so',
-  quickWarnings.some(w => w.includes('unverified')),
-  quickWarnings.join(' | '),
+  'the same list serves both entry points',
+  auditPath.filter(s => s.targetSelector.includes('switch-to-advanced')).length === 1,
+)
+check(
+  'nothing targets Quick Audit-only fields any more',
+  !auditPath.some(s => s.targetSelector.includes('scanURL')),
+  auditPath.map(s => s.targetSelector).join(' | '),
+)
+// Either modal satisfies the step that opens one. Mutually exclusive, so a comma
+// list is the safe kind.
+const opensEditor = auditPath.find(s => s.targetSelector.includes('guide-create-new-audit'))
+check(
+  'opening the editor accepts whichever modal appears',
+  opensEditor.completion.targetSelector.includes('op-audit-editor') &&
+    opensEditor.completion.targetSelector.includes('audit-setup-modal'),
+  opensEditor.completion.targetSelector,
+)
+// Naming after the switch is what makes one list work: Quick Audit auto-names to
+// "Simple Audit - <date>", so this either sets the name or replaces that default.
+check(
+  'the audit is named after the switch, not before',
+  auditPath.findIndex(s => s.targetSelector.startsWith('audit-editor-header-name-control')) >
+    auditPath.findIndex(s => s.targetSelector.includes('switch-to-advanced')),
+)
+check(
+  'the account no longer needs reading to choose a path',
+  buildPlan(RECIPE, 'g', { siteUrl: 'gap.com' }, {})
+    .plan.steps.map(s => s.id)
+    .join() === auditPath.map(s => s.id).join(),
 )
 
 /* ---------------------------------------------------------------- */
@@ -671,8 +607,8 @@ const tabStep = id => consentSteps.find(s => s.id === id).targetSelector
 // Both halves resolve to the same element, so the list works with or without
 // the op-selector attribute.
 for (const [id, attr, position] of [
-  ['s4', 'audit-tab-url-sources', 'nth-child(2)'],
-  ['s6', 'audit-tab-standards', 'nth-child(4)'],
+  ['s5', 'audit-tab-url-sources', 'nth-child(2)'],
+  ['s7', 'audit-tab-standards', 'nth-child(4)'],
 ]) {
   check(`${id} prefers the attribute`, tabStep(id).includes(attr))
   check(`${id} falls back positionally`, tabStep(id).includes(position))
@@ -681,14 +617,20 @@ for (const [id, attr, position] of [
 // The sub-tabs deliberately get no positional fallback: unshift() ordering plus
 // a conditional Consent tab means no index is right in both layouts, and a
 // confident wrong tab is worse than none.
-check('sub-tabs have no positional fallback', !tabStep('s7').includes('nth-child'), tabStep('s7'))
+check('sub-tabs have no positional fallback', !tabStep('s8').includes('nth-child'), tabStep('s8'))
 check(
   'sub-tabs keep a text fallback instead',
-  Boolean(consentSteps.find(s => s.id === 's7').targetFallback),
+  Boolean(consentSteps.find(s => s.id === 's8').targetFallback),
 )
+// One unverified step survives by design: the optional switch to Advanced Setup.
+// Every step the run definitely passes through has been seen.
 check(
-  'the advanced audit path now has no unverified steps',
-  consentSteps.every(s => !s.unverified),
+  'every required step on the audit path is verified',
+  consentSteps.filter(s => !s.optional).every(s => !s.unverified),
+  consentSteps
+    .filter(s => !s.optional && s.unverified)
+    .map(s => s.id)
+    .join(),
 )
 
 // A recipe-level `verified` boolean used to sit alongside the per-step flag.
@@ -775,7 +717,7 @@ check(
   (() => {
     const clean = RECIPES.filter(recipe => {
       const steps = recipe.steps ?? recipe.buildSteps?.({ parameters: {} }) ?? []
-      return steps.every(s => !s.unverified)
+      return steps.filter(s => !s.optional).every(s => !s.unverified)
     }).map(r => r.id)
     return (
       clean.join() ===
@@ -811,12 +753,11 @@ const aliasAccount = {
     aliasCat(5, 'EU'),
     aliasCat(6, 'UK'),
   ],
-  webAudits: [{ id: 1 }],
   advancedAuditMode: true,
 }
 const searchesFor = async goal => {
   const r = await createPlan(goal, { forceLocal: true, account: aliasAccount })
-  return r.plan?.steps?.find(step => step.id === 's8')?.action?.value ?? `(${r.status})`
+  return r.plan?.steps?.find(step => step.id === 's9')?.action?.value ?? `(${r.status})`
 }
 const privacy = region => `check gap.com for privacy compliance in ${region}`
 
@@ -908,7 +849,7 @@ const GAP_CATS = [
     auditCount: 0,
   },
 ]
-const gapAccount = { consentCategories: GAP_CATS, webAudits: [{ id: 1 }], advancedAuditMode: true }
+const gapAccount = { consentCategories: GAP_CATS }
 const plan1 = await createPlan('Check compliance for gap.com in the United States', {
   forceLocal: true,
   account: gapAccount,

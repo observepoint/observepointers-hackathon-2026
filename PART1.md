@@ -212,7 +212,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 212 checks, no API key, no network
+npm test           # 216 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -404,14 +404,28 @@ totalCardsCount === 0 || useAdvancedAuditMode() !== true ? openQuickAudit() : op
 Advanced mode defaults to **on** (`storage.service.ts` returns `value ?? true`),
 so an established account goes straight to the editor. But an account with **no
 data sources gets Quick Audit regardless** — which is every account on day one,
-i.e. exactly who this is for. `usesAdvancedPath(account)` mirrors both halves;
-the side panel reads the audit count to feed it.
+i.e. exactly who this is for.
 
-Quick Audit is **not a subset** of the editor. It has one text field
-(`#scanURL`) and no name control at all, auto-naming the audit
-`"Simple Audit - <date>"`. So its path fills the URL, switches to advanced, and
-renames there — `switchToAdvancedView()` carries the URL across. Both branches
-emit `s1..s6` so recipes can append `s7` onward either way.
+**We no longer guess which.** This used to read the audit count, predict the
+modal, and emit one of two step lists. Wrong shape: a wrong prediction doesn't
+degrade the walkthrough, it points at a modal that never opened — and the
+prediction cost an API call per boot to produce an answer that was still
+approximate, since `totalCardsCount` counts every data source card and we only
+had the audits.
+
+Instead, the **"Switch to Advanced Setup" step is `optional`**, so the runtime
+skips it when it isn't on screen. In Quick Audit it resolves and the user clicks
+it; in the advanced editor it's absent and the run moves on. One list, both entry
+points, no account read.
+
+Two facts make that safe rather than lucky:
+
+- `switchToAdvancedView()` carries the URL across, so nothing typed is lost.
+- Quick Audit auto-names to `"Simple Audit - <date>"`, so naming **after** the
+  switch is correct either way — it either sets the name or replaces that default.
+
+**Part 2: an `optional` step whose target is missing must be skipped, not
+failed.** That is the whole mechanism, and it is the one thing this depends on.
 
 **Alerts watch report widget data, not websites.** So an alert is only meaningful
 once the audit has run at least once, and the sane way to create one is the bell

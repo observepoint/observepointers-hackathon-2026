@@ -1,9 +1,4 @@
-import {
-  SELECTORS,
-  stepsToStandardsTab,
-  usesAdvancedPath,
-  auditParameters,
-} from './_audit-standards.js'
+import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 import { rankForSite } from '../account.js'
 import { hostFrom } from '../naming.js'
 
@@ -33,7 +28,7 @@ import { hostFrom } from '../naming.js'
  */
 
 const openSubTab = {
-  id: 's7',
+  id: 's8',
   actor: 'user',
   targetSelector: SELECTORS.subTabConsentCategories,
   say: 'Open Consent Categories.',
@@ -48,7 +43,7 @@ const openSubTab = {
 /** What we say when we cannot see the account. */
 const genericEnding = [
   {
-    id: 's8',
+    id: 's9',
     actor: 'user',
     targetSelector: SELECTORS.standardsSearch,
     say: 'Search for the category that covers this site.',
@@ -56,7 +51,7 @@ const genericEnding = [
     completion: { type: 'dom_event', value: 'input' },
   },
   {
-    id: 's9',
+    id: 's10',
     actor: 'user',
     targetSelector: SELECTORS.standardsAddAll,
     say: 'Attach it.',
@@ -257,10 +252,7 @@ export default {
   },
 
   buildSteps(context) {
-    const start = [
-      ...stepsToStandardsTab({ advanced: usesAdvancedPath(context.account) }),
-      openSubTab,
-    ]
+    const start = [...stepsToStandardsTab(), openSubTab]
     const matches = matchesFor(context)
 
     if (matches === null) return [...start, ...genericEnding]
@@ -290,7 +282,7 @@ export default {
       return [
         ...start,
         {
-          id: 's8',
+          id: 's9',
           actor: 'ai',
           targetSelector: SELECTORS.standardsSearch,
           say: exact
@@ -302,7 +294,7 @@ export default {
           completion: { type: 'dom_event', value: 'input' },
         },
         {
-          id: 's9',
+          id: 's10',
           actor: 'user',
           targetSelector: SELECTORS.standardsAddAll,
           say: attachSay,
@@ -319,7 +311,7 @@ export default {
       return [
         ...start,
         {
-          id: 's8',
+          id: 's9',
           actor: 'ai',
           targetSelector: SELECTORS.standardsSearch,
           say: `Searching for "${best.name}".`,
@@ -327,7 +319,7 @@ export default {
           completion: { type: 'dom_event', value: 'input' },
         },
         {
-          id: 's9',
+          id: 's10',
           actor: 'user',
           targetSelector: SELECTORS.standardsAddAll,
           say: others
@@ -343,7 +335,7 @@ export default {
     return [
       ...start,
       {
-        id: 's8',
+        id: 's9',
         actor: 'user',
         targetSelector: SELECTORS.standardsCreateNew,
         say: 'None of your categories cover this site, so create one here.',
@@ -351,7 +343,7 @@ export default {
         completion: { type: 'dom_event', value: 'click' },
       },
       {
-        id: 's9',
+        id: 's10',
         actor: 'user',
         targetSelector: SELECTORS.standardsCreateNew,
         say: 'Name it after the site, then list the tags and cookies you approve of.',

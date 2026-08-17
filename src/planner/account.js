@@ -21,11 +21,9 @@
 // services — several of those go through `apiUploadAppUrl`, which is /old/v2/
 // rather than /api/v2/, and one is a POST.
 //   RulesRoute.scala:41   pathEndOrSingleSlash { get … getRules(pagination) }
-//   AuditRoute.scala:82   pathEndOrSingleSlash { get … getAllWebAudits(…) }
 const API = {
   consentCategories: '/api/v3/consent-categories/library',
   rules: '/api/v2/rules',
-  webAudits: '/api/v2/web-audits',
 }
 
 function send(message) {
@@ -192,27 +190,6 @@ export async function listRules() {
   const data = await get(API.rules)
   const rows = Array.isArray(data) ? data : (data?.rules ?? data?.items ?? data?.data ?? [])
   return rows.map(row => ({ id: row.id, name: cleanText(row.name) || `Rule ${row.id}` }))
-}
-
-/**
- * How many audits exist, for one question only: does Create → Audit open Quick
- * Audit or the advanced editor?
- *
- * manage-cards.component.ts::createWebAudit() branches on
- *   totalCardsCount === 0 || useAdvancedAuditMode() !== true
- * The second half we already read. The first half is the one that matters for a
- * brand-new account — advanced mode defaults to on, so without this we would
- * plan the advanced path for the empty account that always gets Quick Audit,
- * which is precisely the user this product is for.
- *
- * Not exact: totalCardsCount counts every data source card, so an account with
- * journeys but no audits gets the wrong branch. Audits are the overwhelmingly
- * common first card, and being right for "nothing at all" is what matters.
- */
-export async function listWebAudits() {
-  const data = await get(`${API.webAudits}?withRuns=false`)
-  const rows = Array.isArray(data) ? data : (data?.webAudits ?? data?.items ?? data?.data ?? [])
-  return rows.map(row => ({ id: row.id, name: cleanText(row.name) || `Audit ${row.id}` }))
 }
 
 /**

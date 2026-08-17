@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ObservePoint Copilot",
+  "name": "Observe Pointers",
   "version": "0.1.0",
   "description": "Ask for what you want to achieve; get walked through the steps in the app.",
   "minimum_chrome_version": "114",

@@ -1,9 +1,4 @@
-import {
-  SELECTORS,
-  stepsToStandardsTab,
-  usesAdvancedPath,
-  auditParameters,
-} from './_audit-standards.js'
+import { SELECTORS, stepsToStandardsTab, auditParameters } from './_audit-standards.js'
 
 /**
  * Attach existing alerts to an audit, so a run that goes out of compliance
@@ -45,45 +40,43 @@ export default {
   summaryTemplate:
     'We\'ll create an audit called "{{parameters.auditName}}" against {{parameters.siteUrl}} and attach ' +
     'alerts under Standards. Alerts watch report data, so nothing fires until the first run finishes.',
-  buildSteps(context) {
-    return [
-      ...stepsToStandardsTab({ advanced: usesAdvancedPath(context.account) }),
-      {
-        id: 's7',
-        actor: 'user',
-        targetSelector: SELECTORS.subTabAlerts,
-        say: 'Open Alerts.',
-        targetFallback: { description: 'the "Alerts" sub-tab' },
-        completion: {
-          type: 'dom_mutation',
-          condition: 'visible',
-          targetSelector: '.op-standards-selector',
-        },
+  steps: [
+    ...stepsToStandardsTab(),
+    {
+      id: 's8',
+      actor: 'user',
+      targetSelector: SELECTORS.subTabAlerts,
+      say: 'Open Alerts.',
+      targetFallback: { description: 'the "Alerts" sub-tab' },
+      completion: {
+        type: 'dom_mutation',
+        condition: 'visible',
+        targetSelector: '.op-standards-selector',
       },
-      {
-        id: 's8',
-        actor: 'user',
-        targetSelector: SELECTORS.standardsSearch,
-        say: 'Search your alerts.',
-        targetFallback: { description: 'the search box in the alerts picker' },
-        completion: { type: 'dom_event', value: 'input' },
-      },
-      {
-        id: 's9',
-        actor: 'user',
-        targetSelector: SELECTORS.standardsAddAll,
-        say: 'Attach them.',
-        targetFallback: { description: 'the "add all" button in the alerts picker' },
-        completion: { type: 'dom_event', value: 'click' },
-      },
-      {
-        id: 's10',
-        actor: 'user',
-        targetSelector: SELECTORS.standardsCreateNew,
-        say: 'Nothing fits? Create an alert here instead.',
-        targetFallback: { description: 'the "Create New Alert" button' },
-        completion: { type: 'dom_event', value: 'click' },
-      },
-    ]
-  },
+    },
+    {
+      id: 's9',
+      actor: 'user',
+      targetSelector: SELECTORS.standardsSearch,
+      say: 'Search your alerts.',
+      targetFallback: { description: 'the search box in the alerts picker' },
+      completion: { type: 'dom_event', value: 'input' },
+    },
+    {
+      id: 's10',
+      actor: 'user',
+      targetSelector: SELECTORS.standardsAddAll,
+      say: 'Attach them.',
+      targetFallback: { description: 'the "add all" button in the alerts picker' },
+      completion: { type: 'dom_event', value: 'click' },
+    },
+    {
+      id: 's11',
+      actor: 'user',
+      targetSelector: SELECTORS.standardsCreateNew,
+      say: 'Nothing fits? Create an alert here instead.',
+      targetFallback: { description: 'the "Create New Alert" button' },
+      completion: { type: 'dom_event', value: 'click' },
+    },
+  ],
 }
