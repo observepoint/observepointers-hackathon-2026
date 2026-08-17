@@ -21,22 +21,43 @@
  *    template renders it as [attr.op-selector]. So these are as solid as
  *    selectors get in this app — no patch needed, nothing positional.
  *
- * 3. Standards is a mat-expansion-panel. Its sub-links are not in the DOM until
- *    the section header is clicked, which is why every flow here opens the
- *    section first rather than jumping straight at the link.
+ * 3. THE SECTIONS ARE ALWAYS EXPANDED. This file originally opened Standards
+ *    first, on the assumption that it is a mat-expansion-panel whose children
+ *    appear on click. It has that branch — global-sidebar-link.component.html:89
+ *    — but nothing reaches it: app.component.ts:149 is
+ *    `readonly showTopNavBar = true`, hardcoded, and that feeds
+ *    [alwaysExpanded]="showTopNavBar". So the always-expanded branch (line 2)
+ *    always wins, and every sub-link is in the DOM from first paint.
+ *
+ *    That made the opening step worse than redundant. Its completion waited for
+ *    `dom_mutation` / visible on a link that was ALREADY visible, and a
+ *    mutation observer never fires for an element that does not change — so the
+ *    first step of both starter recipes would have sat there forever. Reading
+ *    the template found the branch; it took someone saying "Standards is always
+ *    expanded" to notice which branch actually runs.
+ *
+ *    Remaining caveat: `always-expanded-body` is gated on `!sidebarIsClosed`, so
+ *    on the collapsed rail the sub-links genuinely are absent. The step copy
+ *    says so, because a plan that points at nothing and does not explain itself
+ *    is the worst of the options.
  */
 
 export const NAV = {
-  // Section header. Collapsed by default, and its children don't exist until
-  // it is open.
+  // The section header. Present, but there is nothing to click — see note 3.
+  // Kept because it is a useful landmark for Part 3 and for Check screen.
   standardsSection: '[op-selector="sidebar-standards"]',
   rulesLink: '[op-selector="sidebar-standards-rules"]',
   consentCategoriesLink: '[op-selector="sidebar-standards-consent-categories"]',
   alertsLink: '[op-selector="sidebar-alerts"]',
+  // Only exists while the rail is collapsed, which is the one state where the
+  // links above are missing. Not a step — the copy mentions it instead, since a
+  // step targeting it would miss in the common case.
+  expandNav: '[op-selector="sidebar-expand-nav"]',
 }
 
 /**
- * Open the Standards section, then the library you want.
+ * Go straight to the library you want. One step, because the sidebar needs no
+ * opening.
  *
  * @param {object} options
  * @param {string} options.link    one of NAV's library links
@@ -44,27 +65,13 @@ export const NAV = {
  * @param {string} options.route   the URL it lands on, for the completion
  */
 export function stepsToLibrary({ link, label, route, startId = 1 }) {
-  const id = n => `s${startId + n}`
-
   return [
     {
-      id: id(0),
-      actor: 'user',
-      targetSelector: NAV.standardsSection,
-      say: 'Open Standards in the sidebar.',
-      targetFallback: { description: 'the "Standards" section in the left sidebar' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: link,
-      },
-    },
-    {
-      id: id(1),
+      id: `s${startId}`,
       actor: 'user',
       targetSelector: link,
-      say: `Go to ${label}.`,
-      targetFallback: { description: `the "${label}" link under Standards` },
+      say: `Open ${label} in the sidebar, under Standards. If the sidebar is collapsed to icons, widen it first.`,
+      targetFallback: { description: `the "${label}" link under Standards in the left sidebar` },
       completion: { type: 'url_change', value: route },
     },
   ]

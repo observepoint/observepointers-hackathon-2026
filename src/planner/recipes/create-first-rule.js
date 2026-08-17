@@ -21,7 +21,7 @@ import { ruleNameFrom } from '../naming.js'
  *
  * SELECTORS — every one read out of the template that renders it, and NOT ONE
  * of them swept. `unverified` means "nobody has watched this resolve", so all
- * six carry it until someone stands on these screens and presses Check screen.
+ * five carry it until someone stands on these screens and presses Check screen.
  * Being confident about source is not the same as having looked.
  *   Sourced — sidebar links (opLinkSelectorMap), rule-setup-continue-btn and
  *             rule-setup-save-btn (RuleSetupOpSelectors, rendered straight onto
@@ -85,7 +85,7 @@ export default {
       route: '/rules/library',
     }),
     {
-      id: 's3',
+      id: 's2',
       actor: 'user',
       targetSelector: 'button[aria-label="Create Rule"]',
       say: 'Start a new rule.',
@@ -97,7 +97,7 @@ export default {
       },
     },
     {
-      id: 's4',
+      id: 's3',
       actor: 'ai',
       targetSelector: 'rule-name-control input',
       say: 'Naming it "{{parameters.ruleName}}".',
@@ -106,7 +106,7 @@ export default {
       completion: { type: 'dom_event', value: 'change' },
     },
     {
-      id: 's5',
+      id: 's4',
       actor: 'user',
       targetSelector: '[op-selector="rule-setup-continue-btn"]',
       say: 'Pick the tag and the condition that make this rule pass, then continue.',
@@ -114,7 +114,7 @@ export default {
       completion: { type: 'dom_event', value: 'click' },
     },
     {
-      id: 's6',
+      id: 's5',
       actor: 'user',
       targetSelector: '[op-selector="rule-setup-save-btn"]',
       say: "Save it. It's now attachable to any audit under Standards.",

@@ -891,14 +891,30 @@ for (const [id, parameters] of [
   check(`${id} builds a valid plan`, built.status === 'plan', built.message)
 
   const steps = built.plan?.steps ?? []
+  // One step to the library, not two. The sidebar's sections are always
+  // expanded (app.component.ts hardcodes showTopNavBar = true, which feeds
+  // [alwaysExpanded]), so there is nothing to open first.
   check(
-    `${id} opens the sidebar section before its link`,
-    steps[0]?.targetSelector === '[op-selector="sidebar-standards"]',
+    `${id} goes straight to the library link`,
+    steps[0]?.targetSelector.startsWith('[op-selector="sidebar-standards-'),
     steps[0]?.targetSelector,
   )
   check(
     `${id} waits on a real route, since libraries are routes`,
-    steps[1]?.completion.type === 'url_change',
+    steps[0]?.completion.type === 'url_change',
+    JSON.stringify(steps[0]?.completion),
+  )
+  // The bug this replaced: a step that waited for dom_mutation on a sidebar
+  // link which was already on screen. A mutation observer never fires for an
+  // element that does not change, so it hung on step one. Nothing may wait for
+  // a nav link to appear.
+  check(
+    `${id} never waits for a sidebar link to appear`,
+    !steps.some(
+      s =>
+        s.completion.type === 'dom_mutation' &&
+        String(s.completion.targetSelector).includes('op-selector="sidebar-'),
+    ),
   )
   check(
     `${id} names the thing but leaves the policy to the user`,

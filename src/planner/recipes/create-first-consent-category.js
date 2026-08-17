@@ -81,7 +81,7 @@ export default {
       route: '/consent-categories',
     }),
     {
-      id: 's3',
+      id: 's2',
       actor: 'user',
       // Two buttons, never both: the page swaps in cc-zero-state when the
       // account has none, and that is exactly the account this recipe is for.
@@ -96,7 +96,7 @@ export default {
       },
     },
     {
-      id: 's4',
+      id: 's3',
       actor: 'user',
       targetSelector: '.mat-menu-op-button-2021 button[mat-menu-item]',
       say: 'Choose "Create a New Consent Category" — the other two import from a template or OneTrust.',
@@ -108,7 +108,7 @@ export default {
       },
     },
     {
-      id: 's5',
+      id: 's4',
       actor: 'ai',
       targetSelector: '[op-selector="cc-name"]',
       say: 'Naming it "{{parameters.categoryName}}".',
@@ -117,7 +117,7 @@ export default {
       completion: { type: 'dom_event', value: 'change' },
     },
     {
-      id: 's6',
+      id: 's5',
       actor: 'user',
       targetSelector: '[op-selector="cc-create-next"]',
       say: 'Add the tags and cookies you approve of — that list is what "approved" means here.',
@@ -125,7 +125,7 @@ export default {
       completion: { type: 'dom_event', value: 'click' },
     },
     {
-      id: 's7',
+      id: 's6',
       actor: 'user',
       targetSelector: '[op-selector="cc-create-save"]',
       say: 'Save it. Any audit can now attach this under Standards.',

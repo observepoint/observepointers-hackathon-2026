@@ -32,8 +32,8 @@ fixtures/plan.audit-with-rules.json                    10 steps, all selectors c
 fixtures/plan.audit-with-consent-categories.json        9 steps, all selectors confirmed
 fixtures/plan.audit-with-alerts.json                   10 steps, all selectors confirmed
 fixtures/plan.alert-from-report.json                    6 steps
-fixtures/plan.create-first-rule.json                    6 steps
-fixtures/plan.create-first-consent-category.json        7 steps
+fixtures/plan.create-first-rule.json                    5 steps
+fixtures/plan.create-first-consent-category.json        6 steps
 ```
 
 Start with `plan.audit-with-rules.json` — every selector in it has been confirmed
@@ -72,23 +72,22 @@ Real output, trimmed to two steps:
     {
       "id": "s1",
       "actor": "user", // "user" | "ai"
-      "targetSelector": "[op-selector=\"sidebar-standards\"]",
-      "say": "Open Standards in the sidebar.",
-      "targetFallback": { "description": "the \"Standards\" section in the left sidebar" },
-      // Standards is a mat-expansion-panel; its children don't exist until it opens.
-      "completion": {
-        "type": "dom_mutation",
-        "condition": "visible",
-        "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
-      },
+      "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
+      "say": "Open Tag & Variable Rules in the sidebar, under Standards…",
+      "targetFallback": { "description": "the \"Tag & Variable Rules\" link under Standards" },
+      "completion": { "type": "url_change", "value": "/rules/library" },
     },
     {
       "id": "s2",
       "actor": "user",
-      "navContext": "/sources", // optional
-      "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
-      "say": "Go to Tag & Variable Rules.",
-      "completion": { "type": "url_change", "value": "/rules/library" },
+      "targetSelector": "button[aria-label=\"Create Rule\"]",
+      "say": "Start a new rule.",
+      "targetFallback": { "description": "the \"Create Rule\" button" },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "rule-name-control input",
+      },
     },
   ],
 }
@@ -187,8 +186,20 @@ rely on `targetFallback.description` instead.
 from `opLinkSelectorMap` in `sidebar.constants.ts` — `sidebar-standards`,
 `sidebar-standards-rules`, `sidebar-standards-consent-categories`,
 `sidebar-alerts`, and ~70 more. Nothing positional, no patch needed. Note that
-Standards is a `mat-expansion-panel`: its children aren't in the DOM until the
-section header is clicked.
+**The sections are always expanded, and that matters.** `global-sidebar-link` has
+a `mat-expansion-panel` branch, but nothing reaches it: `app.component.ts:149` is
+`readonly showTopNavBar = true`, hardcoded, and that feeds
+`[alwaysExpanded]`. So every sub-link is in the DOM from first paint.
+
+This cost us a step that hung. The starter recipes used to open Standards first
+and wait for `dom_mutation` / visible on the library link — a link that was
+already visible, and a mutation observer never fires for an element that does not
+change. **If you are debugging a step that never completes, check whether it is
+waiting for something already on screen.** Reading the template found the branch;
+it took someone saying "Standards is always expanded" to notice which branch runs.
+
+One caveat left: `always-expanded-body` is gated on `!sidebarIsClosed`, so on the
+collapsed icon rail the sub-links genuinely are absent.
 
 **6. `op-button-2021` binds `aria-label` from `labelText`.** So a button with no
 `op-selector` is still reachable semantically — `button[aria-label="Create Rule"]`
@@ -201,7 +212,7 @@ section header is clicked.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 182 checks, no API key, no network
+npm test           # 186 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
