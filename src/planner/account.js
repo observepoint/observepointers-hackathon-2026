@@ -271,13 +271,39 @@ export function rankForSite(categories, host) {
 }
 
 /**
+ * Every selector a step depends on: the one it points at, and the one it waits for.
+ *
+ * The sweep used to check only `targetSelector`, which misses the failure that costs
+ * the most. A wrong target misses visibly — the pointer lands on nothing and the user
+ * says so. A wrong COMPLETION selector is silent: the step highlights correctly, the
+ * user does the thing, and the walkthrough sits there forever waiting for an element
+ * that will never appear. That is the bug that hung the sidebar step for a whole
+ * session, and nothing in the sweep would have caught it.
+ *
+ * Only when the completion names a different selector — the common case is that it
+ * watches its own target, and checking that twice is noise.
+ */
+function selectorsOf(step) {
+  const target = { id: step.id, selector: step.targetSelector }
+  const waitsFor = step.completion?.targetSelector
+
+  if (!waitsFor || waitsFor === step.targetSelector) return [target]
+  return [target, { id: `${step.id} waits for`, selector: waitsFor }]
+}
+
+/**
  * Ask the page which of a plan's selectors resolve right now. Used to turn
  * `unverified: true` into something evidence-based rather than a guess.
+ *
+ * Expect the completion rows to miss more often than the target rows, and for that to
+ * be fine: a step's completion is usually the NEXT screen's element, so on the screen
+ * where the step runs it legitimately does not exist yet. What matters is that it
+ * resolves on the screen it is waiting for — sweep both, and read them together.
  */
 export async function checkSelectors(steps) {
   const reply = await send({
     type: 'OP_CHECK_SELECTORS',
-    selectors: steps.map(s => ({ id: s.id, selector: s.targetSelector })),
+    selectors: steps.flatMap(selectorsOf),
   })
   if (!reply.ok) throw new Error(reply.error || 'could not check selectors')
   return { results: reply.results, page: reply.page }
