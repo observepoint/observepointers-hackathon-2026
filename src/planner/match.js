@@ -104,6 +104,13 @@ export function extractParameters(goal, recipe) {
       // A quoted phrase is almost always the thing they want it called.
       const m = goal.match(QUOTED_RE)
       if (m) found[param.name] = m[1]
+    } else if (name.includes('location') || name.includes('region')) {
+      // "for USA, Utah" / "in Canada, Alberta". Capitalisation is the signal: place
+      // names are written capitalised and the surrounding words are not, which keeps
+      // "for gap.com" and "for us" out of it. One optional comma-separated part,
+      // because that is the shape OneTrust uses.
+      const m = goal.match(/\b(?:for|in|from)\s+([A-Z][\w.]*(?:,\s*[A-Z][\w.]*)?)/)
+      if (m) found[param.name] = m[1]
     } else if (name.includes('condition') || name.includes('summary')) {
       // "alert me when X" / "notify me if X" -> X
       const m = goal.match(/\b(?:when|if)\b\s+(.{4,120})/i)
@@ -137,6 +144,7 @@ export function extractParameters(goal, recipe) {
  * folding them in here would turn "create a rule and an alert" into an audit.
  */
 const ALL_STANDARDS = 'audit_with_all_standards'
+const ONETRUST_IMPORT = 'import_consent_from_onetrust'
 
 /**
  * The distinctive vocabulary of each area — deliberately separate from the recipes'
@@ -191,7 +199,30 @@ export function matchDeterministic(goal) {
 
   scored.sort((a, b) => b.score - a.score)
 
-  // Read across recipes before picking one. See preferCombined().
+  // A named CMP plus an import verb is an unambiguous instruction, and it is a
+  // PREREQUISITE rather than an alternative: you cannot attach consent categories you
+  // have not imported yet. So it beats the audit it feeds, and `chain` carries the
+  // audit on afterwards — which is what "import ours for Utah, THEN audit the site"
+  // literally asks for.
+  //
+  // Both halves are required. "audit gap.com, we use OneTrust" mentions the CMP
+  // without asking for an import, and re-importing categories someone already has is
+  // not a helpful reading of it.
+  if (
+    /\bone\s?trust\b/i.test(goal) &&
+    /\b(import|pull|sync|bring|get)\b/i.test(goal) &&
+    getRecipe(ONETRUST_IMPORT)
+  ) {
+    const recipe = getRecipe(ONETRUST_IMPORT)
+    return {
+      recipeId: ONETRUST_IMPORT,
+      parameters: extractParameters(goal, recipe),
+      confidence: 0.7,
+      matchedBy: 'keywords',
+    }
+  }
+
+  // Read across recipes before picking one. See areasMentioned().
   if (areasMentioned(goal) >= 2 && getRecipe(ALL_STANDARDS)) {
     const combined = scored.find(s => s.recipeId === ALL_STANDARDS)
     const recipe = getRecipe(ALL_STANDARDS)

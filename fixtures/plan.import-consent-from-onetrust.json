@@ -1,0 +1,117 @@
+{
+  "recipeId": "import_consent_from_onetrust",
+  "goal": "gap.com uses OneTrust — import our consent categories for USA, Utah, then audit the site against them with tag rules and alert me if anything breaks",
+  "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://gap.com for USA, Utah — rerun it per location if you need more than one.",
+  "executionMode": "templated",
+  "parameters": {
+    "siteUrl": "https://gap.com",
+    "location": "USA, Utah"
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"sidebar-standards-consent-categories\"]",
+      "say": "Open Consent Categories under Standards in the sidebar.",
+      "targetFallback": {
+        "description": "the \"Consent Categories\" link under Standards in the left sidebar"
+      },
+      "completion": {
+        "type": "url_change",
+        "value": "/consent-categories"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s2",
+      "actor": "user",
+      "targetSelector": "button[aria-label=\"Create a consent category\"], button[aria-label=\"CREATE\"]",
+      "say": "Open the create menu.",
+      "targetFallback": {
+        "description": "the create button on the Consent Categories page"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"cc-import-onetrust\"]"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s3",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"cc-import-onetrust\"]",
+      "say": "Choose the OneTrust import.",
+      "targetFallback": {
+        "description": "\"Import Consent Categories\" with the OneTrust logo"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s4",
+      "actor": "ai",
+      "targetSelector": "[op-selector=\"cc-onetrust-url\"]",
+      "say": "Setting the site to read the banner from.",
+      "targetFallback": {
+        "description": "the \"Where can the consent banner be found?\" field"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "https://gap.com"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s5",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"cc-onetrust-location\"]",
+      "say": "Pick USA, Utah — the list is searchable.",
+      "targetFallback": {
+        "description": "the \"From Which Location?\" dropdown"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"cc-onetrust-detect\"]",
+      "say": "Detect the categories. It takes 10–30 seconds.",
+      "targetFallback": {
+        "description": "the \"Detect Your Consent Categories\" button"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "unverified": true
+    },
+    {
+      "id": "s7",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"cc-onetrust-sync\"]",
+      "say": "Import them. Rerun this per location if you need more.",
+      "targetFallback": {
+        "description": "the \"Sync Categorized Cookies\" button"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "unverified": true
+    }
+  ],
+  "chain": "audit_with_all_standards"
+}

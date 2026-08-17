@@ -26,6 +26,9 @@
  * PLUS the empty-account pair, sharing `_standards-library.js`:
  *   create_first_rule                 fill the rule library
  *   create_first_consent_category     fill the consent category library
+ *   import_consent_from_onetrust      pull them from the CMP instead of typing
+ *                                     them, which is what a OneTrust account
+ *                                     actually does. Chains into the audit.
  *   create_first_alert                fill the alerts library — the weakest of the
  *                                     three, because the Library makes you describe
  *                                     the metric from scratch. Prefer the bell on a
@@ -57,6 +60,7 @@ import alertFromReport from './alert-from-report.js'
 import createFirstRule from './create-first-rule.js'
 import createFirstConsentCategory from './create-first-consent-category.js'
 import createFirstAlert from './create-first-alert.js'
+import importConsentFromOnetrust from './import-consent-from-onetrust.js'
 
 export const RECIPES = [
   auditWithRules,
@@ -67,6 +71,7 @@ export const RECIPES = [
   createFirstRule,
   createFirstConsentCategory,
   createFirstAlert,
+  importConsentFromOnetrust,
 ]
 
 export const getRecipe = id => RECIPES.find(r => r.id === id) || null

@@ -213,7 +213,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 269 checks, no API key, no network
+npm test           # 280 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -356,6 +356,7 @@ flows for an account that has none of them yet.
 | `create_first_rule`             | Fill an empty rule library                     | ✅ all steps |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept |
 | `create_first_alert`            | Fill an empty alerts library                   | ⚠️ 0/6 swept |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 0/7 swept |
 
 The three audit recipes share `src/planner/recipes/_audit-standards.js`, because
 in moonbeam they aren't three flows — they're three sub-tabs of one Standards
@@ -363,6 +364,27 @@ tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
+
+### The demo sentence
+
+```
+gap.com uses OneTrust — import our consent categories for USA, Utah, then audit
+the site against them with tag rules and alert me if anything breaks
+```
+
+One sentence, and it produces a **chained** pair of plans: import the categories
+first, then the audit that attaches them. Both the sentence and its routing are in
+the test suite, so neither can rot quietly.
+
+**A prerequisite beats the thing it feeds.** Before this, the two-areas rule below
+fired first and routed straight to the audit — skipping the import, so the audit had
+nothing to attach. Naming a CMP _and_ an import verb now wins, and `chain` carries
+the audit on afterwards, which is what "import ours for Utah, **then** audit"
+literally asks for.
+
+Both halves are required: _"audit gap.com, we use OneTrust"_ mentions the CMP without
+asking to import from it, and re-importing categories someone already has is not a
+helpful reading of that.
 
 **Asking for two of the three means you asked for both.** Keyword scoring cannot
 see that: _"check our tags still fire, only approved cookies drop before consent, and

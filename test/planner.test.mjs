@@ -627,6 +627,66 @@ for (const [goal, expected] of [
 }
 
 /* ---------------------------------------------------------------- */
+section('a prerequisite beats the thing it feeds')
+
+// "import ours for Utah, THEN audit the site" asks for two things in order. Before
+// this, the areas rule fired first and routed straight to the audit -- skipping the
+// import, so the audit would then have had nothing to attach.
+const otGoal =
+  'gap.com uses OneTrust — import our consent categories for USA, Utah, then audit the site ' +
+  'against them with tag rules and alert me if anything breaks'
+const otPlan = await createPlan(otGoal, { forceLocal: true })
+
+check(
+  'the demo sentence starts with the import',
+  otPlan.plan?.recipeId === 'import_consent_from_onetrust',
+  otPlan.plan?.recipeId ?? otPlan.status,
+)
+check(
+  'and chains into the audit rather than dropping it',
+  otPlan.plan?.chain === 'audit_with_all_standards',
+  otPlan.plan?.chain,
+)
+check('it pulls the site out', otPlan.plan?.parameters.siteUrl === 'https://gap.com')
+check(
+  'and the location, which is capitalised where the rest is not',
+  otPlan.plan?.parameters.location === 'USA, Utah',
+  otPlan.plan?.parameters.location,
+)
+check(
+  'the location reaches the step the user has to act on',
+  otPlan.plan?.steps.some(s => s.say.includes('USA, Utah')),
+  otPlan.plan?.steps.map(s => s.say).join(' | '),
+)
+
+// Both halves are required. Mentioning the CMP is not asking to import from it, and
+// re-importing categories someone already has is not a helpful reading.
+check(
+  'mentioning OneTrust without an import verb does not hijack the audit',
+  matchDeterministic('audit gap.com with rules and alerts, we use OneTrust').recipeId ===
+    'audit_with_all_standards',
+  matchDeterministic('audit gap.com with rules and alerts, we use OneTrust').recipeId,
+)
+check(
+  'and a plain multi-standard audit is untouched',
+  matchDeterministic('audit gap.com with rules, consent categories and alerts').recipeId ===
+    'audit_with_all_standards',
+)
+
+// chain is only present when a recipe declares one -- absent, not null, everywhere else.
+check(
+  'recipes without a successor carry no chain field',
+  RECIPES.filter(r => !r.chain).every(r => {
+    const built = buildPlan(
+      r,
+      'g',
+      Object.fromEntries(r.parameters.map(param => [param.name, param.example || 'x'])),
+    )
+    return built.status !== 'plan' || built.plan.chain === undefined
+  }),
+)
+
+/* ---------------------------------------------------------------- */
 section('creating a first rule, consent category or alert')
 
 for (const [id, params, ends] of [

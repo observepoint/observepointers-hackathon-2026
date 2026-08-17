@@ -111,6 +111,11 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
     steps,
   }
 
+  // Part 2's runner takes an ordered array of plans, and `chain` is how a recipe
+  // names its successor. Only set it when the recipe declares one, so the field stays
+  // absent rather than null for everything else.
+  if (recipe.chain) plan.chain = recipe.chain
+
   const errors = validatePlan(plan)
   if (errors.length) {
     return {

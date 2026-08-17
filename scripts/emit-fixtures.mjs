@@ -55,6 +55,13 @@ const cases = [
     goal: 'create an alert',
     answer: 'broken pages go above 10',
   },
+  {
+    // The demo sentence. A chained plan: import first, then the audit that uses it.
+    file: 'plan.import-consent-from-onetrust.json',
+    goal:
+      'gap.com uses OneTrust — import our consent categories for USA, Utah, then audit the site ' +
+      'against them with tag rules and alert me if anything breaks',
+  },
 ]
 
 for (const { file, goal, answer } of cases) {
