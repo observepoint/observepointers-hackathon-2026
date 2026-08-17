@@ -271,6 +271,7 @@ function handleResult(result) {
   switch (result.status) {
     case 'plan':
       pendingQuestion = null
+      if (result.amended) addMessage('note', 'Updated the plan.')
       // The summary is the plan card's heading — adding it as a message too
       // printed it twice.
       lastPlan = result.plan
@@ -329,7 +330,14 @@ async function ask(text) {
       handleResult(answerAndRetry(pendingQuestion, text, lastGoal, accountContext()))
     } else {
       lastGoal = text
-      handleResult(await createPlan(text, { account: accountContext().account }))
+      // `previous` is what lets "can I do it for Canada instead" amend the last
+      // plan rather than be read as a fresh, unmatchable request.
+      handleResult(
+        await createPlan(text, {
+          account: accountContext().account,
+          previous: lastPlan,
+        }),
+      )
     }
   } catch (err) {
     addMessage('error', err.message || String(err))

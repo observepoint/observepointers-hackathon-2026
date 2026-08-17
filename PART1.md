@@ -212,7 +212,7 @@ collapsed icon rail the sub-links genuinely are absent.
 ```bash
 npm install
 npm run build      # then load dist/ at chrome://extensions
-npm test           # 196 checks, no API key, no network
+npm test           # 212 checks, no API key, no network
 npm run fixtures   # regenerate fixtures/ after editing a recipe
 ```
 
@@ -277,6 +277,35 @@ suggestion chips on later runs (reorder, never filter).
 
 **Seam:** Part 1 owns the question and the stored answer. If Part 2 wants a
 guided tour of the app itself, it reads the same key and decides for itself.
+
+### It can be corrected mid-conversation
+
+```
+> Check compliance for gap.com in the United States
+< [a nine-step plan]
+> Can i do it for Canada instead
+< Updated the plan. [same plan, Canadian categories, gap.com kept]
+```
+
+That second message is unmatchable on its own — there is no Canada recipe — and
+it used to come back "not covered by any of the available recipes". So a
+follow-up inherits the previous plan's recipe and parameters, and its own text
+becomes the goal: **replacement, not accumulation**, or both regions would match
+and the narrowing would mean nothing. `src/planner/amend.js`.
+
+Pass the last plan as `options.previous` to enable it. Three behaviours worth
+knowing:
+
+- If the follow-up matches a recipe on its own, that wins — "actually alert me
+  when it breaks" switches recipes and carries the site over.
+- Derived values recompute. Change the site and the audit name follows it; a name
+  the user typed survives, because it doesn't equal what its own `derive` would
+  produce.
+- **It's gated.** Inheriting on every unmatched message would be worse than the
+  bug — ask "what is the weather in Utah" after a plan and you'd get a consent
+  walkthrough for Utah. Only explicit edit phrasing ("instead", "actually",
+  "what about") or a short bare value that fits a parameter counts. There's a
+  test for the Utah case.
 
 ### It asks rather than guesses
 

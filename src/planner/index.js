@@ -22,6 +22,7 @@ import { matchDeterministic, matchWithModel } from './match.js'
 import { render } from './template.js'
 import { validatePlan } from './schema.js'
 import { GeminiClient, getStoredApiKey } from './llm.js'
+import { amendmentFor } from './amend.js'
 
 const MIN_CONFIDENCE = 0.35
 
@@ -140,6 +141,8 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
  * @param {string} [options.apiKey]      overrides the stored key
  * @param {boolean} [options.forceLocal] skip the model entirely (tests, demos, no quota)
  * @param {object} [options.account]    live account state, e.g. { consentCategories }
+ * @param {object} [options.previous]   the last plan, so a follow-up can amend it
+ *   rather than being read as a fresh, unmatchable request. See amend.js.
  */
 export async function createPlan(goal, options = {}) {
   if (!goal || !goal.trim()) {
@@ -157,7 +160,24 @@ export async function createPlan(goal, options = {}) {
     match = { ...matchDeterministic(goal), degradedFrom: err.message }
   }
 
-  if (!match.recipeId || match.confidence < MIN_CONFIDENCE) {
+  // "Can I do it for Canada instead" is unmatchable alone and obvious in
+  // context. Checked before the confidence floor, because the whole point is
+  // that the follow-up scores badly on its own.
+  const confident = match.recipeId && match.confidence >= MIN_CONFIDENCE
+  const amendment = amendmentFor(goal, options.previous, confident ? match : null)
+  if (amendment) {
+    const amendedRecipe = getRecipe(amendment.recipeId)
+    const result = buildPlan(amendedRecipe, amendment.goal, amendment.parameters, {
+      account: options.account,
+    })
+    if (result.status === 'plan') {
+      result.amended = true
+      result.matchedBy = confident ? match.matchedBy : 'amendment'
+    }
+    return result
+  }
+
+  if (!confident) {
     return {
       status: 'no_match',
       message:

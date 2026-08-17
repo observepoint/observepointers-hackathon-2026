@@ -15,6 +15,7 @@ import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/
 import { rankForSite } from '../src/planner/account.js'
 import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
 import { unswept } from '../src/planner/recipes/_unswept.js'
+import { looksLikeAmendment } from '../src/planner/amend.js'
 import {
   ONBOARDING_QUESTION,
   onboardingOptions,
@@ -788,6 +789,148 @@ check(
       ].join()
     )
   })(),
+)
+
+/* ---------------------------------------------------------------- */
+section('mid-conversation edits')
+
+const GAP_CATS = [
+  {
+    id: 1,
+    name: 'gap.com — us,ca',
+    labels: [],
+    cmpDomain: 'gap.com',
+    cmpGeo: 'USA, California',
+    auditCount: 2,
+  },
+  {
+    id: 2,
+    name: 'gap.com | Canada',
+    labels: [],
+    cmpDomain: 'gap.com',
+    cmpGeo: 'Canada',
+    auditCount: 0,
+  },
+  {
+    id: 3,
+    name: 'gap.com | Canada, Alberta',
+    labels: [],
+    cmpDomain: 'gap.com',
+    cmpGeo: 'Canada, Alberta',
+    auditCount: 0,
+  },
+  {
+    id: 4,
+    name: 'gap.com | USA, Alabama',
+    labels: [],
+    cmpDomain: 'gap.com',
+    cmpGeo: 'USA, Alabama',
+    auditCount: 0,
+  },
+]
+const gapAccount = { consentCategories: GAP_CATS, webAudits: [{ id: 1 }], advancedAuditMode: true }
+const plan1 = await createPlan('Check compliance for gap.com in the United States', {
+  forceLocal: true,
+  account: gapAccount,
+})
+check('the first turn plans normally', plan1.status === 'plan', plan1.message)
+
+// The reported bug, verbatim. On its own this sentence is unmatchable — there is
+// no Canada recipe — and the information that makes it meaningful is one turn back.
+const amended = await createPlan('Can i do it for Canada instead', {
+  forceLocal: true,
+  account: gapAccount,
+  previous: plan1.plan,
+})
+check('a follow-up amends instead of failing to match', amended.status === 'plan', amended.message)
+check('and is flagged as an edit, not a fresh plan', amended.amended === true)
+check(
+  'the site carries over rather than being asked for again',
+  amended.plan?.parameters.siteUrl === 'https://gap.com',
+  amended.plan?.parameters.siteUrl,
+)
+check('the new region wins', amended.plan?.summary.includes('Canada'), amended.plan?.summary)
+// Replacement, not accumulation. If the old goal were still in scope, both "USA"
+// and "Canada" would match and the narrowing would be meaningless.
+check(
+  'the superseded region is gone',
+  !amended.plan?.summary.includes('USA') && !amended.plan?.summary.includes('California'),
+  amended.plan?.summary,
+)
+
+// The guard. Inheriting on every unmatched message would be worse than the bug:
+// you would get a consent-category walkthrough for Utah, confidently.
+const offTopic = await createPlan('what is the weather in Utah', {
+  forceLocal: true,
+  account: gapAccount,
+  previous: plan1.plan,
+})
+check(
+  'an unrelated question after a plan is still a non-match',
+  offTopic.status === 'no_match',
+  JSON.stringify(offTopic).slice(0, 120),
+)
+check(
+  'nothing is amended without a previous plan',
+  (await createPlan('Can i do it for Canada instead', { forceLocal: true })).status === 'no_match',
+)
+
+// Changing their mind about the goal, not just a value: the follow-up matches a
+// recipe on its own, so that wins — and the site still carries over.
+const switched = await createPlan('actually alert me when something breaks instead', {
+  forceLocal: true,
+  account: gapAccount,
+  previous: plan1.plan,
+})
+check(
+  'a follow-up that names a different recipe switches to it',
+  switched.plan?.recipeId !== 'audit_with_consent_categories',
+  switched.plan?.recipeId ?? switched.status,
+)
+
+// A derived name must not survive a change to what it was derived from.
+const rulesPlan = await createPlan('set up an audit for gap.com that checks my tag rules', {
+  forceLocal: true,
+})
+check(
+  'derived the first name from the first site',
+  rulesPlan.plan.parameters.auditName.startsWith('gap.com'),
+)
+const moved = await createPlan('use example.com instead', {
+  forceLocal: true,
+  previous: rulesPlan.plan,
+})
+check('a bare value counts as an edit', moved.status === 'plan', moved.message)
+check(
+  'the site changes',
+  moved.plan?.parameters.siteUrl === 'https://example.com',
+  moved.plan?.parameters.siteUrl,
+)
+check(
+  'and the derived name follows it rather than naming the old host',
+  moved.plan?.parameters.auditName.startsWith('example.com'),
+  moved.plan?.parameters.auditName,
+)
+
+// …but a name the user typed is theirs, and must survive.
+const named = await createPlan(
+  'set up an audit called "Q3 tag sweep" for gap.com that checks my rules',
+  { forceLocal: true },
+)
+const renamedSite = await createPlan('actually use example.com', {
+  forceLocal: true,
+  previous: named.plan,
+})
+check(
+  'a name the user chose is kept across an edit',
+  renamedSite.plan?.parameters.auditName === 'Q3 tag sweep',
+  renamedSite.plan?.parameters.auditName,
+)
+
+check('looksLikeAmendment needs a previous plan', !looksLikeAmendment('for Canada instead', null))
+check(
+  'looksLikeAmendment ignores a fragment that fits no parameter',
+  !looksLikeAmendment('hello there', { recipeId: 'audit_with_rules', parameters: {} }),
 )
 
 /* ---------------------------------------------------------------- */

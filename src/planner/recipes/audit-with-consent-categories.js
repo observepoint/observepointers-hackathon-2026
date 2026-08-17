@@ -295,7 +295,7 @@ export default {
           actor: 'user',
           targetSelector: SELECTORS.standardsAddAll,
           say: others
-            ? `Attach it. ${others} other categor${others === 1 ? 'y' : 'ies'} also cover this site if you need more than one.`
+            ? `Attach it. ${others} other categor${others === 1 ? 'y covers' : 'ies cover'} this site if you need more than one.`
             : 'Attach it.',
           targetFallback: { description: 'the "add all" button in the consent categories picker' },
           completion: { type: 'dom_event', value: 'click' },

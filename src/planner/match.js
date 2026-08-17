@@ -88,7 +88,7 @@ const tokens = s =>
 const URL_RE = /\bhttps?:\/\/[^\s'"]+|\b(?:[a-z0-9-]+\.)+(?:com|org|net|io|co|dev|ai)(?:\/\S*)?/i
 const QUOTED_RE = /["“']([^"”']{2,60})["”']/
 
-function extractParameters(goal, recipe) {
+export function extractParameters(goal, recipe) {
   const found = {}
 
   for (const param of recipe.parameters) {
