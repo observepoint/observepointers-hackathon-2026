@@ -324,8 +324,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // PLAN_READY is Part 1's documented handoff and every committed fixture is
     // built against it, so it is kept and routed here rather than renamed. The
     // panel needs no change; this is the whole seam.
+    // `plans` is the whole chain in order — "import the consent categories, create
+    // the rule, create the alert, then build the audit" arrives as four plans. It
+    // falls back to the single plan, because that is what every committed fixture
+    // and every unchained recipe sends.
     case 'PLAN_READY':
-      if (message?.plan) pageLayer.startWalkthrough([message.plan])
+      if (message?.plans?.length) pageLayer.startWalkthrough(message.plans)
+      else if (message?.plan) pageLayer.startWalkthrough([message.plan])
       break
 
     // Part 1's messages are flat ({ type, path }), not { type, payload }, and

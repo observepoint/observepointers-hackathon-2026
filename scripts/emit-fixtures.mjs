@@ -53,18 +53,36 @@ const cases = [
   {
     file: 'plan.create-first-alert.json',
     goal: 'create an alert',
-    answer: 'broken pages go above 10',
+    answer: 'jun@observepoint.com',
   },
   {
-    // The demo sentence. A chained plan: import first, then the audit that uses it.
-    file: 'plan.import-consent-from-onetrust.json',
+    file: 'plan.create-tag-variable-rule.json',
     goal:
-      'gap.com uses OneTrust — import our consent categories for USA, Utah, then audit the site ' +
-      'against them with tag rules and alert me if anything breaks',
+      'make a rule that follows the Timing Value best practice on Google Universal Analytics — ' +
+      'utt, utc and utv should all be set',
+  },
+  {
+    file: 'plan.import-consent-from-onetrust.json',
+    goal: 'import our consent categories from OneTrust for gap.com',
+  },
+  {
+    // THE DEMO SENTENCE, and the only fixture that is an ARRAY of plans.
+    //
+    // Worth shipping in that shape because it is the shape Part 2 receives:
+    // startWalkthrough takes an ordered array, and one request that asks for the
+    // libraries to be set up and then audited is four walkthroughs. A runtime tested
+    // only against single plans has never run the second one.
+    file: 'plan.demo-chain.json',
+    goal:
+      'observepoint.com uses OneTrust — import our consent categories for Utah, then audit the ' +
+      'site against them with tag rules, follow the Timing Value best practice on Google ' +
+      'Universal Analytics, and alert me if anything breaks',
+    answer: 'jun@observepoint.com',
+    chain: true,
   },
 ]
 
-for (const { file, goal, answer } of cases) {
+for (const { file, goal, answer, chain } of cases) {
   let result = await createPlan(goal, { forceLocal: true })
 
   // Some goals legitimately need one more answer; bake in a sample so the
@@ -79,6 +97,12 @@ for (const { file, goal, answer } of cases) {
     continue
   }
 
-  writeFileSync(join(OUT, file), `${JSON.stringify(result.plan, null, 2)}\n`)
-  console.log(`  wrote fixtures/${file}  (${result.plan.steps.length} steps)`)
+  const payload = chain ? result.plans : result.plan
+  const steps = chain
+    ? result.plans.reduce((n, p) => n + p.steps.length, 0)
+    : result.plan.steps.length
+  writeFileSync(join(OUT, file), `${JSON.stringify(payload, null, 2)}\n`)
+  console.log(
+    `  wrote fixtures/${file}  (${steps} steps${chain ? ` across ${result.plans.length} plans` : ''})`,
+  )
 }

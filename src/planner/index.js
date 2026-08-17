@@ -112,9 +112,12 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
   }
 
   // Part 2's runner takes an ordered array of plans, and `chain` is how a recipe
-  // names its successor. Only set it when the recipe declares one, so the field stays
-  // absent rather than null for everything else.
-  if (recipe.chain) plan.chain = recipe.chain
+  // names what follows it. buildChain(context) is the state-aware form, for the same
+  // reason buildSteps is: what follows "import our consent categories" depends on
+  // whether the user also asked for an audit. Only set when there is something to
+  // set, so the field stays absent rather than null for everything else.
+  const chain = recipe.buildChain ? recipe.buildChain(planningContext) : recipe.chain
+  if (chain?.length) plan.chain = chain
 
   const errors = validatePlan(plan)
   if (errors.length) {
@@ -142,7 +145,154 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
     )
   }
 
-  return { status: 'plan', plan, recipe, warnings }
+  const plans = [plan]
+  const blocked = expandChain({
+    plan,
+    chain,
+    recipeId: recipe.id,
+    parameters,
+    rawParameters,
+    context,
+    plans,
+    warnings,
+  })
+  // A later link needing an answer blocks the whole request, because the question is
+  // about the request rather than about link three. See expandChain.
+  if (blocked) return blocked
+
+  return { status: 'plan', plan, plans, recipe, warnings }
+}
+
+/**
+ * Recipes already queued or in progress on this chain.
+ *
+ * Carried on the context because expandChain builds each successor through
+ * buildPlan, which follows ITS chain in turn. Without a shared set, an A→B→A cycle
+ * recurses forever: each nested call starts a fresh set and a fresh plans array, so
+ * neither the cycle guard nor the length cap ever sees the whole picture.
+ */
+const chainSeen = context => context.__chainSeen ?? new Set()
+
+/**
+ * Depth of chained walkthroughs we're willing to queue.
+ *
+ * The longest real chain is four — import consent categories, create a rule, create
+ * an alert, then the audit that attaches all three — so this is a runaway guard, not
+ * a design limit.
+ */
+const MAX_CHAIN = 6
+
+/**
+ * Follow `chain` and build the successor plans, in order.
+ *
+ * WHY THE WHOLE SEQUENCE IS BUILT UP FRONT
+ *
+ * Because it is the only way to find out whether it works. A chain built lazily,
+ * one plan at a time as the previous finishes, discovers that link three is
+ * unbuildable twenty steps into a demo. Building it here means an unsatisfiable
+ * link becomes a warning on the summary before anyone clicks anything.
+ *
+ * PARAMETERS ARE SHARED ACROSS THE CHAIN, NOT FORWARDED FIELD BY FIELD
+ *
+ * "observepoint.com uses OneTrust — import our consent categories for Utah, then
+ * audit the site against them with tag rules and alert me if anything breaks" is ONE
+ * request. The site belongs to all four links, the location only to the first, the
+ * tag only to the rule. Rather than have each recipe declare what it hands on, every
+ * link sees the full parameter set and takes the names it declares — which is what
+ * applyDefaults already does. A recipe cannot be surprised by a parameter it never
+ * asks for.
+ *
+ * The names a chain relies on therefore have to agree ACROSS recipes: `siteUrl` is
+ * `siteUrl` everywhere. That is a real constraint, and cheaper than the alternative.
+ *
+ * EACH LINK ALSO SEES WHAT THE EARLIER ONES RESOLVED
+ *
+ * Not just the head's parameters — the accumulated set. That is what carries the
+ * rule's derived name into the audit, so its Standards picker searches for the rule
+ * the previous walkthrough just created instead of ranking one out of an account
+ * snapshot that predates it. See the `named` branch in standardsPickerSteps.
+ *
+ * A LINK THAT NEEDS AN ANSWER BLOCKS THE WHOLE REQUEST
+ *
+ * The alert needs an email address, and nothing before it does. Discovering that on
+ * step twelve of forty would be the worst place to ask, so a successor's needs_input
+ * is returned as the result of the whole call — but attributed to the HEAD recipe and
+ * the head's raw parameters, so answering re-plans the entire chain rather than
+ * stranding the answer on link three.
+ *
+ * A LINK THAT CANNOT BE BUILT AT ALL IS DROPPED
+ *
+ * An error, as opposed to a question, ends that link and not the request. If the rule
+ * recipe breaks, the consent-category import is still worth doing, and the warning
+ * says what was dropped. Silently queueing three of four would be the bad version.
+ *
+ * @returns {object|null} a needs_input result to return instead of the plan, or null
+ */
+function expandChain({
+  plan,
+  chain,
+  recipeId,
+  parameters,
+  rawParameters,
+  context,
+  plans,
+  warnings,
+}) {
+  if (!chain?.length) return null
+
+  const seen = chainSeen(context)
+  seen.add(recipeId)
+
+  let carried = { ...parameters }
+
+  for (const nextId of Array.isArray(chain) ? chain : [chain]) {
+    if (seen.size >= MAX_CHAIN) {
+      warnings.push(`Chain truncated at ${MAX_CHAIN} walkthroughs.`)
+      return null
+    }
+    // A cycle is a recipe bug, but it would present as a hung planner.
+    if (seen.has(nextId)) {
+      warnings.push(`Chain loops back to "${nextId}" — stopped there.`)
+      return null
+    }
+
+    const nextRecipe = getRecipe(nextId)
+    if (!nextRecipe) {
+      warnings.push(`Chained recipe "${nextId}" does not exist — skipped.`)
+      continue
+    }
+
+    seen.add(nextId)
+    const result = buildPlan(nextRecipe, plan.goal, carried, {
+      ...context,
+      __chainSeen: seen,
+    })
+
+    if (result.status === 'needs_input') {
+      return {
+        status: 'needs_input',
+        // The head, so answerAndRetry re-plans the whole chain.
+        recipeId,
+        missing: result.missing,
+        draftParameters: rawParameters,
+        question: result.question,
+      }
+    }
+
+    if (result.status !== 'plan') {
+      warnings.push(`Skipped the "${nextRecipe.title}" walkthrough — ${result.message}`)
+      continue
+    }
+
+    // buildPlan already followed the successor's own chain, so take its whole
+    // sequence rather than re-walking it here.
+    plans.push(...result.plans)
+    warnings.push(...result.warnings)
+    // Everything this link resolved is available to the next one.
+    carried = { ...carried, ...result.plan.parameters }
+  }
+
+  return null
 }
 
 /**

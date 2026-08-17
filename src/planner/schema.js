@@ -37,6 +37,12 @@
  */
 
 export const ACTORS = ['user', 'ai']
+// How a step gets past itself, when the default rule for its operation is wrong.
+// The rule — clicks advance themselves, fills wait for a Continue — lives in the
+// runtime (advanceModeFor in content/page-layer.js) so recipes don't restate it.
+// 'continue' exists for the one shape the rule can't infer: a step that only
+// REMARKS on a value the app already set, where nothing is going to happen.
+export const ADVANCE_MODES = ['auto', 'continue']
 export const EXECUTION_MODES = ['templated', 'generated', 'ad-hoc']
 // 'input' and 'scrollIntoView' are Part 2's names, taken so their recipes pass
 // this validator too. 'input' and 'fill_text' mean the same thing — their
@@ -130,6 +136,15 @@ function validateStep(step, index, errors, seenIds) {
     errors.push(`${where}.optional must be a boolean`)
   }
 
+  if (step.advance !== undefined && !ADVANCE_MODES.includes(step.advance)) {
+    errors.push(`${where}.advance must be one of ${ADVANCE_MODES.join(', ')}`)
+  }
+  // An 'ai' step already waits for a Continue, so saying so is redundant, and
+  // 'auto' on one would advance before the user has seen what we typed.
+  if (step.advance && step.actor === 'ai') {
+    errors.push(`${where}: actor "ai" always waits for Continue — drop the advance field`)
+  }
+
   validateCompletion(step.completion, where, errors, step.targetSelector)
 }
 
@@ -148,8 +163,16 @@ export function validatePlan(plan) {
   if (plan.parameters && typeof plan.parameters !== 'object') {
     errors.push('parameters must be an object')
   }
-  if (plan.chain !== undefined && !isStr(plan.chain)) {
-    errors.push('chain must be a recipeId string when present')
+  // A string for one successor, an array for several. The array form is what the
+  // "set the libraries up first, then use them" flows need: import consent
+  // categories, create a rule, create an alert, THEN build the audit that attaches
+  // all three. Part 2's runner already takes an ordered array of plans, so an array
+  // chain maps straight onto what it wants.
+  if (plan.chain !== undefined) {
+    const links = Array.isArray(plan.chain) ? plan.chain : [plan.chain]
+    if (!links.length || !links.every(isStr)) {
+      errors.push('chain must be a recipeId string, or an array of them, when present')
+    }
   }
 
   if (!Array.isArray(plan.steps) || plan.steps.length === 0) {

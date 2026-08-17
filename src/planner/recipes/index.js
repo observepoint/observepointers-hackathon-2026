@@ -24,16 +24,20 @@
  * three sub-tabs of one screen rather than three separate flows.
  *
  * PLUS the empty-account pair, sharing `_standards-library.js`:
- *   create_first_rule                 fill the rule library
+ *   create_first_rule                 fill the rule library, named and no further —
+ *                                     the right answer when the request does not say
+ *                                     what "correct" means
+ *   create_tag_variable_rule          the same builder driven all the way through the
+ *                                     conditions grid, for when it does: a named tag
+ *                                     and named variables
  *   create_first_consent_category     fill the consent category library
  *   import_consent_from_onetrust      pull them from the CMP instead of typing
  *                                     them, which is what a OneTrust account
  *                                     actually does. Chains into the audit.
- *   create_first_alert                fill the alerts library — the weakest of the
- *                                     three, because the Library makes you describe
- *                                     the metric from scratch. Prefer the bell on a
- *                                     report widget (alert_from_report) when there
- *                                     is a run to point at.
+ *   create_first_alert                fill the alerts library, including the metric
+ *                                     four levels down a nested menu. Prefer the bell
+ *                                     on a report widget (alert_from_report) when
+ *                                     there is a run to point at — it pre-fills.
  *
  * Those exist because the three audit recipes all end in "pick from your
  * library", which is a dead end on an account whose library is empty — which
@@ -58,6 +62,7 @@ import auditWithAlerts from './audit-with-alerts.js'
 import auditWithAllStandards from './audit-with-all-standards.js'
 import alertFromReport from './alert-from-report.js'
 import createFirstRule from './create-first-rule.js'
+import createTagVariableRule from './create-tag-variable-rule.js'
 import createFirstConsentCategory from './create-first-consent-category.js'
 import createFirstAlert from './create-first-alert.js'
 import importConsentFromOnetrust from './import-consent-from-onetrust.js'
@@ -69,6 +74,7 @@ export const RECIPES = [
   auditWithAllStandards,
   alertFromReport,
   createFirstRule,
+  createTagVariableRule,
   createFirstConsentCategory,
   createFirstAlert,
   importConsentFromOnetrust,
@@ -114,6 +120,10 @@ export function allKnownSelectors() {
 
     for (const step of steps ?? []) {
       if (!step.targetSelector || seen.has(step.targetSelector)) continue
+      // Kept whole, operators included. The sweep runs them through the same
+      // findVisible the runtime uses, so "the option labelled Utah" is exactly the
+      // thing worth checking — narrowing it to the CSS part would report a tick for
+      // a list of two hundred options when the one we need is absent.
       seen.set(step.targetSelector, {
         id: `${recipe.id}/${step.id}`,
         selector: step.targetSelector,

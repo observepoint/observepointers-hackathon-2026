@@ -1,0 +1,1172 @@
+[
+  {
+    "recipeId": "import_consent_from_onetrust",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://observepoint.com for Utah — rerun it per location if you need more than one.",
+    "executionMode": "templated",
+    "parameters": {
+      "siteUrl": "https://observepoint.com",
+      "location": "Utah",
+      "notifyEmail": "jun@observepoint.com"
+    },
+    "steps": [
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"sidebar-standards-consent-categories\"]",
+        "say": "Open Consent Categories under Standards in the sidebar.",
+        "targetFallback": {
+          "description": "the \"Consent Categories\" link under Standards in the left sidebar"
+        },
+        "completion": {
+          "type": "url_change",
+          "value": "/consent-categories"
+        },
+        "id": "s1",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[aria-label=\"Create a consent category\"], button[aria-label=\"CREATE\"]",
+        "say": "Open the create menu.",
+        "targetFallback": {
+          "description": "the create button on the Consent Categories page"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "[op-selector=\"cc-import-onetrust\"]"
+        },
+        "id": "s2",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"cc-import-onetrust\"]",
+        "say": "Choose the OneTrust import.",
+        "targetFallback": {
+          "description": "\"Import Consent Categories\" with the OneTrust logo"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
+        },
+        "id": "s3",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "[op-selector=\"cc-onetrust-url\"]",
+        "say": "Setting the site to read the banner from.",
+        "targetFallback": {
+          "description": "the \"Where can the consent banner be found?\" field"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "https://observepoint.com"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s4",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"cc-onetrust-location\"]",
+        "say": "Open the location list.",
+        "targetFallback": {
+          "description": "the \"From Which Location?\" dropdown"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "input.mat-select-search-input:not(.mat-select-search-hidden)"
+        },
+        "id": "s5",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "input.mat-select-search-input:not(.mat-select-search-hidden)",
+        "say": "Filtering the list to \"Utah\".",
+        "targetFallback": {
+          "description": "the search box at the top of the location list"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "Utah"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s6",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option.loc-autocomplete >> text=Utah",
+        "say": "Choose the Utah row.",
+        "targetFallback": {
+          "description": "the Utah option in the location list"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s7",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"cc-onetrust-detect\"]",
+        "say": "Detect the categories. It takes 10–30 seconds.",
+        "targetFallback": {
+          "description": "the \"Detect Your Consent Categories\" button"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": ".options-selected-container"
+        },
+        "id": "s8",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"cc-onetrust-sync\"]",
+        "say": "Import them. Rerun this per location if you need more.",
+        "targetFallback": {
+          "description": "the \"Sync Categorized Cookies\" button"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s9",
+        "unverified": true
+      }
+    ],
+    "chain": ["create_tag_variable_rule", "create_first_alert", "audit_with_all_standards"]
+  },
+  {
+    "recipeId": "create_tag_variable_rule",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "summary": "A rule says what \"correct\" means; the audit is what checks it. This one asks Google Universal Analytics to set utt, utc, utv. Only on requests where t=timing, so it doesn't fail on every other hit. The grid has six columns and three of them are already right — we'll say which as we go.",
+    "executionMode": "templated",
+    "parameters": {
+      "siteUrl": "https://observepoint.com",
+      "location": "Utah",
+      "notifyEmail": "jun@observepoint.com",
+      "tagName": "Google Universal Analytics",
+      "expectVariables": "utt, utc, utv",
+      "whenVariable": "t",
+      "whenValue": "timing",
+      "ruleName": "Google Universal Analytics sets utt, utc, utv"
+    },
+    "steps": [
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
+        "say": "Open Tag & Variable Rules under Standards in the sidebar.",
+        "targetFallback": {
+          "description": "the \"Tag & Variable Rules\" link under Standards in the left sidebar"
+        },
+        "completion": {
+          "type": "url_change",
+          "value": "/rules/library"
+        },
+        "id": "s1",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[aria-label=\"Create Rule\"]",
+        "say": "Start a new rule.",
+        "targetFallback": {
+          "description": "the \"Create Rule\" button"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "rule-name-control input"
+        },
+        "id": "s2",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "rule-name-control input",
+        "say": "Naming it \"Google Universal Analytics sets utt, utc, utv\".",
+        "targetFallback": {
+          "description": "the rule name field at the top of the builder"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "Google Universal Analytics sets utt, utc, utv"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s3",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[aria-label=\"Add condition\"]",
+        "say": "Add a WHEN condition — it decides where this rule applies.",
+        "targetFallback": {
+          "description": "the \"Add condition\" button under WHEN"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "if-condition mat-select[formControlName=\"type\"]"
+        },
+        "id": "s4",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "if-condition mat-select[formControlName=\"type\"]",
+        "say": "Open Filter By.",
+        "targetFallback": {
+          "description": "the \"Filter By\" dropdown"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "mat-option"
+        },
+        "id": "s5",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option >> text=Tag",
+        "say": "Choose \"Tag\".",
+        "targetFallback": {
+          "description": "the \"Tag\" option"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s6",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "if-condition .main-filter mat-select[formControlName=\"matchType\"]",
+        "say": "Operator is already \"equals\" — the only one Tag offers.",
+        "targetFallback": {
+          "description": "the Operator dropdown next to Filter By"
+        },
+        "advance": "continue",
+        "completion": {
+          "type": "dom_mutation",
+          "targetSelector": "if-condition .main-filter mat-select[formControlName=\"matchType\"]"
+        },
+        "id": "s7",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "if-condition input[formControlName=\"tagId\"]",
+        "say": "Searching tags for \"Google Universal Analytics\".",
+        "targetFallback": {
+          "description": "the Value field"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "Google Universal Analytics"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s8",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option.tag-id-option >> text=Google Universal Analytics",
+        "say": "Pick Google Universal Analytics from the list.",
+        "targetFallback": {
+          "description": "Google Universal Analytics in the tag list"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s9",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"rule-when-add-variable\"]",
+        "say": "Add a variable row.",
+        "targetFallback": {
+          "description": "the \"Add Variable\" link under the tag"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+        },
+        "id": "s10",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+        "say": "Setting the variable to \"t\".",
+        "targetFallback": {
+          "description": "the VARIABLE cell in the new row"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "t"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s11",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "if-condition rule-tag-variable-filter mat-checkbox[formControlName=\"variableMatchAsRegex\"] >> last",
+        "say": "REGEX left off — the name is exact, not a pattern.",
+        "targetFallback": {
+          "description": "the REGEX checkbox in this row"
+        },
+        "advance": "continue",
+        "completion": {
+          "type": "dom_mutation",
+          "targetSelector": "if-condition rule-tag-variable-filter mat-checkbox[formControlName=\"variableMatchAsRegex\"]"
+        },
+        "id": "s12",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "if-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+        "say": "OPERATOR is already \"equals\", which is what we want.",
+        "targetFallback": {
+          "description": "the OPERATOR cell in this row"
+        },
+        "advance": "continue",
+        "completion": {
+          "type": "dom_mutation",
+          "targetSelector": "if-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"]"
+        },
+        "id": "s13",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"selectorType\"] >> last",
+        "say": "SELECTOR is already \"String\" — we are matching the value itself.",
+        "targetFallback": {
+          "description": "the SELECTOR cell in this row"
+        },
+        "advance": "continue",
+        "completion": {
+          "type": "dom_mutation",
+          "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"selectorType\"]"
+        },
+        "id": "s14",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"value\"] >> last",
+        "say": "Setting VALUE to \"timing\".",
+        "targetFallback": {
+          "description": "the VALUE/VARIABLE cell in this row"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "timing"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s15",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "then-condition input[formControlName=\"tagId\"]",
+        "say": "Now EXPECT: the same tag again, this time as the subject.",
+        "targetFallback": {
+          "description": "the Select Tag under EXPECT field"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "Google Universal Analytics"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s16",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option.tag-id-option >> text=Google Universal Analytics",
+        "say": "Pick Google Universal Analytics from the list.",
+        "targetFallback": {
+          "description": "Google Universal Analytics in the tag list"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s17",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"rule-expect-add-variable\"]",
+        "say": "Add a variable row.",
+        "targetFallback": {
+          "description": "the \"Add Variable\" link under the tag"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+        },
+        "id": "s18",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+        "say": "Setting the variable to \"utt\".",
+        "targetFallback": {
+          "description": "the VARIABLE cell in the new row"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "utt"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s19",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "then-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+        "say": "Set OPERATOR to \"is set\".",
+        "targetFallback": {
+          "description": "the OPERATOR cell in this row"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "mat-option"
+        },
+        "id": "s20",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option >> text=is set",
+        "say": "Choose \"is set\".",
+        "targetFallback": {
+          "description": "the \"is set\" option"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s21",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"rule-expect-add-variable\"]",
+        "say": "Add a variable row.",
+        "targetFallback": {
+          "description": "the \"Add Variable\" link under the tag"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+        },
+        "id": "s22",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+        "say": "Setting the variable to \"utc\".",
+        "targetFallback": {
+          "description": "the VARIABLE cell in the new row"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "utc"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s23",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "then-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+        "say": "Set OPERATOR to \"is set\".",
+        "targetFallback": {
+          "description": "the OPERATOR cell in this row"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "mat-option"
+        },
+        "id": "s24",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option >> text=is set",
+        "say": "Choose \"is set\".",
+        "targetFallback": {
+          "description": "the \"is set\" option"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s25",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"rule-expect-add-variable\"]",
+        "say": "Add a variable row.",
+        "targetFallback": {
+          "description": "the \"Add Variable\" link under the tag"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+        },
+        "id": "s26",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+        "say": "Setting the variable to \"utv\".",
+        "targetFallback": {
+          "description": "the VARIABLE cell in the new row"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "utv"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s27",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "then-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+        "say": "Set OPERATOR to \"is set\".",
+        "targetFallback": {
+          "description": "the OPERATOR cell in this row"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "mat-option"
+        },
+        "id": "s28",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option >> text=is set",
+        "say": "Choose \"is set\".",
+        "targetFallback": {
+          "description": "the \"is set\" option"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s29",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"rule-setup-save-btn\"]",
+        "say": "Save it. It's now attachable to any audit under Standards.",
+        "targetFallback": {
+          "description": "the Save button in the rule builder"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s30",
+        "unverified": true
+      }
+    ]
+  },
+  {
+    "recipeId": "create_first_alert",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "summary": "An alert is a threshold on a number in an audit report. The metric lives four levels down a nested menu, so we'll point at each one: Audits → Tag & Variable Rules → Rule Failures, greater than 0 on observepoint.com. You confirm the email.",
+    "executionMode": "templated",
+    "parameters": {
+      "siteUrl": "https://observepoint.com",
+      "location": "Utah",
+      "notifyEmail": "jun@observepoint.com",
+      "tagName": "Google Universal Analytics",
+      "expectVariables": "utt, utc, utv",
+      "whenVariable": "t",
+      "whenValue": "timing",
+      "ruleName": "Google Universal Analytics sets utt, utc, utv",
+      "threshold": "0",
+      "alertName": "observepoint.com — Rule failures"
+    },
+    "steps": [
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"sidebar-alerts\"]",
+        "say": "Open Alerts under Standards in the sidebar.",
+        "targetFallback": {
+          "description": "the \"Alerts\" link under Standards in the left sidebar"
+        },
+        "completion": {
+          "type": "url_change",
+          "value": "/alerts"
+        },
+        "id": "s1",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[aria-label=\"Create Alert\"]",
+        "say": "Start a new alert.",
+        "targetFallback": {
+          "description": "the \"Create Alert\" button"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "alert-name-control input"
+        },
+        "id": "s2",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "alert-name-control input",
+        "say": "Naming it \"observepoint.com — Rule failures\".",
+        "targetFallback": {
+          "description": "the alert name field at the top of the designer"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "observepoint.com — Rule failures"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s3",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "input[aria-label=\"Select report metric\"]",
+        "say": "Open Report Metric.",
+        "targetFallback": {
+          "description": "the \"Report Metric\" field"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "button[mat-menu-item]"
+        },
+        "id": "s4",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[mat-menu-item] >> text=Audits",
+        "say": "Open \"Audits\".",
+        "targetFallback": {
+          "description": "\"Audits\" in the report metric menu"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s5",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[mat-menu-item] >> text=Tag & Variable Rules",
+        "say": "Open \"Tag & Variable Rules\".",
+        "targetFallback": {
+          "description": "\"Tag & Variable Rules\" in the report metric menu"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s6",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "button[mat-menu-item] >> text=Rule Failures",
+        "say": "Choose \"Rule Failures\" — that's the metric.",
+        "targetFallback": {
+          "description": "\"Rule Failures\" in the report metric menu"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]"
+        },
+        "id": "s7",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]",
+        "say": "Open Operator.",
+        "targetFallback": {
+          "description": "the Operator dropdown"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "mat-option"
+        },
+        "id": "s8",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "mat-option >> text=Greater than (>)",
+        "say": "Choose \"Greater than (>)\".",
+        "targetFallback": {
+          "description": "the \"Greater than (>)\" option"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s9",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "alert-trigger input[formControlName=\"targetValue\"]",
+        "say": "Setting the threshold to 0 — one failure is a failure.",
+        "targetFallback": {
+          "description": "the threshold value field"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "0"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s10",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "input[aria-label=\"Search by URL\"]",
+        "say": "Typed \"observepoint.com\" — press Enter to apply it, then Continue.",
+        "targetFallback": {
+          "description": "the \"Search By URL\" box under FILTER PAGES"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "observepoint.com"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s11",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+        "say": "Next — on to who gets notified.",
+        "targetFallback": {
+          "description": "the Next button in the alert designer"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "mat-chip-grid#email-chip-grid input"
+        },
+        "id": "s12",
+        "unverified": true
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "mat-chip-grid#email-chip-grid input",
+        "say": "Typed jun@observepoint.com — press Enter to add it, then Continue.",
+        "targetFallback": {
+          "description": "the subscribers field"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "jun@observepoint.com"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s13",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+        "say": "Next — on to which audits it applies to.",
+        "targetFallback": {
+          "description": "the Next button in the alert designer"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s14",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+        "say": "Next — the preview shows what would have triggered.",
+        "targetFallback": {
+          "description": "the Next button in the alert designer"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s15",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"alert-designer-save-btn\"]",
+        "say": "Save it. It's now attachable to any audit under Standards.",
+        "targetFallback": {
+          "description": "the Save button in the alert designer"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s16",
+        "unverified": true
+      }
+    ]
+  },
+  {
+    "recipeId": "audit_with_all_standards",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "summary": "Rules, Consent Categories and Alerts are three sub-tabs of one Standards screen, so this is a single audit rather than three. We'll create \"observepoint.com — All standards\" against https://observepoint.com and attach all three.",
+    "executionMode": "templated",
+    "parameters": {
+      "siteUrl": "https://observepoint.com",
+      "location": "Utah",
+      "notifyEmail": "jun@observepoint.com",
+      "tagName": "Google Universal Analytics",
+      "expectVariables": "utt, utc, utv",
+      "whenVariable": "t",
+      "whenValue": "timing",
+      "ruleName": "Google Universal Analytics sets utt, utc, utv",
+      "threshold": "0",
+      "alertName": "observepoint.com — Rule failures",
+      "auditName": "observepoint.com — All standards"
+    },
+    "steps": [
+      {
+        "actor": "user",
+        "navContext": "*",
+        "targetSelector": "[op-selector=\"sidebar-create-new\"]",
+        "say": "Click Create New in the left sidebar.",
+        "targetFallback": {
+          "description": "the \"Create New\" button in the left sidebar"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "[op-selector=\"new-data-option-audit\"]"
+        },
+        "id": "s1"
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"new-data-option-audit\"]",
+        "say": "Choose Audit.",
+        "targetFallback": {
+          "description": "the \"Audit\" option in the Create New dialog"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": ".op-audit-editor, .audit-setup-modal"
+        },
+        "id": "s2"
+      },
+      {
+        "actor": "user",
+        "optional": true,
+        "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
+        "say": "Switch to Advanced Setup — Standards lives there.",
+        "targetFallback": {
+          "description": "the \"Switch to Advanced Setup\" button"
+        },
+        "unverified": true,
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": ".op-audit-editor"
+        },
+        "id": "s3"
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "audit-editor-header-name-control input",
+        "say": "Naming it \"observepoint.com — All standards\".",
+        "targetFallback": {
+          "description": "the audit name field in the editor header"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "observepoint.com — All standards"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s4"
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"audit-tab-url-sources\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)",
+        "say": "Open URL Sources.",
+        "targetFallback": {
+          "description": "the URL Sources tab in the audit editor"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s5"
+      },
+      {
+        "actor": "ai",
+        "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
+        "say": "Setting the starting URL.",
+        "targetFallback": {
+          "description": "the \"URLs to Scan\" box on the URL Sources tab"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "https://observepoint.com"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s6"
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
+        "say": "Open the Standards tab.",
+        "targetFallback": {
+          "description": "the Standards tab in the audit editor"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": ".op-tabs.sub-menu"
+        },
+        "id": "s7"
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"standards-tab-rules\"]",
+        "say": "Open Tag & Variable Rules.",
+        "targetFallback": {
+          "description": "the \"Tag & Variable Rules\" sub-tab under Standards"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s8"
+      },
+      {
+        "actor": "ai",
+        "targetSelector": ".op-standards-selector .search-input",
+        "say": "Filtering to \"Google Universal Analytics sets utt, utc, utv\" — the one we just made.",
+        "targetFallback": {
+          "description": "the search box in the rules picker"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "Google Universal Analytics sets utt, utc, utv"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s9"
+      },
+      {
+        "actor": "user",
+        "targetSelector": ".op-standards-selector .add-all-standards-btn",
+        "say": "Attach it.",
+        "targetFallback": {
+          "description": "the \"add all\" button in the rules picker"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s10"
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"standards-tab-consent-categories\"]",
+        "say": "Open Consent Categories.",
+        "targetFallback": {
+          "description": "the \"Consent Categories\" sub-tab under Standards"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s11"
+      },
+      {
+        "actor": "ai",
+        "targetSelector": ".op-standards-selector .search-input",
+        "say": "Filtering to \"observepoint.com\" — the ones we just imported.",
+        "targetFallback": {
+          "description": "the search box in the consent categories picker"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "observepoint.com"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s12"
+      },
+      {
+        "actor": "user",
+        "targetSelector": ".op-standards-selector .add-all-standards-btn",
+        "say": "Attach the one for this location.",
+        "targetFallback": {
+          "description": "the \"add all\" button in the picker"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s13"
+      },
+      {
+        "actor": "user",
+        "targetSelector": "[op-selector=\"standards-tab-alerts\"]",
+        "say": "Open Alerts.",
+        "targetFallback": {
+          "description": "the \"Alerts\" sub-tab under Standards"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s14"
+      },
+      {
+        "actor": "ai",
+        "targetSelector": ".op-standards-selector .search-input",
+        "say": "Filtering to \"observepoint.com — Rule failures\" — the one we just made.",
+        "targetFallback": {
+          "description": "the search box in the alerts picker"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "observepoint.com — Rule failures"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "input"
+        },
+        "id": "s15"
+      },
+      {
+        "actor": "user",
+        "targetSelector": ".op-standards-selector .add-all-standards-btn",
+        "say": "Attach it.",
+        "targetFallback": {
+          "description": "the \"add all\" button in the alerts picker"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        },
+        "id": "s16"
+      },
+      {
+        "id": "s17",
+        "actor": "user",
+        "targetSelector": "[op-selector=\"web-audit-create-save\"]",
+        "say": "Save Audit — nothing exists until you do.",
+        "targetFallback": {
+          "description": "the \"Save Audit\" button at the bottom of the editor"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "click"
+        }
+      }
+    ]
+  }
+]

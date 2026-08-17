@@ -1,15 +1,14 @@
 {
   "recipeId": "import_consent_from_onetrust",
-  "goal": "gap.com uses OneTrust — import our consent categories for USA, Utah, then audit the site against them with tag rules and alert me if anything breaks",
-  "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://gap.com for USA, Utah — rerun it per location if you need more than one.",
+  "goal": "import our consent categories from OneTrust for gap.com",
+  "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://gap.com for OneTrust — rerun it per location if you need more than one.",
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://gap.com",
-    "location": "USA, Utah"
+    "location": "OneTrust"
   },
   "steps": [
     {
-      "id": "s1",
       "actor": "user",
       "targetSelector": "[op-selector=\"sidebar-standards-consent-categories\"]",
       "say": "Open Consent Categories under Standards in the sidebar.",
@@ -20,10 +19,10 @@
         "type": "url_change",
         "value": "/consent-categories"
       },
+      "id": "s1",
       "unverified": true
     },
     {
-      "id": "s2",
       "actor": "user",
       "targetSelector": "button[aria-label=\"Create a consent category\"], button[aria-label=\"CREATE\"]",
       "say": "Open the create menu.",
@@ -35,10 +34,10 @@
         "condition": "visible",
         "targetSelector": "[op-selector=\"cc-import-onetrust\"]"
       },
+      "id": "s2",
       "unverified": true
     },
     {
-      "id": "s3",
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-import-onetrust\"]",
       "say": "Choose the OneTrust import.",
@@ -50,10 +49,10 @@
         "condition": "visible",
         "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
       },
+      "id": "s3",
       "unverified": true
     },
     {
-      "id": "s4",
       "actor": "ai",
       "targetSelector": "[op-selector=\"cc-onetrust-url\"]",
       "say": "Setting the site to read the banner from.",
@@ -68,24 +67,57 @@
         "type": "dom_event",
         "value": "change"
       },
+      "id": "s4",
       "unverified": true
     },
     {
-      "id": "s5",
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-onetrust-location\"]",
-      "say": "Pick USA, Utah — the list is searchable.",
+      "say": "Open the location list.",
       "targetFallback": {
         "description": "the \"From Which Location?\" dropdown"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "input.mat-select-search-input:not(.mat-select-search-hidden)"
+      },
+      "id": "s5",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "input.mat-select-search-input:not(.mat-select-search-hidden)",
+      "say": "Filtering the list to \"OneTrust\".",
+      "targetFallback": {
+        "description": "the search box at the top of the location list"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "OneTrust"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s6",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option.loc-autocomplete >> text=OneTrust",
+      "say": "Choose the OneTrust row.",
+      "targetFallback": {
+        "description": "the OneTrust option in the location list"
       },
       "completion": {
         "type": "dom_event",
         "value": "click"
       },
+      "id": "s7",
       "unverified": true
     },
     {
-      "id": "s6",
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-onetrust-detect\"]",
       "say": "Detect the categories. It takes 10–30 seconds.",
@@ -93,13 +125,14 @@
         "description": "the \"Detect Your Consent Categories\" button"
       },
       "completion": {
-        "type": "dom_event",
-        "value": "click"
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".options-selected-container"
       },
+      "id": "s8",
       "unverified": true
     },
     {
-      "id": "s7",
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-onetrust-sync\"]",
       "say": "Import them. Rerun this per location if you need more.",
@@ -110,8 +143,8 @@
         "type": "dom_event",
         "value": "click"
       },
+      "id": "s9",
       "unverified": true
     }
-  ],
-  "chain": "audit_with_all_standards"
+  ]
 }

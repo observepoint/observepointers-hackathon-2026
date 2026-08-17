@@ -30,8 +30,20 @@ export function unhighlightElement(el) {
   el.classList.remove('op-wt-highlight')
 }
 
-export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
+/**
+ * @param {object} [options]
+ * @param {string} [options.label]         Button text. "Continue →" when the step is
+ *                                         waiting on the user to read or confirm
+ *                                         something, "Next →" when it is a fallback.
+ * @param {number} [options.revealAfterMs] Hide the button for this long. 0 shows it
+ *                                         immediately. Used for steps that advance on
+ *                                         their own: no button while detection has a
+ *                                         fair chance, a button once it clearly hasn't.
+ */
+export function showTooltip(element, text, stepIndex, totalSteps, onNext, options = {}) {
   removeTooltip()
+
+  const { label = 'Next →', revealAfterMs = 0 } = options
 
   const tip = document.createElement('div')
   tip.id = TOOLTIP_ID
@@ -48,7 +60,7 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
     font-size: 14px;
     line-height: 1.5;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    pointer-events: ${onNext ? 'auto' : 'none'};
+    pointer-events: none;
   `
   tip.innerHTML = `
     <div style="font-size:11px;color:#ffd700;font-weight:600;letter-spacing:0.5px;margin-bottom:6px;">
@@ -69,14 +81,29 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-    ">Next →</button>`
+      display: ${revealAfterMs > 0 ? 'none' : 'block'};
+      pointer-events: auto;
+    ">${label}</button>`
         : ''
     }
   `
   document.body.appendChild(tip)
 
   if (onNext) {
-    document.getElementById('op-wt-next-btn').addEventListener('click', onNext)
+    const button = document.getElementById('op-wt-next-btn')
+    button.addEventListener('click', onNext)
+
+    if (revealAfterMs > 0) {
+      // Reveal in place rather than re-render: the tooltip is already positioned,
+      // and growing it by one button is less startling than it moving.
+      const timer = setTimeout(() => {
+        // The step may have finished and torn this tooltip down already.
+        if (!button.isConnected) return
+        button.style.display = 'block'
+        button.textContent = 'Skip this step →'
+      }, revealAfterMs)
+      tooltipTimers.push(timer)
+    }
   }
 
   const rect = element.getBoundingClientRect()
@@ -92,7 +119,12 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
   tip.style.left = `${left}px`
 }
 
+// Pending reveal timers, cleared with the tooltip so a torn-down step can't
+// resurrect a button on the next one.
+const tooltipTimers = []
+
 export function removeTooltip() {
+  while (tooltipTimers.length) clearTimeout(tooltipTimers.pop())
   document.getElementById(TOOLTIP_ID)?.remove()
 }
 

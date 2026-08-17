@@ -149,6 +149,7 @@
 // ============================================================================
 
 import { matchesNavContext, onRouteChange } from './navigation.js'
+import { parseTargetSelector, applyOperators, cssPartOf } from './selector-query.js'
 import {
   highlightElement,
   unhighlightElement,
@@ -268,20 +269,37 @@ async function executeAiAction(element, action) {
 // Element finding
 // ---------------------------------------------------------------------------
 
+function isOnScreen(el) {
+  const rect = el.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+}
+
 // Returns the first visible element matching selector, handling the two known
 // edge cases: journey tab hosts (invisible mat-tab elements) and selector
 // overrides where the app renders a different element than the recipe expects.
+//
+// Selectors may carry `>>` operators (see selector-query.js) to say "the one
+// labelled X" or "the row I just added". The compatibility tables above are keyed
+// on plain selector strings, so they get the CSS part rather than the whole thing.
 function findVisible(selector) {
-  const journeyTab = findJourneyTab(selector)
+  const { css, ops, unknown } = parseTargetSelector(selector)
+
+  if (unknown.length) {
+    console.warn(`[observe-pointers] unknown selector operator(s): ${unknown.join(', ')}`)
+  }
+
+  const journeyTab = findJourneyTab(css)
   if (journeyTab) return journeyTab
-  const opTab = findOpTab(selector)
+  const opTab = findOpTab(css)
   if (opTab) return opTab
-  const candidates = Array.from(document.querySelectorAll(resolveSelector(selector)))
-  const visible = candidates.find(el => {
-    const rect = el.getBoundingClientRect()
-    return rect.width > 0 && rect.height > 0
-  })
-  return visible ?? null
+
+  // Filter to visible BEFORE applying operators, so `last` and `nth` count the
+  // rows the user can see. This app leaves hidden duplicates in the DOM (the
+  // mobile sidebar, torn-down overlays) and counting those points at nothing.
+  const visible = Array.from(document.querySelectorAll(resolveSelector(css))).filter(isOnScreen)
+  if (!ops.length) return visible[0] ?? null
+
+  return applyOperators(visible, ops)[0] ?? null
 }
 
 /** Wired at boot by content/index.js. You don't need to call this. */
@@ -388,6 +406,54 @@ function scrollIntoViewIfNeeded(element) {
   return new Promise(r => setTimeout(r, 400))
 }
 
+/**
+ * Does this step get a Continue button, and does the button do the advancing?
+ *
+ * The rule the walkthrough is judged on, in the user's words: "if any operation is
+ * a click, don't display continue. Things where it asks user to fill something out,
+ * display continue."
+ *
+ * That is a rule about the OPERATION, so it is derived from the operation rather
+ * than restated on every step:
+ *
+ *   'auto'    A click the user performs. It announces itself — we listen for it and
+ *             move on. Putting a button here is the thing this project exists to
+ *             fix: being told to click something and then having to confirm it.
+ *             The button still exists, but STAYS HIDDEN until the step has been
+ *             sitting there long enough to look stuck (see STUCK_MS). Detection is
+ *             good, not perfect, and a walkthrough with no way forward is worse
+ *             than a button nobody needed.
+ *   'button'  Either we typed something (the user needs a beat to read what we put
+ *             in the field and agree to it), or the step is a remark about a value
+ *             the app already set — "Operator is equals by default" — where there
+ *             is nothing to detect because nothing is supposed to happen.
+ *   'race'    Part 2's recipes, which ask for a manual button because their
+ *             dom_mutation completions have nothing watchable. Detection wins if it
+ *             works, the button covers it when it doesn't.
+ *
+ * `advance: 'continue' | 'auto'` on a step overrides the default. It is needed for
+ * exactly one shape — the remark-about-a-default step, which is an actor:'user' step
+ * that must NOT auto-advance — and it stays out of every other recipe.
+ *
+ * @returns {'auto' | 'button' | 'race'}
+ */
+/**
+ * How long a self-advancing step may sit before we offer a way past it.
+ *
+ * Long enough that nobody waiting to be told what to click ever sees the button;
+ * short enough that a missed click is a pause, not a dead end.
+ */
+const STUCK_MS = 8000
+
+function advanceModeFor(step) {
+  if (step.advance === 'auto') return 'auto'
+  if (step.advance === 'continue') return 'button'
+  if (step.actor === 'ai') return 'button'
+  const isDomMutation = step.completion?.type === 'dom_mutation'
+  if (isDomMutation && step.completion.condition !== 'visible') return 'race'
+  return 'auto'
+}
+
 export async function startWalkthrough(plans) {
   abortController = new AbortController()
   const { signal } = abortController
@@ -468,34 +534,42 @@ export async function startWalkthrough(plans) {
       await scrollIntoViewIfNeeded(element)
       highlightElement(element)
 
-      const isDomMutation = step.completion?.type === 'dom_mutation'
+      const advance = advanceModeFor(step)
       let resolveNext = null
-      const nextPromise = isDomMutation
-        ? new Promise(resolve => {
-            resolveNext = resolve
-          })
-        : null
+      const nextPromise = new Promise(resolve => {
+        resolveNext = resolve
+        // Without this an aborted run sits here forever, because nothing else
+        // resolves the button's promise.
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      })
 
-      showTooltip(element, step.say, stepIndex, plan.steps.length, resolveNext)
+      showTooltip(element, step.say, stepIndex, plan.steps.length, resolveNext, {
+        label: advance === 'auto' ? 'Next →' : 'Continue →',
+        revealAfterMs: advance === 'auto' ? STUCK_MS : 0,
+      })
       reportState({ status: 'running', goal: plan.goal })
 
       if (step.actor === 'ai') {
         await executeAiAction(element, step.action)
-      } else if (isDomMutation) {
-        // Race, rather than pick one. Skyler's "Next" button is always available,
-        // because mutation-watching proved unreliable and a stuck walkthrough is
-        // the worst outcome. But when the step says `condition: 'visible'` we can
-        // watch for a specific element appearing, which is reliable — so whichever
-        // happens first wins.
+      }
+
+      if (advance === 'button') {
+        // The button is the only way on. Either we just typed something and the
+        // user should look at it before we move, or the step is telling them
+        // something rather than waiting for them to do anything detectable.
+        await nextPromise
+      } else if (advance === 'race' || advance === 'auto') {
+        // Race, rather than pick one. Skyler's button is always available, because
+        // mutation-watching proved unreliable and a stuck walkthrough is the worst
+        // outcome. But when the step says `condition: 'visible'` we can watch for a
+        // specific element appearing, which is reliable — so whichever wins, wins.
         //
         // This matters more than it looks. The original brief on this project was
         // "I clicked the button as directed and still had to say next myself — I
         // want it to know I clicked", and auto-advance is the answer to that.
-        // Requiring a click on every dom_mutation step walks it back. Racing keeps
-        // the automatic path AND keeps the escape hatch when detection fails.
+        // Requiring a click on every step walks it back. Racing keeps the automatic
+        // path AND keeps the escape hatch when detection fails.
         await Promise.race([nextPromise, waitForCompletion(step, signal)])
-      } else {
-        await waitForCompletion(step, signal)
       }
 
       if (signal.aborted) return
@@ -521,14 +595,13 @@ function waitForCompletion(step, signal) {
   if (!completion) return Promise.resolve()
 
   const rawSelector = completion.targetSelector ?? step.targetSelector
-  const watchSelector = resolveSelector(rawSelector)
+  // findVisible understands `>>` operators and the compatibility tables; the bare
+  // querySelector is the fallback for a target that exists but is not laid out yet.
+  const watchSelector = resolveSelector(cssPartOf(rawSelector))
 
   if (completion.type === 'click') {
     return new Promise(resolve => {
-      const target =
-        findJourneyTab(rawSelector) ??
-        findOpTab(rawSelector) ??
-        document.querySelector(watchSelector)
+      const target = findVisible(rawSelector) ?? document.querySelector(watchSelector)
       if (!target) return resolve()
 
       const handler = () => {
@@ -610,9 +683,9 @@ function waitForCompletion(step, signal) {
         resolve()
       }
       const poll = setInterval(() => {
-        if (findVisible(watchSelector)) finish()
+        if (findVisible(rawSelector)) finish()
       }, 100)
-      if (findVisible(watchSelector)) return finish()
+      if (findVisible(rawSelector)) return finish()
       signal?.addEventListener('abort', finish, { once: true })
     })
   }

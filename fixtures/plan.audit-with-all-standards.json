@@ -5,7 +5,9 @@
   "executionMode": "templated",
   "parameters": {
     "siteUrl": "https://www.example.com",
-    "auditName": "example.com — All standards"
+    "auditName": "example.com — All standards",
+    "ruleName": "",
+    "alertName": ""
   },
   "steps": [
     {

@@ -102,7 +102,23 @@ export default {
       'tags privacy and alerting',
     ],
   },
-  parameters: auditParameters('All standards'),
+  parameters: [
+    ...auditParameters('All standards'),
+    // Optional, and only ever set by a chain: the walkthrough before this one
+    // created them, so they are newer than any account snapshot we could read.
+    {
+      name: 'ruleName',
+      description: 'A rule to attach by name, if one was just created',
+      required: false,
+      default: '',
+    },
+    {
+      name: 'alertName',
+      description: 'An alert to attach by name, if one was just created',
+      required: false,
+      default: '',
+    },
+  ],
 
   buildSummary(context) {
     const best = bestCategoryFor(context)
@@ -156,21 +172,36 @@ export default {
       // No account, but still say what to type: the site. Its name almost always
       // contains it, and a named guess beats "search for the right one".
       const host = hostFrom(context.parameters?.siteUrl)
+      // `location` only gets here from the OneTrust import walkthrough ahead of this
+      // one, so its presence means the categories were just created and the host IS
+      // their name prefix — a fact rather than the guess it is otherwise.
+      const imported = Boolean(context.parameters?.location)
       consentLeg.push({
         actor: 'ai',
         targetSelector: SELECTORS.standardsSearch,
-        say: `Filtering to "${host}" — best guess at the name.`,
+        say: imported
+          ? `Filtering to "${host}" — the ones we just imported.`
+          : `Filtering to "${host}" — best guess at the name.`,
         targetFallback: { description: 'the search box in the consent categories picker' },
         action: { type: 'fill_text', value: host },
         completion: { type: 'dom_event', value: 'input' },
       })
-      consentLeg.push(attach('Attach the one that covers this site.'))
+      consentLeg.push(
+        attach(
+          imported ? 'Attach the one for this location.' : 'Attach the one that covers this site.',
+        ),
+      )
     }
 
     // startId is irrelevant here — numbered() reassigns everything at the end — so
     // the ids these come back with are placeholders.
     const stripId = ({ id: _id, ...step }) => step
     const picker = opts => standardsPickerSteps({ ...opts, startId: 1 }).map(stripId)
+
+    // Names carried in from a chained walkthrough that just created these. See the
+    // `named` branch in standardsPickerSteps.
+    const namedRule = context.parameters?.ruleName
+    const namedAlert = context.parameters?.alertName
 
     return numbered([
       ...stepsToStandardsTab().map(stripId),
@@ -180,6 +211,7 @@ export default {
         kind: 'rule',
         plural: 'rules',
         weight: r => r.usageCount ?? 0,
+        named: namedRule,
       }),
       ...consentLeg,
       openSubTab(SELECTORS.subTabAlerts, 'Alerts'),
@@ -188,6 +220,7 @@ export default {
         kind: 'alert',
         plural: 'alerts',
         weight: a => a.subscribedCount ?? 0,
+        named: namedAlert,
       }),
       saveAuditStep(null),
     ])

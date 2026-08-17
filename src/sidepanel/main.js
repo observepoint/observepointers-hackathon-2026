@@ -15,7 +15,7 @@ import { mountInput } from './input.js'
 // DEBUG — delete this import and the renderOutgoingPlan() call below to remove.
 import { renderOutgoingPlan } from './debug-plan.js'
 import { createPlan, answerAndRetry, suggestions } from '../planner/index.js'
-import { allKnownSelectors } from '../planner/recipes/index.js'
+import { allKnownSelectors, getRecipe } from '../planner/recipes/index.js'
 import { getStoredApiKey } from '../planner/llm.js'
 import {
   ONBOARDING_QUESTION,
@@ -48,6 +48,7 @@ let lastAlerts
 let lastAccountState = null // e.g. whether this user gets Quick Audit or Advanced
 let lastGoal = ''
 let lastPlan = null // so the screen can be re-checked without asking again
+let lastPlanSteps = null // every step of the chain, for the same reason
 let onboardingAnswer = null // what they said they came for, from a previous run
 
 /* ---------------------------------------------------------------------- *
@@ -132,8 +133,18 @@ async function chooseOnboarding(option, card) {
   await ask(option.goal)
 }
 
+/** The recipe's own name for a plan, for chain headings. */
+function titleOf(plan) {
+  return getRecipe(plan.recipeId)?.title ?? plan.recipeId
+}
+
 function renderPlan(result) {
   const { plan, warnings } = result
+  // A chained request is several walkthroughs — "import the consent categories,
+  // create the rule, create the alert, then audit against all three". Every part
+  // is rendered, because a card that showed only the first would understate the
+  // plan by three quarters and the user would reasonably ask where the rest went.
+  const chain = result.plans?.length ? result.plans : [plan]
 
   const card = document.createElement('div')
   card.className = 'plan'
@@ -142,19 +153,41 @@ function renderPlan(result) {
   title.textContent = plan.summary
   card.appendChild(title)
 
-  const list = document.createElement('ol')
-  for (const step of plan.steps) {
-    const li = document.createElement('li')
-    li.textContent = step.say
-    if (step.actor === 'ai') {
-      const tag = document.createElement('span')
-      tag.className = 'actor'
-      tag.textContent = 'I do this'
-      li.appendChild(tag)
+  // Numbering runs continuously across the parts, so "step 14" in the walkthrough
+  // means the same thing as "step 14" on the card.
+  let stepNumber = 0
+
+  for (const [index, part] of chain.entries()) {
+    if (chain.length > 1) {
+      const heading = document.createElement('div')
+      heading.className = 'part'
+      heading.textContent = `${index + 1}. ${titleOf(part)}`
+      card.appendChild(heading)
+
+      if (index > 0) {
+        const why = document.createElement('div')
+        why.className = 'part-summary'
+        why.textContent = part.summary
+        card.appendChild(why)
+      }
     }
-    list.appendChild(li)
+
+    const list = document.createElement('ol')
+    list.start = stepNumber + 1
+    for (const step of part.steps) {
+      stepNumber += 1
+      const li = document.createElement('li')
+      li.textContent = step.say
+      if (step.actor === 'ai') {
+        const tag = document.createElement('span')
+        tag.className = 'actor'
+        tag.textContent = 'I do this'
+        li.appendChild(tag)
+      }
+      list.appendChild(li)
+    }
+    card.appendChild(list)
   }
-  card.appendChild(list)
 
   for (const warning of warnings || []) {
     const w = document.createElement('div')
@@ -165,12 +198,14 @@ function renderPlan(result) {
 
   // Verification affordance: stand on the relevant screen, press this, and the
   // page says which of the plan's selectors actually resolve. That is what
-  // clears an `unverified: true` flag honestly.
+  // clears an `unverified: true` flag honestly. Sweeps the whole chain, since the
+  // parts share screens and a sweep of one part misses the rest.
+  const allSteps = chain.flatMap(part => part.steps)
   const check = document.createElement('button')
   check.className = 'chip'
   check.textContent = 'Check selectors on this screen'
   check.addEventListener('click', () =>
-    runSelectorCheck(plan.steps, card, check, 'Check selectors on this screen'),
+    runSelectorCheck(allSteps, card, check, 'Check selectors on this screen'),
   )
   card.appendChild(check)
 
@@ -237,13 +272,12 @@ async function runSelectorCheck(steps, card, button, label) {
  * about this one?".
  */
 async function checkCurrentScreen(button) {
-  const steps = lastPlan
-    ? lastPlan.steps
-    : allKnownSelectors().map(s => ({ id: s.id, targetSelector: s.selector }))
+  const steps =
+    lastPlanSteps ?? allKnownSelectors().map(s => ({ id: s.id, targetSelector: s.selector }))
 
   const holder = document.createElement('div')
   holder.className = 'msg note'
-  holder.textContent = lastPlan
+  holder.textContent = lastPlanSteps
     ? `Checking the ${lastPlan.recipeId} plan against this screen.`
     : `Checking all ${steps.length} known selectors against this screen.`
   transcript.appendChild(holder)
@@ -255,8 +289,14 @@ async function checkCurrentScreen(button) {
  * Handoff to Part 2
  * ---------------------------------------------------------------------- */
 
-function emitPlan(plan) {
-  chrome.runtime.sendMessage({ type: 'PLAN_READY', plan }, () => {
+/**
+ * @param {object} plan  the head of the chain — what the plan card shows
+ * @param {object[]} [plans]  the whole chain in order, when the recipe declares one.
+ *   Part 2's runner takes an ordered array, so a four-part "set the libraries up,
+ *   then audit against them" request is one handoff rather than four.
+ */
+function emitPlan(plan, plans) {
+  chrome.runtime.sendMessage({ type: 'PLAN_READY', plan, plans }, () => {
     // Part 2's listener may not exist yet — that's expected while they build,
     // and it must not surface as an error in the chat.
     void chrome.runtime.lastError
@@ -275,8 +315,9 @@ function handleResult(result) {
       // The summary is the plan card's heading — adding it as a message too
       // printed it twice.
       lastPlan = result.plan
+      lastPlanSteps = (result.plans ?? [result.plan]).flatMap(p => p.steps)
       renderPlan(result)
-      emitPlan(result.plan)
+      emitPlan(result.plan, result.plans)
       renderOutgoingPlan(transcript, result.plan) // DEBUG — delete to remove
       window.dispatchEvent(
         new CustomEvent('copilot:assistant-text', { detail: result.plan.summary }),

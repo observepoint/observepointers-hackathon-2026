@@ -1,15 +1,16 @@
 {
   "recipeId": "create_first_alert",
   "goal": "create an alert",
-  "summary": "Alerts are thresholds on report data, so the Library makes you describe the metric from scratch. If you already have an audit that has run, the bell on its report widget is easier — it fills the metric in for you. Otherwise: we'll start one called \"Alert: Broken pages go above 10\" and you set the number.",
+  "summary": "An alert is a threshold on a number in an audit report. The metric lives four levels down a nested menu, so we'll point at each one: Audits → Tag & Variable Rules → Rule Failures, greater than 0. You confirm the email.",
   "executionMode": "templated",
   "parameters": {
-    "conditionSummary": "broken pages go above 10",
-    "alertName": "Alert: Broken pages go above 10"
+    "notifyEmail": "jun@observepoint.com",
+    "siteUrl": "",
+    "threshold": "0",
+    "alertName": "Rule failures"
   },
   "steps": [
     {
-      "id": "s1",
       "actor": "user",
       "targetSelector": "[op-selector=\"sidebar-alerts\"]",
       "say": "Open Alerts under Standards in the sidebar.",
@@ -20,10 +21,10 @@
         "type": "url_change",
         "value": "/alerts"
       },
+      "id": "s1",
       "unverified": true
     },
     {
-      "id": "s2",
       "actor": "user",
       "targetSelector": "button[aria-label=\"Create Alert\"]",
       "say": "Start a new alert.",
@@ -35,45 +36,169 @@
         "condition": "visible",
         "targetSelector": "alert-name-control input"
       },
+      "id": "s2",
       "unverified": true
     },
     {
-      "id": "s3",
       "actor": "ai",
       "targetSelector": "alert-name-control input",
-      "say": "Naming it \"Alert: Broken pages go above 10\".",
+      "say": "Naming it \"Rule failures\".",
       "targetFallback": {
         "description": "the alert name field at the top of the designer"
       },
       "action": {
         "type": "fill_text",
-        "value": "Alert: Broken pages go above 10"
+        "value": "Rule failures"
       },
       "completion": {
         "type": "dom_event",
         "value": "change"
       },
+      "id": "s3",
       "unverified": true
     },
     {
+      "actor": "user",
+      "targetSelector": "input[aria-label=\"Select report metric\"]",
+      "say": "Open Report Metric.",
+      "targetFallback": {
+        "description": "the \"Report Metric\" field"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "button[mat-menu-item]"
+      },
       "id": "s4",
+      "unverified": true
+    },
+    {
       "actor": "user",
-      "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
-      "say": "Pick the report and metric to watch, set the threshold, then continue.",
+      "targetSelector": "button[mat-menu-item] >> text=Audits",
+      "say": "Open \"Audits\".",
       "targetFallback": {
-        "description": "the Next button in the alert designer"
+        "description": "\"Audits\" in the report metric menu"
       },
       "completion": {
         "type": "dom_event",
         "value": "click"
       },
-      "unverified": true
-    },
-    {
       "id": "s5",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "button[mat-menu-item] >> text=Tag & Variable Rules",
+      "say": "Open \"Tag & Variable Rules\".",
+      "targetFallback": {
+        "description": "\"Tag & Variable Rules\" in the report metric menu"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s6",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "button[mat-menu-item] >> text=Rule Failures",
+      "say": "Choose \"Rule Failures\" — that's the metric.",
+      "targetFallback": {
+        "description": "\"Rule Failures\" in the report metric menu"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]"
+      },
+      "id": "s7",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]",
+      "say": "Open Operator.",
+      "targetFallback": {
+        "description": "the Operator dropdown"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "mat-option"
+      },
+      "id": "s8",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option >> text=Greater than (>)",
+      "say": "Choose \"Greater than (>)\".",
+      "targetFallback": {
+        "description": "the \"Greater than (>)\" option"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s9",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "alert-trigger input[formControlName=\"targetValue\"]",
+      "say": "Setting the threshold to 0 — one failure is a failure.",
+      "targetFallback": {
+        "description": "the threshold value field"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "0"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      },
+      "id": "s10",
+      "unverified": true
+    },
+    {
       "actor": "user",
       "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
-      "say": "Add who should be notified, then continue.",
+      "say": "Next — on to who gets notified.",
+      "targetFallback": {
+        "description": "the Next button in the alert designer"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "mat-chip-grid#email-chip-grid input"
+      },
+      "id": "s11",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "mat-chip-grid#email-chip-grid input",
+      "say": "Typed jun@observepoint.com — press Enter to add it, then Continue.",
+      "targetFallback": {
+        "description": "the subscribers field"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "jun@observepoint.com"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      },
+      "id": "s12",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+      "say": "Next — on to which audits it applies to.",
       "targetFallback": {
         "description": "the Next button in the alert designer"
       },
@@ -81,13 +206,27 @@
         "type": "dom_event",
         "value": "click"
       },
+      "id": "s13",
       "unverified": true
     },
     {
-      "id": "s6",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"alert-designer-continue-btn\"]",
+      "say": "Next — the preview shows what would have triggered.",
+      "targetFallback": {
+        "description": "the Next button in the alert designer"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s14",
+      "unverified": true
+    },
+    {
       "actor": "user",
       "targetSelector": "[op-selector=\"alert-designer-save-btn\"]",
-      "say": "Choose the audits it applies to, then Save.",
+      "say": "Save it. It's now attachable to any audit under Standards.",
       "targetFallback": {
         "description": "the Save button in the alert designer"
       },
@@ -95,6 +234,7 @@
         "type": "dom_event",
         "value": "click"
       },
+      "id": "s15",
       "unverified": true
     }
   ]

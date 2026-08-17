@@ -36,13 +36,23 @@ export function auditNameFor(purpose) {
   }
 }
 
-/** Alert names show up in notifications, so they have to stand alone. */
+/**
+ * Alert names show up in notifications, so they have to stand alone.
+ *
+ * Two sources, because there are two ways in. A stated condition ("broken pages go
+ * above 10") is the best name there is and is used verbatim. Otherwise the metric and
+ * the site are what we know, and they still beat "Untitled alert" landing in someone's
+ * inbox — which is what this returned for the whole library path before.
+ */
 export function alertNameFrom(parameters) {
   const condition = String(parameters.conditionSummary || '').trim()
-  if (!condition) return 'Untitled alert'
+  if (condition) {
+    const trimmed = condition.length > 48 ? `${condition.slice(0, 45).trimEnd()}…` : condition
+    return `Alert: ${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`
+  }
 
-  const trimmed = condition.length > 48 ? `${condition.slice(0, 45).trimEnd()}…` : condition
-  return `Alert: ${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`
+  const host = hostFrom(parameters.siteUrl)
+  return host ? `${host} — Rule failures` : 'Rule failures'
 }
 
 /**
@@ -52,10 +62,20 @@ export function alertNameFrom(parameters) {
  */
 export function ruleNameFrom(parameters) {
   const subject = String(parameters.ruleSubject || '').trim()
-  if (!subject) return 'Untitled rule'
+  if (subject) {
+    const trimmed = subject.length > 60 ? `${subject.slice(0, 57).trimEnd()}…` : subject
+    return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`
+  }
 
-  const trimmed = subject.length > 60 ? `${subject.slice(0, 57).trimEnd()}…` : subject
-  return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`
+  // The other way in: a tag and a list of variables rather than a sentence. The
+  // assertion is "these are set on that", so that is what the name says — and it has
+  // to be a real name, because the audit's Standards picker searches for it later.
+  const tag = String(parameters.tagName || '').trim()
+  const variables = String(parameters.expectVariables || '').trim()
+  if (tag && variables) return `${tag} sets ${variables}`
+  if (tag) return `${tag} variables set`
+
+  return 'Untitled rule'
 }
 
 /**

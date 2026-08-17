@@ -12,6 +12,9 @@
  */
 
 import { recipeCatalogue, getRecipe } from './recipes/index.js'
+// The area vocabulary lives in its own module so recipes can share it without
+// closing an import cycle back through the registry. See areas.js.
+import { areasMentioned } from './areas.js'
 
 const STOPWORDS = new Set([
   'the',
@@ -146,31 +149,6 @@ export function extractParameters(goal, recipe) {
 const ALL_STANDARDS = 'audit_with_all_standards'
 const ONETRUST_IMPORT = 'import_consent_from_onetrust'
 
-/**
- * The distinctive vocabulary of each area — deliberately separate from the recipes'
- * own keyword lists, which answer a different question.
- *
- * A recipe's keywords decide "should this recipe win". These decide "did the user
- * mention this area at all", and the two are not the same. audit_with_rules claims
- * "set up an audit" and "create an audit" so that a bare audit request lands
- * somewhere sensible — but those phrases say nothing about rules, so counting them
- * here would read "set up an audit and alert me if something breaks" as two areas
- * when it is plainly one.
- *
- * Kept small. If it grows past a line per area, the honest move is a model call, not
- * a longer regex.
- */
-const AREA_SIGNALS = {
-  rules: /tag rules|variable rules|validate tags|check(ing)? tags|tags? (still )?fir/,
-  consent: /consent|gdpr|ccpa|approved (tags|cookies)|cookie compliance|unapproved|\bcmp\b/,
-  alerts: /alert|notify me|email me|tell me when|threshold/,
-}
-
-function areasMentioned(goal) {
-  const said = String(goal ?? '').toLowerCase()
-  return Object.values(AREA_SIGNALS).filter(re => re.test(said)).length
-}
-
 export function matchDeterministic(goal) {
   const wanted = tokens(goal)
   const lower = (goal || '').toLowerCase()
@@ -223,7 +201,7 @@ export function matchDeterministic(goal) {
   }
 
   // Read across recipes before picking one. See areasMentioned().
-  if (areasMentioned(goal) >= 2 && getRecipe(ALL_STANDARDS)) {
+  if (areasMentioned(goal).length >= 2 && getRecipe(ALL_STANDARDS)) {
     const combined = scored.find(s => s.recipeId === ALL_STANDARDS)
     const recipe = getRecipe(ALL_STANDARDS)
     return {

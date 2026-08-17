@@ -15,6 +15,10 @@ import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/
 import { rankForSite } from '../src/planner/account.js'
 import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
 import { unswept } from '../src/planner/recipes/_unswept.js'
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { parseTargetSelector, applyOperators, cssPartOf } from '../src/content/selector-query.js'
 import { looksLikeAmendment } from '../src/planner/amend.js'
 import {
   ONBOARDING_QUESTION,
@@ -629,13 +633,28 @@ for (const [goal, expected] of [
 /* ---------------------------------------------------------------- */
 section('a prerequisite beats the thing it feeds')
 
-// "import ours for Utah, THEN audit the site" asks for two things in order. Before
+// "import ours for Utah, THEN audit the site" asks for four things in order. Before
 // this, the areas rule fired first and routed straight to the audit -- skipping the
 // import, so the audit would then have had nothing to attach.
 const otGoal =
-  'gap.com uses OneTrust — import our consent categories for USA, Utah, then audit the site ' +
+  'observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site ' +
   'against them with tag rules and alert me if anything breaks'
-const otPlan = await createPlan(otGoal, { forceLocal: true })
+
+// The alert needs an email and nothing before it does, so the chain asks once, up
+// front, rather than stalling on step thirty. That IS the designed behaviour.
+const otAsk = await createPlan(otGoal, { forceLocal: true })
+check(
+  'the alert email is asked for before anything starts',
+  otAsk.status === 'needs_input' && otAsk.missing?.includes('notifyEmail'),
+  `${otAsk.status} ${otAsk.missing?.join(',') ?? ''}`,
+)
+check(
+  'and the question is attributed to the head, so answering re-plans the whole chain',
+  otAsk.recipeId === 'import_consent_from_onetrust',
+  otAsk.recipeId,
+)
+
+const otPlan = answerAndRetry(otAsk, 'jun@observepoint.com', otGoal)
 
 check(
   'the demo sentence starts with the import',
@@ -643,20 +662,56 @@ check(
   otPlan.plan?.recipeId ?? otPlan.status,
 )
 check(
-  'and chains into the audit rather than dropping it',
-  otPlan.plan?.chain === 'audit_with_all_standards',
-  otPlan.plan?.chain,
+  'and queues the rule, the alert and the audit after it, in dependency order',
+  JSON.stringify(otPlan.plans?.map(p => p.recipeId)) ===
+    JSON.stringify([
+      'import_consent_from_onetrust',
+      'create_tag_variable_rule',
+      'create_first_alert',
+      'audit_with_all_standards',
+    ]),
+  JSON.stringify(otPlan.plans?.map(p => p.recipeId)),
 )
-check('it pulls the site out', otPlan.plan?.parameters.siteUrl === 'https://gap.com')
+check('it pulls the site out', otPlan.plan?.parameters.siteUrl === 'https://observepoint.com')
 check(
   'and the location, which is capitalised where the rest is not',
-  otPlan.plan?.parameters.location === 'USA, Utah',
+  otPlan.plan?.parameters.location === 'Utah',
   otPlan.plan?.parameters.location,
 )
 check(
   'the location reaches the step the user has to act on',
-  otPlan.plan?.steps.some(s => s.say.includes('USA, Utah')),
+  otPlan.plan?.steps.some(s => s.say.includes('Utah')),
   otPlan.plan?.steps.map(s => s.say).join(' | '),
+)
+check(
+  'the email reaches the alert walkthrough',
+  otPlan.plans?.[2].steps.some(s => s.say.includes('jun@observepoint.com')),
+  otPlan.plans?.[2].steps.map(s => s.say).join(' | '),
+)
+
+// The point of accumulating parameters down the chain: the audit's picker searches
+// for the rule and alert the earlier walkthroughs just made, not for whatever ranked
+// highest in an account snapshot that predates them.
+const otAudit = otPlan.plans?.[3]
+check(
+  'the audit attaches the rule that was just created, by name',
+  otAudit?.steps.some(s => s.say.includes(otPlan.plans[1].parameters.ruleName)),
+  otPlan.plans?.[1].parameters.ruleName,
+)
+check(
+  'and the alert that was just created, by name',
+  otAudit?.steps.some(s => s.say.includes(otPlan.plans[2].parameters.alertName)),
+  otPlan.plans?.[2].parameters.alertName,
+)
+
+// Asking to import without asking for an audit stops when the import is done.
+const otOnly = await createPlan('import our consent categories from OneTrust for gap.com', {
+  forceLocal: true,
+})
+check(
+  'a bare import queues one walkthrough, not four',
+  otOnly.plans?.length === 1,
+  otOnly.plans?.map(p => p.recipeId).join(','),
 )
 
 // Both halves are required. Mentioning the CMP is not asking to import from it, and
@@ -692,11 +747,7 @@ section('creating a first rule, consent category or alert')
 for (const [id, params, ends] of [
   ['create_first_rule', { ruleSubject: 'GA4 fires on every page' }, 'rule-setup-save-btn'],
   ['create_first_consent_category', { siteUrl: 'gap.com' }, 'cc-create-without-report'],
-  [
-    'create_first_alert',
-    { conditionSummary: 'broken pages go above 10' },
-    'alert-designer-save-btn',
-  ],
+  ['create_first_alert', { notifyEmail: 'jun@observepoint.com' }, 'alert-designer-save-btn'],
 ]) {
   const built = buildPlan(
     RECIPES.find(r => r.id === id),
@@ -1616,6 +1667,269 @@ check('drops non-chat models', !ranked.some(m => /embedding|imagen/.test(m)))
 check(
   'deprioritises lite',
   ranked.indexOf('gemini-3.6-flash-lite') > ranked.indexOf('gemini-3.6-flash'),
+)
+
+/* ---------------------------------------------------------------- */
+section('the selector operators')
+
+// Plain CSS has to pass through untouched, or every existing recipe breaks.
+check(
+  'a selector with no operators is unchanged',
+  cssPartOf('[op-selector="cc-name"]') === '[op-selector="cc-name"]',
+)
+check('and reports no operators', parseTargetSelector('[op-selector="cc-name"]').ops.length === 0)
+
+const parsed = parseTargetSelector('input[formControlName="variable"] >> last')
+check(
+  'the CSS half is separated cleanly',
+  parsed.css === 'input[formControlName="variable"]',
+  parsed.css,
+)
+check('and the operator is named', parsed.ops[0]?.name === 'last', JSON.stringify(parsed.ops))
+
+// A label containing '=' has to survive, because the operator arg is everything
+// after the FIRST '=' and product labels are not sanitised.
+const eq = parseTargetSelector('mat-option >> text=Greater than or equal to (>=)')
+check(
+  'a label with an = in it is not truncated',
+  eq.ops[0].arg === 'Greater than or equal to (>=)',
+  eq.ops[0].arg,
+)
+
+// Element stand-ins: applyOperators only ever reads text, which is what makes it
+// testable without a browser.
+const el = text => ({ text })
+const textOf = e => e.text
+const options = [el('Greater than or equal to (≥)'), el('Greater than (>)'), el('Less than (<)')]
+
+// The reason operator labels carry their sign. "Greater than" is a PREFIX of
+// "Greater than or equal to", so a contains-match alone resolves to whichever comes
+// first in the DOM -- and in this menu that is the wrong one.
+check(
+  'an exact label beats a partial one',
+  applyOperators(options, parseTargetSelector('x >> text=Greater than (>)').ops, textOf)[0] ===
+    options[1],
+)
+check(
+  'and a partial match still works when nothing is exact',
+  applyOperators(options, parseTargetSelector('x >> text=Less than').ops, textOf)[0] === options[2],
+)
+check(
+  'case and whitespace do not matter, because labels wrap',
+  applyOperators(
+    [el('  Rule\n  Failures ')],
+    parseTargetSelector('x >> text=rule failures').ops,
+    textOf,
+  ).length === 1,
+)
+
+const rows = [el('a'), el('b'), el('c')]
+check(
+  'last picks the row that was just added',
+  applyOperators(rows, [{ name: 'last', arg: '' }], textOf)[0] === rows[2],
+)
+check(
+  'nth is 1-based, because recipes are read by people',
+  applyOperators(rows, parseTargetSelector('x >> nth=2').ops, textOf)[0] === rows[1],
+)
+check(
+  'an out-of-range nth resolves to nothing rather than the wrong row',
+  applyOperators(rows, parseTargetSelector('x >> nth=9').ops, textOf).length === 0,
+)
+check(
+  'operators compose left to right',
+  applyOperators(
+    [el('keep'), el('keep'), el('drop')],
+    parseTargetSelector('x >> text=keep >> last').ops,
+    textOf,
+  ).length === 1,
+)
+
+// A typo must degrade, not abort: pointing at roughly the right thing beats
+// killing the walkthrough.
+const typo = parseTargetSelector('mat-option >> txet=Utah')
+check(
+  'an unknown operator is reported, not thrown',
+  typo.unknown.length === 1 && typo.ops.length === 0,
+  JSON.stringify(typo),
+)
+
+/* ---------------------------------------------------------------- */
+section('who gets a Continue button')
+
+// The rule, in the user's words: "if any operation is a click, don't display
+// continue. Things where it asks user to fill something out, display continue."
+// It is derived from the operation rather than restated per step, so the check is
+// that no recipe has to carry the field except for the one shape that needs it.
+// Defaults applied the way buildPlan applies them, because a recipe asked for its
+// steps with no parameters produces its degenerate shape -- create_tag_variable_rule
+// with no variables named generates no variable rows at all, so a sweep of that
+// would check nothing and pass.
+const withDefaults = recipe => {
+  const parameters = {}
+  for (const param of recipe.parameters) {
+    if (param.derive) parameters[param.name] = param.derive(parameters)
+    else if (param.default !== undefined) parameters[param.name] = param.default
+    else if (param.example) parameters[param.name] = param.example
+  }
+  return parameters
+}
+
+const everyStep = RECIPES.flatMap(recipe => {
+  const context = { parameters: withDefaults(recipe), goal: '' }
+  const steps = recipe.steps ?? recipe.buildSteps?.(context) ?? []
+  return steps.map(step => ({ recipe: recipe.id, step }))
+})
+
+check(
+  'no ai step declares advance — filling always waits, and saying so twice invites drift',
+  everyStep.every(({ step }) => !(step.actor === 'ai' && step.advance)),
+  everyStep.find(({ step }) => step.actor === 'ai' && step.advance)?.step.id,
+)
+check(
+  'advance is only ever "continue", never "auto"',
+  everyStep.every(({ step }) => step.advance === undefined || step.advance === 'continue'),
+)
+// The one legitimate use: a step remarking on a value the app already set. Those
+// point at a control the user is NOT meant to touch, so nothing is coming.
+const remarks = everyStep.filter(({ step }) => step.advance === 'continue')
+check('the remark-only steps exist', remarks.length > 0)
+check(
+  'and every one of them is a user step with no action',
+  remarks.every(({ step }) => step.actor === 'user' && !step.action),
+)
+check(
+  'a step that says a value is "already" set never waits for a click',
+  everyStep
+    .filter(({ step }) => /\balready\b/.test(step.say) && step.actor === 'user')
+    .every(({ step }) => step.advance === 'continue'),
+  everyStep.find(
+    ({ step }) => /\balready\b/.test(step.say) && step.actor === 'user' && !step.advance,
+  )?.step.say,
+)
+
+/* ---------------------------------------------------------------- */
+section('a rule built all the way through the grid')
+
+const ruleRecipe = RECIPES.find(r => r.id === 'create_tag_variable_rule')
+const rulePlan = buildPlan(ruleRecipe, 'timing value best practice', {
+  tagName: 'Google Universal Analytics',
+  expectVariables: 'utt, utc and utv',
+})
+check('it builds', rulePlan.status === 'plan', rulePlan.message)
+
+const ruleSteps = rulePlan.plan?.steps ?? []
+check(
+  'the name is the assertion, so the audit can search for it later',
+  rulePlan.plan?.parameters.ruleName === 'Google Universal Analytics sets utt, utc and utv',
+  rulePlan.plan?.parameters.ruleName,
+)
+check(
+  '"utt, utc and utv" becomes three rows, not one',
+  ruleSteps.filter(s => /Setting the variable to "ut/.test(s.say)).length === 3,
+  ruleSteps
+    .filter(s => /Setting the variable/.test(s.say))
+    .map(s => s.say)
+    .join(' | '),
+)
+// Every row is the same input, so the only thing that distinguishes the one just
+// added is that it is last. Without this the recipe would need a generated
+// op-selector per row index.
+check(
+  'each new row is targeted as the last one',
+  ruleSteps
+    .filter(s => /Setting the variable to/.test(s.say))
+    .every(s => s.targetSelector.endsWith('>> last')),
+)
+check(
+  'the two grids are addressed separately, or the WHEN row gets filled twice',
+  ruleSteps.some(s => s.targetSelector.startsWith('if-condition ')) &&
+    ruleSteps.some(s => s.targetSelector.startsWith('then-condition ')),
+)
+check(
+  'the columns are explained once across both grids, not once per grid',
+  ruleSteps.filter(s => s.say.includes('REGEX')).length === 1,
+  ruleSteps.filter(s => s.say.includes('REGEX')).length,
+)
+check('it ends on Save', ruleSteps.at(-1).targetSelector.includes('rule-setup-save-btn'))
+check(
+  'and the save stays with the user',
+  ruleSteps.at(-1).actor === 'user' && !ruleSteps.at(-1).action,
+)
+check(
+  'every unverified step has a text fallback, because none of this is swept',
+  ruleSteps.filter(s => s.unverified).every(s => s.targetFallback?.description),
+)
+
+// "make me a rule" says nothing about what correct means, so it must NOT reach the
+// recipe that fills in a whole conditions grid from defaults.
+check(
+  '"create a rule" still reaches the starter, not the full builder',
+  matchDeterministic('create a rule').recipeId === 'create_first_rule',
+  matchDeterministic('create a rule').recipeId,
+)
+
+/* ---------------------------------------------------------------- */
+section('the alert designer, end to end')
+
+const designerRecipe = RECIPES.find(r => r.id === 'create_first_alert')
+const designerPlan = buildPlan(designerRecipe, 'alert me', {
+  notifyEmail: 'jun@observepoint.com',
+  siteUrl: 'observepoint.com',
+})
+check('it builds', designerPlan.status === 'plan', designerPlan.message)
+const designerSteps = designerPlan.plan?.steps ?? []
+check(
+  'the metric menu is walked one level at a time',
+  ['Audits', 'Tag & Variable Rules', 'Rule Failures'].every(label =>
+    designerSteps.some(s => s.targetSelector === `button[mat-menu-item] >> text=${label}`),
+  ),
+  designerSteps.map(s => s.targetSelector).join(' | '),
+)
+check(
+  'the operator is matched with its sign, since "Greater than" is a prefix of another option',
+  designerSteps.some(s => s.targetSelector.endsWith('>> text=Greater than (>)')),
+)
+check(
+  'the two commit-on-Enter fields say so, rather than looking like they worked',
+  designerSteps.filter(s => /press Enter/.test(s.say)).length === 2,
+  designerSteps
+    .filter(s => /press Enter/.test(s.say))
+    .map(s => s.say)
+    .join(' | '),
+)
+check(
+  'the email is required, so it is asked before anything starts',
+  buildPlan(designerRecipe, 'alert me', {}).status === 'needs_input',
+)
+
+/* ---------------------------------------------------------------- */
+section('the committed fixtures still match the contract')
+
+// Part 2 and Part 3 build against these files rather than running the planner, so a
+// fixture that no longer validates is a shape they are coding to that no longer
+// ships. This used to be checked by hand and recorded in INTEGRATION.md, which is
+// the same thing as not being checked.
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures')
+const fixtureFiles = readdirSync(FIXTURES).filter(f => f.endsWith('.json'))
+
+check('there are fixtures to check', fixtureFiles.length > 0)
+
+for (const file of fixtureFiles) {
+  const parsed = JSON.parse(readFileSync(join(FIXTURES, file), 'utf8'))
+  // One file is an ordered ARRAY of plans -- the chained demo -- because that is the
+  // shape startWalkthrough takes.
+  const plans = Array.isArray(parsed) ? parsed : [parsed]
+  const errors = plans.flatMap(plan => validatePlan(plan))
+  check(`${file} validates`, errors.length === 0, errors.join('; '))
+}
+
+const demoChain = JSON.parse(readFileSync(join(FIXTURES, 'plan.demo-chain.json'), 'utf8'))
+check('the demo fixture really is a chain', Array.isArray(demoChain) && demoChain.length === 4)
+check(
+  'and its head names the three that follow, in order',
+  JSON.stringify(demoChain[0].chain) === JSON.stringify(demoChain.slice(1).map(p => p.recipeId)),
+  JSON.stringify(demoChain[0].chain),
 )
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)

@@ -1,0 +1,481 @@
+{
+  "recipeId": "create_tag_variable_rule",
+  "goal": "make a rule that follows the Timing Value best practice on Google Universal Analytics — utt, utc and utv should all be set",
+  "summary": "A rule says what \"correct\" means; the audit is what checks it. This one asks Google Universal Analytics to set utt, utc, utv. Only on requests where t=timing, so it doesn't fail on every other hit. The grid has six columns and three of them are already right — we'll say which as we go.",
+  "executionMode": "templated",
+  "parameters": {
+    "tagName": "Google Universal Analytics",
+    "expectVariables": "utt, utc, utv",
+    "whenVariable": "t",
+    "whenValue": "timing",
+    "ruleName": "Google Universal Analytics sets utt, utc, utv"
+  },
+  "steps": [
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"sidebar-standards-rules\"]",
+      "say": "Open Tag & Variable Rules under Standards in the sidebar.",
+      "targetFallback": {
+        "description": "the \"Tag & Variable Rules\" link under Standards in the left sidebar"
+      },
+      "completion": {
+        "type": "url_change",
+        "value": "/rules/library"
+      },
+      "id": "s1",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "button[aria-label=\"Create Rule\"]",
+      "say": "Start a new rule.",
+      "targetFallback": {
+        "description": "the \"Create Rule\" button"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "rule-name-control input"
+      },
+      "id": "s2",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "rule-name-control input",
+      "say": "Naming it \"Google Universal Analytics sets utt, utc, utv\".",
+      "targetFallback": {
+        "description": "the rule name field at the top of the builder"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "Google Universal Analytics sets utt, utc, utv"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "change"
+      },
+      "id": "s3",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "button[aria-label=\"Add condition\"]",
+      "say": "Add a WHEN condition — it decides where this rule applies.",
+      "targetFallback": {
+        "description": "the \"Add condition\" button under WHEN"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "if-condition mat-select[formControlName=\"type\"]"
+      },
+      "id": "s4",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "if-condition mat-select[formControlName=\"type\"]",
+      "say": "Open Filter By.",
+      "targetFallback": {
+        "description": "the \"Filter By\" dropdown"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "mat-option"
+      },
+      "id": "s5",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option >> text=Tag",
+      "say": "Choose \"Tag\".",
+      "targetFallback": {
+        "description": "the \"Tag\" option"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s6",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "if-condition .main-filter mat-select[formControlName=\"matchType\"]",
+      "say": "Operator is already \"equals\" — the only one Tag offers.",
+      "targetFallback": {
+        "description": "the Operator dropdown next to Filter By"
+      },
+      "advance": "continue",
+      "completion": {
+        "type": "dom_mutation",
+        "targetSelector": "if-condition .main-filter mat-select[formControlName=\"matchType\"]"
+      },
+      "id": "s7",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "if-condition input[formControlName=\"tagId\"]",
+      "say": "Searching tags for \"Google Universal Analytics\".",
+      "targetFallback": {
+        "description": "the Value field"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "Google Universal Analytics"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s8",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option.tag-id-option >> text=Google Universal Analytics",
+      "say": "Pick Google Universal Analytics from the list.",
+      "targetFallback": {
+        "description": "Google Universal Analytics in the tag list"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s9",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-when-add-variable\"]",
+      "say": "Add a variable row.",
+      "targetFallback": {
+        "description": "the \"Add Variable\" link under the tag"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+      },
+      "id": "s10",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+      "say": "Setting the variable to \"t\".",
+      "targetFallback": {
+        "description": "the VARIABLE cell in the new row"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "t"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s11",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "if-condition rule-tag-variable-filter mat-checkbox[formControlName=\"variableMatchAsRegex\"] >> last",
+      "say": "REGEX left off — the name is exact, not a pattern.",
+      "targetFallback": {
+        "description": "the REGEX checkbox in this row"
+      },
+      "advance": "continue",
+      "completion": {
+        "type": "dom_mutation",
+        "targetSelector": "if-condition rule-tag-variable-filter mat-checkbox[formControlName=\"variableMatchAsRegex\"]"
+      },
+      "id": "s12",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "if-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+      "say": "OPERATOR is already \"equals\", which is what we want.",
+      "targetFallback": {
+        "description": "the OPERATOR cell in this row"
+      },
+      "advance": "continue",
+      "completion": {
+        "type": "dom_mutation",
+        "targetSelector": "if-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"]"
+      },
+      "id": "s13",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"selectorType\"] >> last",
+      "say": "SELECTOR is already \"String\" — we are matching the value itself.",
+      "targetFallback": {
+        "description": "the SELECTOR cell in this row"
+      },
+      "advance": "continue",
+      "completion": {
+        "type": "dom_mutation",
+        "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"selectorType\"]"
+      },
+      "id": "s14",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"value\"] >> last",
+      "say": "Setting VALUE to \"timing\".",
+      "targetFallback": {
+        "description": "the VALUE/VARIABLE cell in this row"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "timing"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s15",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "then-condition input[formControlName=\"tagId\"]",
+      "say": "Now EXPECT: the same tag again, this time as the subject.",
+      "targetFallback": {
+        "description": "the Select Tag under EXPECT field"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "Google Universal Analytics"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s16",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option.tag-id-option >> text=Google Universal Analytics",
+      "say": "Pick Google Universal Analytics from the list.",
+      "targetFallback": {
+        "description": "Google Universal Analytics in the tag list"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s17",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-expect-add-variable\"]",
+      "say": "Add a variable row.",
+      "targetFallback": {
+        "description": "the \"Add Variable\" link under the tag"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+      },
+      "id": "s18",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+      "say": "Setting the variable to \"utt\".",
+      "targetFallback": {
+        "description": "the VARIABLE cell in the new row"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "utt"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s19",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "then-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+      "say": "Set OPERATOR to \"is set\".",
+      "targetFallback": {
+        "description": "the OPERATOR cell in this row"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "mat-option"
+      },
+      "id": "s20",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option >> text=is set",
+      "say": "Choose \"is set\".",
+      "targetFallback": {
+        "description": "the \"is set\" option"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s21",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-expect-add-variable\"]",
+      "say": "Add a variable row.",
+      "targetFallback": {
+        "description": "the \"Add Variable\" link under the tag"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+      },
+      "id": "s22",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+      "say": "Setting the variable to \"utc\".",
+      "targetFallback": {
+        "description": "the VARIABLE cell in the new row"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "utc"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s23",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "then-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+      "say": "Set OPERATOR to \"is set\".",
+      "targetFallback": {
+        "description": "the OPERATOR cell in this row"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "mat-option"
+      },
+      "id": "s24",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option >> text=is set",
+      "say": "Choose \"is set\".",
+      "targetFallback": {
+        "description": "the \"is set\" option"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s25",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-expect-add-variable\"]",
+      "say": "Add a variable row.",
+      "targetFallback": {
+        "description": "the \"Add Variable\" link under the tag"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+      },
+      "id": "s26",
+      "unverified": true
+    },
+    {
+      "actor": "ai",
+      "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"] >> last",
+      "say": "Setting the variable to \"utv\".",
+      "targetFallback": {
+        "description": "the VARIABLE cell in the new row"
+      },
+      "action": {
+        "type": "fill_text",
+        "value": "utv"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s27",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "then-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"] >> last",
+      "say": "Set OPERATOR to \"is set\".",
+      "targetFallback": {
+        "description": "the OPERATOR cell in this row"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "mat-option"
+      },
+      "id": "s28",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "mat-option >> text=is set",
+      "say": "Choose \"is set\".",
+      "targetFallback": {
+        "description": "the \"is set\" option"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s29",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"rule-setup-save-btn\"]",
+      "say": "Save it. It's now attachable to any audit under Standards.",
+      "targetFallback": {
+        "description": "the Save button in the rule builder"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s30",
+      "unverified": true
+    }
+  ]
+}

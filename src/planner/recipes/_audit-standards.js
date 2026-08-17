@@ -303,8 +303,34 @@ export function stepsToStandardsTab({ startId = 1 } = {}) {
  * @param {Function} options.weight    item -> number, higher is more used
  * @param {number}   options.startId
  */
-export function standardsPickerSteps({ items, kind, plural, weight, startId }) {
+export function standardsPickerSteps({ items, kind, plural, weight, startId, named }) {
   const id = n => `s${startId + n}`
+
+  // A name we were given beats anything ranked out of the account. It comes from a
+  // chained walkthrough that just created the thing — "create the rule, then audit
+  // against it" — so the account snapshot the ranking uses predates it and cannot
+  // possibly contain it. Ranking here would attach the wrong standard and look right.
+  if (named) {
+    return [
+      {
+        id: id(0),
+        actor: 'ai',
+        targetSelector: SELECTORS.standardsSearch,
+        say: `Filtering to "${named}" — the one we just made.`,
+        targetFallback: { description: `the search box in the ${plural} picker` },
+        action: { type: 'fill_text', value: named },
+        completion: { type: 'dom_event', value: 'input' },
+      },
+      {
+        id: id(1),
+        actor: 'user',
+        targetSelector: SELECTORS.standardsAddAll,
+        say: 'Attach it.',
+        targetFallback: { description: `the "add all" button in the ${plural} picker` },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+    ]
+  }
 
   if (!Array.isArray(items)) {
     return [
