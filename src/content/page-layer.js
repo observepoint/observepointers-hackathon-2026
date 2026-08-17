@@ -318,6 +318,29 @@ export function reportCompleted(recipeId) {
 // Walkthrough runner
 // ---------------------------------------------------------------------------
 
+/**
+ * What to tell someone whose current route doesn't match where a plan starts.
+ *
+ * step.say on its own is useless here — the first step of the audit flow says
+ * "Open the create menu", which is not actionable from the Consent Categories
+ * page. The destination is the missing half.
+ *
+ * Labels rather than raw paths, because "/rules/library" is a developer's answer
+ * to "where do I go". Falls back to the path when we don't have a name for it,
+ * which is still better than not saying.
+ */
+const NAV_LABELS = {
+  '/sources': 'Data Sources',
+  '/rules/library': 'Standards → Tag & Variable Rules',
+  '/consent-categories': 'Standards → Consent Categories',
+  '/alerts': 'Standards → Alerts',
+}
+
+function navContextPrompt(step) {
+  const where = NAV_LABELS[step.navContext] ?? step.navContext
+  return `Go to <strong>${where}</strong> to begin. Then: ${step.say}`
+}
+
 export async function startWalkthrough(plans) {
   abortController = new AbortController()
   const { signal } = abortController
@@ -325,6 +348,14 @@ export async function startWalkthrough(plans) {
   for (const plan of plans) {
     for (const [stepIndex, step] of plan.steps.entries()) {
       if (!matchesNavContext(step.navContext)) {
+        // Tell the user what we are waiting for. Without this the run stalls
+        // SILENTLY: a plan whose first step is scoped to /sources, started from
+        // anywhere else, sits in the promise below with no highlight, no tooltip
+        // and no popup — indistinguishable from the extension being broken. The
+        // popup already exists for the sibling case (right route, missing
+        // element); this is the same situation from the user's point of view.
+        if (stepIndex === 0) showPrerequisitePopup(plan.goal, navContextPrompt(step))
+
         await new Promise(resolve => {
           const unsub = onRouteChange(() => {
             if (matchesNavContext(step.navContext)) {
