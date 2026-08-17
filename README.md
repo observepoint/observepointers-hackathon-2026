@@ -106,8 +106,13 @@ src/
 
 ## Docs
 
-- **[PART1.md](PART1.md)** — the plan contract, what I found reading moonbeam,
-  and the known gaps. Start here.
+- **[INTEGRATION.md](INTEGRATION.md)** — how the two halves fit together, measured
+  from a real trial merge. Read this first if you are touching both sides.
+- **[PART1.md](PART1.md)** — the plan contract, what reading moonbeam turned up,
+  and the known gaps.
+- **[PART2.md](PART2.md)** — the runtime: page layer handoff, picker, onboarding
+  UI, triggers, and the `startWalkthrough` / `endWalkthrough` / `simplifyDom`
+  contract.
 - `src/planner/recipes/index.js` — how to add a recipe.
 - `src/planner/recipes/_unswept.js` — what "verified" means here, and what has
   actually been looked at.

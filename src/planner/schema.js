@@ -77,8 +77,15 @@ function validateCompletion(completion, where, errors, stepTargetSelector) {
       if (!isStr(completion.targetSelector)) {
         errors.push(`${where}.completion.targetSelector is required for dom_mutation`)
       }
-      if (!isStr(completion.condition)) {
-        errors.push(`${where}.completion.condition is required for dom_mutation`)
+      // `condition` is optional, and the two values mean genuinely different
+      // things to the runtime:
+      //   'visible'  wait for the target to APPEAR   (Part 1's recipes)
+      //   absent     watch a target already present  (Part 2's recipes)
+      // It used to be required here, which would have forced a field into three of
+      // Part 2's recipes that their own runtime ignored. What mattered was not the
+      // field but that the runtime distinguishes the two — page-layer.js now does.
+      if (completion.condition !== undefined && !isStr(completion.condition)) {
+        errors.push(`${where}.completion.condition must be a non-empty string`)
       }
       break
     case 'network_request':

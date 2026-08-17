@@ -6,28 +6,33 @@
   "minimum_chrome_version": "114",
   "action": {
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icons/observe_pointers_16x16.png",
+      "48": "icons/observe_pointers_48x48.png",
+      "128": "icons/observe_pointers_128x128.png"
     }
-  },
-  "options_ui": {
-    "page": "src/options/index.html",
-    "open_in_tab": true
   },
   "background": {
     "service_worker": "src/background/index.js",
     "type": "module"
   },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
   "content_scripts": [
     {
       "matches": [
-        "https://*.observepoint.com/*",
+        "https://app.observepoint.com/*",
+        "https://*.app.observepoint.com/*",
+        "https://app.observepointstaging.com/*",
+        "https://*.app.observepointstaging.com/*",
         "https://*.observepointstaging.com/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],
-      "js": ["src/content/index.js"]
+      "js": ["src/content/index.js"],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "side_panel": {
@@ -36,14 +41,17 @@
   "permissions": ["storage", "activeTab", "sidePanel", "tabs", "scripting"],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
-    "https://*.observepoint.com/*",
+    "https://app.observepoint.com/*",
+    "https://*.app.observepoint.com/*",
+    "https://app.observepointstaging.com/*",
+    "https://*.app.observepointstaging.com/*",
     "https://*.observepointstaging.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/observe_pointers_16x16.png",
+    "48": "icons/observe_pointers_48x48.png",
+    "128": "icons/observe_pointers_128x128.png"
   }
 }

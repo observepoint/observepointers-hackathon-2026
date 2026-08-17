@@ -1,26 +1,66 @@
-/**
- * Background service worker — router, and the one place that talks to the API.
- *
- * WHY THE FETCH LIVES HERE
- * The first attempt made the call from the content script, on the app's own
- * origin. Every /api/* path came back 200 text/html, which means that host
- * serves the SPA for anything it doesn't recognise — the API is on a different
- * host. A content script's cross-origin fetch obeys the *page's* CORS policy;
- * the service worker's obeys the extension's host_permissions, which is why the
- * call has to happen here.
- *
- *   panel ──OP_API_GET──▶ background ──OP_AUTH_CONTEXT──▶ content script
- *                              │                              (reads token)
- *                              └──── fetch(apiBase + path) ───▶ API
- *
- * The token goes content script → background and no further. The panel only
- * ever receives JSON.
- */
+// Service worker: message router, and the one place that talks to an API.
+//
+// MERGED. Part 2's router and plan pipeline, plus Part 1's account bridge. The two
+// halves share no message types -- Part 2's are MSG.*, Part 1's are OP_* plus
+// PLAN_READY -- so this file is a concatenation rather than a compromise.
+//
+// Nothing that has to survive is kept here. MV3 terminates this worker after ~30s idle,
+// and a walkthrough spends most of its life waiting on a human to read something and
+// click -- so any state held in this context would simply evaporate mid-tour. Walkthrough
+// state belongs to the page layer, persisted to chrome.storage.local.
+//
+// What genuinely belongs here:
+//   - plan generation (the one context that should hold an API key)
+//   - the toolbar action and the side panel behaviour
+//   - tabs.onUpdated, relayed as a backup url_change signal
+//   - a central place to log step traffic when a walkthrough won't advance
+//   - the authenticated API reads, for the reason below
+//
+// WHY THE ACCOUNT FETCH LIVES HERE
+// The first attempt made the call from the content script, on the app's own origin.
+// Every /api/* path came back 200 text/html, which means that host serves the SPA for
+// anything it doesn't recognise -- the API is on a different host. A content script's
+// cross-origin fetch obeys the *page's* CORS policy; the service worker's obeys the
+// extension's host_permissions, which is why the call has to happen here.
+//
+//   panel --OP_API_GET--> background --OP_AUTH_CONTEXT--> content script
+//                              |                            (reads token)
+//                              +---- fetch(apiBase + path) ---> API
+//
+// The token goes content script -> background and no further. The panel only ever
+// receives JSON.
 
+import { MSG, sendToTab } from '../shared/messages.js'
+import { storage, KEYS } from '../shared/utils.js'
+import { recipeSummaries } from '../shared/recipes.js'
+import { generatePlan } from './generate-plan.js'
+
+console.log('[observe-pointers] service worker started')
+
+// Part 1's panel sends these; they are answered by the content script, not here.
 const FORWARD_TO_TAB = new Set(['PLAN_READY', 'OP_ACCOUNT_STATUS', 'OP_CHECK_SELECTORS'])
 
+// The toolbar opens the side panel, because that is where the chat and voice input
+// live and voice needs the extension origin.
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
+})
+
+// Part 2's picker was reached from the toolbar. It no longer can be: while
+// openPanelOnActionClick is true Chrome opens the panel and this listener never
+// fires. Kept, not deleted, because it becomes live again the moment that flag is
+// flipped -- and because the picker already has a better entry point than a toolbar
+// icon, the "Walkthroughs" item Part 2 added to the app's own Settings menu.
+chrome.action.onClicked.addListener(tab => {
+  if (tab.id) sendToTab(tab.id, MSG.OPEN_PICKER)
+})
+
+// Backup route-change signal. This does fire with changeInfo.url for History API
+// navigations, but it round-trips through a worker that may be asleep, so the content
+// script's own history patch is primary. Host permissions cover the url field here,
+// which is why the manifest needs no "tabs" permission.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url) sendToTab(tabId, MSG.URL_CHANGED, { url: changeInfo.url })
 })
 
 async function activeTab() {
@@ -153,24 +193,77 @@ async function apiGet(path) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === 'OP_API_GET') {
-    apiGet(message.path)
-      .then(sendResponse)
-      .catch(error => sendResponse({ ok: false, error: error.message }))
-    return true
+/**
+ * Handle one message. Split out so the listener can stay synchronous about its
+ * return value (see the `return true` note below).
+ */
+async function handle(type, payload, message) {
+  switch (type) {
+    case MSG.INTENT_RECEIVED:
+      return generatePlan(payload?.intent ?? '', payload?.pageContext)
+
+    case MSG.LIST_RECIPES:
+      return { recipes: recipeSummaries() }
+
+    case MSG.GET_PROFILE:
+      return { profile: await storage.sync.get(KEYS.PROFILE) }
+
+    case MSG.SAVE_PROFILE:
+      await storage.sync.set(KEYS.PROFILE, payload?.profile)
+      return { ok: true }
+
+    case MSG.RESET_PROFILE:
+      await Promise.all([
+        storage.sync.remove(KEYS.PROFILE),
+        storage.local.remove(KEYS.PROGRESS),
+        storage.local.remove(KEYS.SESSION),
+      ])
+      return { ok: true }
+
+    // The page layer owns the walkthrough, so these are observability only. Useful in
+    // the worker console when a step isn't advancing.
+    case MSG.PAGE_CONTEXT_UPDATED:
+      console.debug('[op-walkthroughs] page context', payload?.url, payload?.elements?.length)
+      return { ok: true }
+
+    case MSG.STEP_COMPLETED:
+      console.debug('[op-walkthroughs] step completed', payload?.stepIndex, 'via', payload?.via)
+      return { ok: true }
+
+    case MSG.STEP_FAILED:
+      console.warn('[op-walkthroughs] step failed', payload?.stepIndex, payload?.reason)
+      return { ok: true }
+
+    case MSG.RUNNER_STATE_CHANGED:
+      console.debug('[op-walkthroughs] walkthrough', payload?.status, payload?.recipeId)
+      return { ok: true }
+
+    // --- Part 1 ----------------------------------------------------------
+    // Flat messages, so these read off `message` rather than `payload`.
+    case 'OP_API_GET':
+      return apiGet(message?.path)
+
+    default:
+      if (FORWARD_TO_TAB.has(type)) {
+        const tab = await activeTab()
+        await ensureContentScript(tab.id)
+        return chrome.tabs.sendMessage(tab.id, message)
+      }
+      return { ok: false, error: `unhandled message type: ${type}` }
   }
+}
 
-  if (!FORWARD_TO_TAB.has(message?.type)) return false
-  ;(async () => {
-    try {
-      const tab = await activeTab()
-      await ensureContentScript(tab.id)
-      sendResponse(await chrome.tabs.sendMessage(tab.id, message))
-    } catch (error) {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const { type, payload } = message ?? {}
+
+  handle(type, payload, message)
+    .then(sendResponse)
+    .catch(error => {
+      console.error('[observe-pointers] handler threw', type, error)
       sendResponse({ ok: false, error: error.message })
-    }
-  })()
+    })
 
+  // Keeps the message channel open for the async response above. Without it, Chrome
+  // closes the port the moment this listener returns and sendResponse is a no-op.
   return true
 })

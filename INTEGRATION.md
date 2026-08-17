@@ -73,15 +73,41 @@ with `{ plan }` instead. One line. Note it takes an **array**, which is how
 emits `fill_text`, which means exactly what their `input` does — descend to
 `input, textarea, select`, set the value, fire `input` and `change`.
 
-**Fix, in `content/page-layer.js`:**
+**Fixed** in `content/page-layer.js` — `case 'fill_text':` falls through to
+`case 'input':`. Accepting both names is cheaper than renaming it across six
+recipes and every committed fixture, and Part 1's `ACTION_TYPES` accepts Part 2's
+names too.
 
-```js
-case 'fill_text':   // Part 1's name for the same thing
-case 'input': {
+## Two things the merge surfaced that neither side knew
+
+**1. `dom_mutation` resolved instantly for a target that wasn't there yet.**
+`waitForCompletion()` did `const target = document.querySelector(...); if (!target)
+return resolve()`. Part 1's plans depend on the opposite: the step that opens the
+audit editor names a selector that _does not exist yet_, so the run advanced to the
+next step before the modal opened. `condition: 'visible'` now means "wait for it to
+appear" and is honoured; absent still means "watch a node already present", which is
+what Part 2's recipes want. Both behaviours, one field.
+
+That also settled a schema argument in Part 2's favour: `condition` was _required_
+in Part 1's validator, which would have forced the field into three of Part 2's five
+recipes for something their own runtime ignored. What mattered was never the field —
+it was that the runtime distinguishes the two cases.
+
+**2. `chrome.action.onClicked` no longer fires.** While
+`setPanelBehavior({ openPanelOnActionClick: true })` is set, Chrome opens the side
+panel and that listener never runs — so the toolbar can't open the picker. Kept
+rather than deleted: it goes live the moment the flag is flipped, and the picker
+already has a better entry point than a toolbar icon in the "Walkthroughs" item
+Part 2 added to the app's own Settings menu.
+
+## Validated in both directions
+
+After the merge, every recipe on each side passes the _other_ side's validator:
+
 ```
-
-Part 1's `ACTION_TYPES` already accepts both names plus `scrollIntoView`, so
-Part 2's recipes validate against Part 1's validator today.
+Part 2 recipes -> Part 1 validator      5/5 ok
+Part 1 fixtures -> Part 2 validator     6/6 ok
+```
 
 ## Three things in the manifest that will bite
 

@@ -1,4 +1,5 @@
 import js from '@eslint/js'
+import globals from 'globals'
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended'
 
 export default [
@@ -11,25 +12,11 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: {
-        chrome: 'readonly',
-        console: 'readonly',
-        document: 'readonly',
-        setTimeout: 'readonly',
-        // AbortSignal.timeout() puts a deadline on the model call, so a hang
-        // reaches the keyword fallback instead of sitting there forever.
-        AbortSignal: 'readonly',
-        // The side panel and options pages are ordinary web pages: they use
-        // fetch for the model call, and window/navigator for speech input.
-        window: 'readonly',
-        navigator: 'readonly',
-        fetch: 'readonly',
-        CustomEvent: 'readonly',
-        Blob: 'readonly',
-        URL: 'readonly',
-        // Content script: reads the app's own origin and session storage.
-        location: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
+        // Part 2's, and better than the hand-maintained list this replaced: that
+        // one had to be extended every time a file reached for a new global, and
+        // it had already missed AbortSignal.
+        ...globals.browser,
+        ...globals.webextensions,
       },
     },
     rules: {
