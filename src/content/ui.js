@@ -106,13 +106,30 @@ function placeAbove(tip, element) {
   const tipRect = tip.getBoundingClientRect()
 
   let top = rect.top - tipRect.height - 12
-  if (top < 8) top = rect.bottom + 12
+  const isAbove = top >= 8
+  if (!isAbove) top = rect.bottom + 12
 
   let left = rect.left + rect.width / 2 - tipRect.width / 2
   left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8))
 
   tip.style.top = `${top}px`
   tip.style.left = `${left}px`
+
+  const arrowLeft = Math.max(8, Math.min(rect.left + rect.width / 2 - left - 5, tipRect.width - 18))
+  const arrow = document.createElement('div')
+  arrow.style.cssText = `
+    position: absolute;
+    ${isAbove ? 'bottom: -6px' : 'top: -6px'};
+    left: ${arrowLeft}px;
+    width: 10px;
+    height: 10px;
+    background: #1a1a2e;
+    ${isAbove
+      ? 'border-right: 2px solid #ffd700; border-bottom: 2px solid #ffd700;'
+      : 'border-left: 2px solid #ffd700; border-top: 2px solid #ffd700;'}
+    transform: rotate(45deg);
+  `
+  tip.appendChild(arrow)
 }
 
 export function removeTooltip() {
