@@ -324,6 +324,35 @@ function navContextPrompt(step) {
   return `Go to <strong>${where}</strong> to begin. Then: ${step.say}`
 }
 
+/**
+ * Wait for a step's target to show up, bounded.
+ *
+ * Bounded rather than indefinite on purpose: a step whose element genuinely never
+ * appears — a permission the account lacks, a feature flag off — should let the run
+ * carry on to the next step rather than deadlock. Ten seconds is long enough for an
+ * Angular modal and short enough not to look hung.
+ */
+function waitForElement(selector, signal, timeoutMs = 10000) {
+  return new Promise(resolve => {
+    const started = Date.now()
+    const poll = setInterval(() => {
+      const found = findVisible(selector)
+      if (found || Date.now() - started > timeoutMs || signal?.aborted) {
+        clearInterval(poll)
+        resolve(found ?? null)
+      }
+    }, 100)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearInterval(poll)
+        resolve(null)
+      },
+      { once: true },
+    )
+  })
+}
+
 export async function startWalkthrough(plans) {
   abortController = new AbortController()
   const { signal } = abortController
@@ -372,16 +401,24 @@ export async function startWalkthrough(plans) {
 
       if (signal.aborted) return
 
-      const element = findVisible(step.targetSelector)
+      // Give the target a chance to appear before giving up on it. It used to be a
+      // single lookup followed by `continue`, which silently skipped the step --
+      // and a run whose steps all skip reports Complete without showing anything.
+      // Optional steps are not worth waiting for: absent is their expected state.
+      let element = findVisible(step.targetSelector)
+      if (!element && !step.optional) {
+        element = await waitForElement(step.targetSelector, signal)
+      }
 
+      if (signal.aborted) return
       if (!element && step.optional) continue
 
       if (!element) {
         if (stepIndex === 0) {
-          showPrerequisitePopup(plan.goal, step.say)
+          showPrerequisitePopup(plan.goal, navContextPrompt(step))
           return
         }
-        console.warn(`[op-walkthroughs] could not find element: ${step.targetSelector}`)
+        console.warn(`[observe-pointers] gave up waiting for: ${step.targetSelector}`)
         continue
       }
 
@@ -464,6 +501,29 @@ function waitForCompletion(step, signal) {
         },
         { once: true },
       )
+    })
+  }
+
+  // Was missing entirely, so every dom_event completion fell through to
+  // Promise.resolve() and advanced instantly. It is in Part 2's own
+  // COMPLETION_TYPES and its validator requires `value` for it, so it was
+  // intended; Part 2's recipes only use dom_mutation and click, so nothing ever
+  // exercised it. Part 1's audit flow uses it for 6 of 10 steps, which is why a
+  // ten-step walkthrough reported Complete in about five seconds.
+  //
+  // Capture phase, because Angular handlers routinely call stopPropagation() and
+  // a bubble-phase listener on a parent would never see the event.
+  if (completion.type === 'dom_event') {
+    return new Promise(resolve => {
+      const target = findVisible(rawSelector) ?? document.querySelector(watchSelector)
+      if (!target) return resolve()
+
+      const finish = () => {
+        target.removeEventListener(completion.value, finish, true)
+        resolve()
+      }
+      target.addEventListener(completion.value, finish, true)
+      signal?.addEventListener('abort', finish, { once: true })
     })
   }
 
