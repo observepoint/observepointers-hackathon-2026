@@ -55,7 +55,9 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
       STEP ${stepIndex + 1} OF ${totalSteps}
     </div>
     <div>${text}</div>
-    ${onNext ? `
+    ${
+      onNext
+        ? `
     <button id="op-wt-next-btn" style="
       margin-top: 10px;
       width: 100%;
@@ -67,7 +69,9 @@ export function showTooltip(element, text, stepIndex, totalSteps, onNext) {
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-    ">Next →</button>` : ''}
+    ">Next →</button>`
+        : ''
+    }
   `
   document.body.appendChild(tip)
 
