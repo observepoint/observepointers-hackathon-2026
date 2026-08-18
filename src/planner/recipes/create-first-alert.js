@@ -327,7 +327,22 @@ export default {
         targetSelector: SELECTORS.save,
         say: "Save it. It's now attachable to any audit under Standards.",
         targetFallback: { description: 'the Save button in the alert designer' },
-        completion: { type: 'dom_event', value: 'click' },
+        // Waits for the MODAL TO CLOSE, not for the click.
+        //
+        // This is why the next walkthrough could not find what this one made. Advancing on
+        // the click meant the run navigated away while the save was still in flight, and
+        // the audit editor's Standards picker then read a library that genuinely did not
+        // contain it yet. The modal closing is the app's own confirmation that the save
+        // landed, and it is the only signal available from outside.
+        //
+        // Same lesson as the OneTrust sync banner, applied one screen later than it should
+        // have been: a Save whose result something downstream depends on has to wait for
+        // the save, not for the button.
+        completion: {
+          type: 'dom_mutation',
+          condition: 'hidden',
+          targetSelector: SELECTORS.name,
+        },
       },
     )
 

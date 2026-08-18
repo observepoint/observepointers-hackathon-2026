@@ -623,8 +623,9 @@
           "description": "the Save button in the rule builder"
         },
         "completion": {
-          "type": "dom_event",
-          "value": "click"
+          "type": "dom_mutation",
+          "condition": "hidden",
+          "targetSelector": "rule-name-control input"
         },
         "id": "s30"
       }
@@ -874,8 +875,9 @@
           "description": "the Save button in the alert designer"
         },
         "completion": {
-          "type": "dom_event",
-          "value": "click"
+          "type": "dom_mutation",
+          "condition": "hidden",
+          "targetSelector": "alert-name-control input"
         },
         "id": "s16"
       }

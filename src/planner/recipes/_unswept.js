@@ -202,7 +202,16 @@
  *    exists too and needs the opposite fix -- the OneTrust sync genuinely does not finish
  *    on its click, so that one waits for the banner's own "now synchronized".
  *
- *    And a third: some steps end when something DISAPPEARS. The banner's dismiss step
+ *    And a third: some steps end when something DISAPPEARS. The clearest case is a SAVE
+ *    whose result the next walkthrough reads. Advancing on the click meant the run
+ *    navigated away with the POST still in flight, and the audit editor's Standards
+ *    picker then read a library that genuinely did not contain the new rule or alert
+ *    yet — reported from a live run as "the newly created rule didn't show up". Not a
+ *    selector problem and not a cache problem; a sequencing one. The modal closing is
+ *    the app's own confirmation the save landed.
+ *
+ *    The final Save Audit is deliberately left on the click: nothing downstream reads
+ *    it, and waiting on the editor closing would add a way to stall for no gain. The banner's dismiss step
  *    listened for a click on Close and never advanced -- the snackbar tears itself down
  *    as it closes, and Escape, the Assign action and its own timeout all dismiss it
  *    without touching that button. `condition: 'hidden'` is true for all of them. Every step of the demo chain has now been watched resolve; what is left

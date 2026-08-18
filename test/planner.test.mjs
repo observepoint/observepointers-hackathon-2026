@@ -2344,5 +2344,57 @@ check(
   }).length === 0,
 )
 
+/* ---------------------------------------------------------------- */
+section('a Save the next walkthrough depends on')
+
+// Reported from a live run: the rule and the alert created by links 2 and 3 were not in
+// the audit editor's Standards picker in link 4.
+//
+// The cause was advancing on the Save CLICK. The run navigated away while the save was
+// still in flight, so the picker read a library that genuinely did not contain them yet.
+// Not a selector problem and not a cache problem — a sequencing one, and the same lesson
+// as the OneTrust sync banner applied one screen later than it should have been.
+//
+// The rule: a Save whose result something downstream reads must wait for the save. The
+// modal closing is the app's own confirmation, and the only signal available from
+// outside.
+for (const [id, params] of [
+  ['create_tag_variable_rule', { tagName: 'Google Universal Analytics', expectVariables: 'a, b' }],
+  ['create_first_alert', { notifyEmail: 'jun@observepoint.com' }],
+]) {
+  const built = buildPlan(
+    RECIPES.find(r => r.id === id),
+    'g',
+    params,
+  )
+  const last = built.plan?.steps.at(-1)
+  check(`${id} ends on Save`, /Save it/.test(last?.say ?? ''), last?.say)
+  check(
+    `${id} waits for the modal to close, not for the click`,
+    last?.completion.type === 'dom_mutation' && last?.completion.condition === 'hidden',
+    JSON.stringify(last?.completion),
+  )
+  // Witnessed by a selector inside the modal, so its absence means the modal is gone.
+  check(
+    `${id} witnesses that with something inside the modal`,
+    /name-control input$/.test(last?.completion.targetSelector ?? ''),
+    last?.completion.targetSelector,
+  )
+}
+
+// The final Save Audit is deliberately NOT changed: nothing downstream reads its result,
+// and it is the last step of the whole chain, so waiting on the editor closing would add
+// a way to stall with nothing to gain.
+const finalSave = buildPlan(
+  RECIPES.find(r => r.id === 'edit_audit_add_standards'),
+  'g',
+  { auditName: 'My First Audit', siteUrl: 'gap.com' },
+).plan?.steps.at(-1)
+check(
+  'the final Save Audit still advances on the click',
+  finalSave?.completion.type === 'dom_event',
+  JSON.stringify(finalSave?.completion),
+)
+
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)
 process.exit(failures ? 1 : 0)

@@ -438,8 +438,9 @@
         "description": "the Save button in the rule builder"
       },
       "completion": {
-        "type": "dom_event",
-        "value": "click"
+        "type": "dom_mutation",
+        "condition": "hidden",
+        "targetSelector": "rule-name-control input"
       },
       "id": "s30"
     }

@@ -465,6 +465,14 @@ The general rule, and what the tests now enforce: **if a step's completion watch
 something that is a sibling of what you are clicking rather than a consequence of
 clicking it, the completion has to be the click.** All three are `dom_event`/`click` now.
 
+**The sharpest version of this is a Save.** The rule and the alert created by links 2 and
+3 were missing from the audit editor's picker in link 4 — because those steps advanced on
+the Save _click_, so the run navigated away with the POST still in flight and the picker
+read a library that genuinely did not contain them yet. Not a selector problem and not a
+cache problem. **A Save whose result something downstream reads has to wait for the save**,
+and the modal closing is the app's own confirmation. The final Save Audit is deliberately
+left on the click: nothing reads it, so waiting would only add a way to stall.
+
 **A third case needs neither.** Some steps end when something _disappears_, and no click
 can say that: the OneTrust sync banner can be dismissed by its Close button, by Escape,
 by the Assign action or by its own timeout, and only one of those touches the button we
