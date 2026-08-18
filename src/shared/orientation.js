@@ -63,7 +63,7 @@ const INTRO_STEPS = [
     actor: 'ai',
     navContext: '*',
     targetSelector: ANCHOR.settingsWalkthroughsItem,
-    say: 'There it is. Everything we are about to cover is in here, plus one walkthrough for each thing you told us you care about. Come back any time.',
+    say: 'There it is — just note where it is, no need to open it. Everything we are about to cover is in here, plus one walkthrough for each thing you told us you care about.',
     optional: true,
     action: { type: 'scrollIntoView' },
     // Long enough to actually read the tooltip. executeAiAction defaults to 800ms.
@@ -71,6 +71,28 @@ const INTRO_STEPS = [
     // Never awaited -- page-layer branches on actor:'ai' before waitForCompletion. Here
     // only because the schema requires every step to declare one.
     completion: { type: 'dom_mutation', targetSelector: ANCHOR.settingsWalkthroughsItem },
+  },
+  {
+    // The step above highlights the Walkthroughs item and does NOT click it -- and people
+    // click highlighted things anyway. When they do, the panel opens over everything the
+    // rest of the tour is about, and the next step used to point at the Settings trigger
+    // behind it: an instruction the user could not act on, aimed at something they were
+    // not looking at.
+    //
+    // Both closers are `optional`, which is what lets one recipe cover both states: the
+    // panel's Close button only exists if the panel is open, the Settings trigger only
+    // matters if the menu is still down, and the runtime skips whichever is absent.
+    //
+    // The selector reaches into our own shadow root -- see queryEverywhere() in
+    // page-layer.js. This is the one step in the library that points at our UI rather
+    // than the app's.
+    id: 'close-walkthroughs-panel',
+    actor: 'user',
+    navContext: '*',
+    targetSelector: '[op-selector="walkthroughs-panel-close"]',
+    say: 'Close the Walkthroughs panel and we will walk the navigation.',
+    optional: true,
+    completion: { type: 'click', targetSelector: '[op-selector="walkthroughs-panel-close"]' },
   },
   {
     // The Settings menu has [hasBackdrop]="false" and our injected item carries no

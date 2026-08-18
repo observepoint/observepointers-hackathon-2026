@@ -236,9 +236,15 @@ export default {
         targetSelector: `${SELECTORS.menuItem} >> text=${label}`,
         say: last ? `Choose "${label}" — that's the metric.` : `Open "${label}".`,
         targetFallback: { description: `"${label}" in the report metric menu` },
-        completion: last
-          ? { type: 'dom_mutation', condition: 'visible', targetSelector: SELECTORS.operator }
-          : { type: 'dom_event', value: 'click' },
+        // Click for every level, including the last. The last one used to wait for the
+        // Operator field to become visible, and the sweep proved that field is ALREADY
+        // visible on the Logic step before any metric is chosen -- it reads "Select
+        // operator". So the step resolved instantly and "Rule Failures" was never
+        // pointed at; the walkthrough went from the submenu straight to the operator.
+        //
+        // .operator-control has [class.visible] bound to the metric, but the mat-select
+        // inside is laid out either way, which is what findVisible tests.
+        completion: { type: 'dom_event', value: 'click' },
       })
     })
 

@@ -742,11 +742,25 @@ check(
   unnamedEdit.plan?.steps.map(s => s.say).join(' | '),
 )
 
+// The audit's NAME is never touched: it exists, the user chose it, and overwriting it
+// is the failure that made this a separate recipe from audit_with_all_standards.
 check(
-  'the edit path never types a name or a starting URL',
-  otEdit?.steps.every(
-    s => !/audit-setup-starting-urls|audit-editor-header-name-control/.test(s.targetSelector),
-  ),
+  'the edit path never types over the audit name',
+  otEdit?.steps.every(s => !/audit-editor-header-name-control/.test(s.targetSelector)),
+  otEdit?.steps.find(s => /audit-editor-header-name-control/.test(s.targetSelector))?.say,
+)
+// The starting URL is different: the onboarding tour deliberately leaves it to the user,
+// so on the demo path it is EMPTY -- and an audit with no starting URL crawls nothing, so
+// the Standards we just attached would have nothing to run against.
+check(
+  'but it does set the starting URL, which onboarding leaves blank',
+  otEdit?.steps.some(s => /audit-setup-starting-urls/.test(s.targetSelector) && s.actor === 'ai'),
+  otEdit?.steps.map(s => s.targetSelector).join(' | '),
+)
+check(
+  'and does it before the Standards tab, not after',
+  otEdit.steps.findIndex(s => /audit-setup-starting-urls/.test(s.targetSelector)) <
+    otEdit.steps.findIndex(s => /audit-tab-standards/.test(s.targetSelector)),
 )
 
 // The point of accumulating parameters down the chain: the audit's picker searches
@@ -1225,10 +1239,6 @@ check(
         // SWAP: Next is hidden on Preview, Save hidden everywhere else. Three Nexts
         // land on Preview, and only then does a step point at Save.
         'create_first_alert',
-        // Swept end to end on /consent-categories, including the three states that
-        // only exist mid-flow: the open create menu, the open location overlay, and
-        // the post-detect result row. Nine targets and every completion.
-        'import_consent_from_onetrust',
       ].join()
     )
   })(),
@@ -2222,6 +2232,49 @@ for (const near of [
 ]) {
   check(`"${near.slice(0, 40)}…" is not the rehearsed request`, demoMatch(near) === null)
 }
+
+/* ---------------------------------------------------------------- */
+section('completions that were already true, and so skipped their step')
+
+// The failure this guards is specific and was hit twice on live runs: a step whose
+// completion is "wait for X to be visible" resolves INSTANTLY when X is already on
+// screen. The step flashes past, the user never does the thing, and the next step acts
+// on the wrong state.
+//
+//   "Add a variable row" waited for the variable grid to be visible -- true from row two
+//   onward -- so utc overwrote utt in row one.
+//   "Choose Rule Failures" waited for the Operator field, which the sweep proved is
+//   visible before any metric is picked, so the metric was never chosen.
+//
+// Both are now dom_event/click. The rule below is the general form: if a step's
+// completion watches something that is a SIBLING of the thing being clicked rather than
+// a consequence of clicking it, it has to be the click.
+const addRowSteps = everyStep.filter(({ step }) => /Add a variable row/.test(step.say))
+check('the add-row steps exist', addRowSteps.length >= 3, addRowSteps.length)
+check(
+  'and every one of them waits for the click, not for the grid',
+  addRowSteps.every(({ step }) => step.completion.type === 'dom_event'),
+  JSON.stringify(addRowSteps.find(({ step }) => step.completion.type !== 'dom_event')?.step),
+)
+
+const metricSteps = everyStep.filter(({ step }) =>
+  step.targetSelector.startsWith('button[mat-menu-item] >> text='),
+)
+check('the metric menu steps exist', metricSteps.length === 3, metricSteps.length)
+check(
+  'and all three wait for their own click, including the last',
+  metricSteps.every(({ step }) => step.completion.type === 'dom_event'),
+  JSON.stringify(metricSteps.find(({ step }) => step.completion.type !== 'dom_event')?.step),
+)
+
+// The OneTrust sync is the opposite case: the click is NOT the end of the step, because
+// the import runs behind a banner that says not to leave the page.
+const syncStep = everyStep.find(({ step }) => /Import them/.test(step.say))
+check(
+  'the sync waits for the banner to say it finished',
+  syncStep?.step.completion.targetSelector?.includes('Cookies are now synchronized'),
+  JSON.stringify(syncStep?.step.completion),
+)
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)
 process.exit(failures ? 1 : 0)

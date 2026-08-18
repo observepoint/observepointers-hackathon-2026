@@ -168,11 +168,14 @@ function variableRowSteps({ half, addSelector, name, operator, value, explain })
       targetSelector: addSelector,
       say: 'Add a variable row.',
       targetFallback: { description: 'the "Add Variable" link under the tag' },
-      completion: {
-        type: 'dom_mutation',
-        condition: 'visible',
-        targetSelector: cell(half, 'variable'),
-      },
+      // The CLICK, not the row appearing. Visibility was already true from row two
+      // onward -- the grid is on screen -- so this step resolved the instant it was
+      // shown, never waited for the click, and the fill below then went into the row
+      // that was already there. So utc overwrote utt.
+      //
+      // "A new row appeared" is not something a visibility test can say. The click is,
+      // and it is the thing we are actually asking for.
+      completion: { type: 'dom_event', value: 'click' },
     },
     {
       actor: 'ai',

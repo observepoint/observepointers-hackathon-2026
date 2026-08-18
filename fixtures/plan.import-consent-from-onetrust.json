@@ -96,15 +96,31 @@
     {
       "actor": "user",
       "targetSelector": "[op-selector=\"cc-onetrust-sync\"]",
-      "say": "Import them. Rerun this per location if you need more.",
+      "say": "Import them. This takes a moment — the banner says when it is done.",
       "targetFallback": {
         "description": "the \"Sync Categorized Cookies\" button"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".bulk-first-message >> text=Cookies are now synchronized"
+      },
+      "id": "s7",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": "#bulk-action-progress-yes-btn",
+      "say": "Done — close the banner. Rerun this per location if you need more.",
+      "targetFallback": {
+        "description": "the Close button on the sync banner"
       },
       "completion": {
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s7"
+      "id": "s8",
+      "unverified": true
     }
   ],
   "guards": ["nav-available"]

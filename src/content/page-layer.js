@@ -148,7 +148,7 @@
 //
 // ============================================================================
 
-import { ANCHOR } from '../shared/selectors.js'
+import { ANCHOR, INJECTED_ATTR } from '../shared/selectors.js'
 import { GUARDS, guardsFor, activeRemedy, appliesToStep, isConfirmed } from '../shared/guards.js'
 import { matchesNavContext, onRouteChange } from './navigation.js'
 import { parseTargetSelector, applyOperators, cssPartOf } from './selector-query.js'
@@ -307,10 +307,37 @@ function findVisible(selector) {
   // Filter to visible BEFORE applying operators, so `last` and `nth` count the
   // rows the user can see. This app leaves hidden duplicates in the DOM (the
   // mobile sidebar, torn-down overlays) and counting those points at nothing.
-  const visible = Array.from(document.querySelectorAll(resolveSelector(css))).filter(isOnScreen)
+  const visible = Array.from(queryEverywhere(resolveSelector(css))).filter(isOnScreen)
   if (!ops.length) return visible[0] ?? null
 
   return applyOperators(visible, ops)[0] ?? null
+}
+
+/**
+ * The document, plus our own shadow root.
+ *
+ * Almost everything a step points at is the app's, and document.querySelectorAll finds
+ * all of it — moonbeam uses no shadow DOM. The exception is the walkthroughs panel,
+ * which is OURS: ui/host.js mounts it in a shadow root so the app's global styles cannot
+ * reach it, which also means a recipe cannot reach it.
+ *
+ * That matters for exactly one thing, and it is a real one. The orientation tour
+ * highlights the Walkthroughs menu item to show where walkthroughs live, people click
+ * the highlighted thing, and the panel opens over the rest of the tour. The step that
+ * says "close that" has to be able to point at the panel's own Close button.
+ *
+ * Searched second, so the app always wins a tie. `mode: 'open'` is what makes this
+ * possible at all.
+ */
+function queryEverywhere(selector) {
+  const found = Array.from(document.querySelectorAll(selector))
+
+  const ownHost = document.querySelector(`[${INJECTED_ATTR}="host"]`)
+  if (ownHost?.shadowRoot) {
+    found.push(...ownHost.shadowRoot.querySelectorAll(selector))
+  }
+
+  return found
 }
 
 /**

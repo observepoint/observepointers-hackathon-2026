@@ -101,6 +101,10 @@ export function openModal(layerName, { title, subtitle, dismissable = true, onCl
   if (dismissable) {
     const closeBtn = document.createElement('button')
     closeBtn.className = 'op-close'
+    // Addressable from a recipe, via findVisible's own-shadow-root fallback. The
+    // orientation tour needs to point at this: it highlights the Walkthroughs menu item,
+    // people click highlighted things, and the panel then covers the rest of the tour.
+    closeBtn.setAttribute('op-selector', 'walkthroughs-panel-close')
     closeBtn.type = 'button'
     closeBtn.setAttribute('aria-label', 'Close')
     closeBtn.innerHTML = '<span class="op-icon">close</span>'

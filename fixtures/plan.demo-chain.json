@@ -134,15 +134,31 @@
       {
         "actor": "user",
         "targetSelector": "[op-selector=\"cc-onetrust-sync\"]",
-        "say": "Import them. Rerun this per location if you need more.",
+        "say": "Import them. This takes a moment — the banner says when it is done.",
         "targetFallback": {
           "description": "the \"Sync Categorized Cookies\" button"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": ".bulk-first-message >> text=Cookies are now synchronized"
+        },
+        "id": "s9",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "targetSelector": "#bulk-action-progress-yes-btn",
+        "say": "Done — close the banner. Rerun this per location if you need more.",
+        "targetFallback": {
+          "description": "the Close button on the sync banner"
         },
         "completion": {
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s9"
+        "id": "s10",
+        "unverified": true
       }
     ],
     "chain": ["create_tag_variable_rule", "create_first_alert", "edit_audit_add_standards"],
@@ -302,9 +318,8 @@
           "description": "the \"Add Variable\" link under the tag"
         },
         "completion": {
-          "type": "dom_mutation",
-          "condition": "visible",
-          "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+          "type": "dom_event",
+          "value": "click"
         },
         "id": "s10"
       },
@@ -422,9 +437,8 @@
           "description": "the \"Add Variable\" link under the tag"
         },
         "completion": {
-          "type": "dom_mutation",
-          "condition": "visible",
-          "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+          "type": "dom_event",
+          "value": "click"
         },
         "id": "s18"
       },
@@ -480,9 +494,8 @@
           "description": "the \"Add Variable\" link under the tag"
         },
         "completion": {
-          "type": "dom_mutation",
-          "condition": "visible",
-          "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+          "type": "dom_event",
+          "value": "click"
         },
         "id": "s22"
       },
@@ -538,9 +551,8 @@
           "description": "the \"Add Variable\" link under the tag"
         },
         "completion": {
-          "type": "dom_mutation",
-          "condition": "visible",
-          "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
+          "type": "dom_event",
+          "value": "click"
         },
         "id": "s26"
       },
@@ -716,9 +728,8 @@
           "description": "\"Rule Failures\" in the report metric menu"
         },
         "completion": {
-          "type": "dom_mutation",
-          "condition": "visible",
-          "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]"
+          "type": "dom_event",
+          "value": "click"
         },
         "id": "s7"
       },
@@ -941,6 +952,39 @@
       {
         "actor": "user",
         "navContext": "*",
+        "targetSelector": "[op-selector=\"audit-tab-url-sources\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)",
+        "say": "Open URL Sources — the crawl needs somewhere to start.",
+        "targetFallback": {
+          "description": "the \"URL Sources\" tab in the audit editor"
+        },
+        "completion": {
+          "type": "dom_mutation",
+          "condition": "visible",
+          "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea"
+        },
+        "id": "s5"
+      },
+      {
+        "actor": "ai",
+        "navContext": "*",
+        "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
+        "say": "Setting the starting URL to https://observepoint.com.",
+        "targetFallback": {
+          "description": "the Starting URLs box"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "https://observepoint.com"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s6"
+      },
+      {
+        "actor": "user",
+        "navContext": "*",
         "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
         "say": "Open the Standards tab.",
         "targetFallback": {
@@ -951,7 +995,7 @@
           "condition": "visible",
           "targetSelector": ".op-tabs.sub-menu"
         },
-        "id": "s5"
+        "id": "s7"
       },
       {
         "actor": "user",
@@ -964,7 +1008,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s6"
+        "id": "s8"
       },
       {
         "actor": "ai",
@@ -981,7 +1025,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s7"
+        "id": "s9"
       },
       {
         "actor": "user",
@@ -994,7 +1038,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s8"
+        "id": "s10"
       },
       {
         "actor": "user",
@@ -1007,7 +1051,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s9"
+        "id": "s11"
       },
       {
         "actor": "ai",
@@ -1024,7 +1068,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s10"
+        "id": "s12"
       },
       {
         "actor": "user",
@@ -1037,7 +1081,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s11"
+        "id": "s13"
       },
       {
         "actor": "user",
@@ -1050,7 +1094,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s12"
+        "id": "s14"
       },
       {
         "actor": "ai",
@@ -1067,7 +1111,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s13"
+        "id": "s15"
       },
       {
         "actor": "user",
@@ -1080,10 +1124,10 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s14"
+        "id": "s16"
       },
       {
-        "id": "s15",
+        "id": "s17",
         "actor": "user",
         "targetSelector": "[op-selector=\"web-audit-create-save\"]",
         "say": "Save Audit — nothing exists until you do.",

@@ -133,6 +133,7 @@ export default {
     const name = context.parameters?.auditName ?? 'your audit'
     // The default is prose, not something to type into a search box.
     const named = Boolean(context.parameters?.auditName) && name !== 'your audit'
+    const siteUrl = context.parameters?.siteUrl
 
     // Only the first three are new. The Standards tab and everything after it is
     // shared with audit_with_all_standards and was swept there.
@@ -188,6 +189,47 @@ export default {
           targetSelector: SELECTORS.auditEditor,
         },
       },
+      // The audit exists but has no starting URL: the onboarding tour deliberately leaves
+      // that to the user, and on the demo path nobody typed one. An audit with no
+      // starting URL crawls nothing, so the Standards we are about to attach would have
+      // nothing to run against.
+      //
+      // Only when a site was actually named. Two reasons, and the second is the sharper
+      // one. Without a URL there is nothing to type, and an 'ai' step with an empty value
+      // is rejected by the validator — which is how this was caught. And the fill
+      // REPLACES the box rather than appending to it, so on an audit that already has
+      // starting URLs it would throw them away. Naming a site is the closest thing we
+      // have to being told that is what the user wants.
+      //
+      // The audit's NAME is still never touched, under any conditions: it exists, the
+      // user chose it, and overwriting it is the failure that made this a separate recipe.
+      ...(siteUrl
+        ? [
+            {
+              actor: 'user',
+              navContext: '*',
+              targetSelector: SELECTORS.urlSourcesTab,
+              say: 'Open URL Sources — the crawl needs somewhere to start.',
+              targetFallback: { description: 'the "URL Sources" tab in the audit editor' },
+              completion: {
+                type: 'dom_mutation',
+                condition: 'visible',
+                targetSelector: SELECTORS.startingUrls,
+              },
+            },
+            {
+              actor: 'ai',
+              navContext: '*',
+              targetSelector: SELECTORS.startingUrls,
+              // Says the value, and 'ai' steps wait for Continue — so if the box already
+              // had something in it, the user sees what replaced it before we move on.
+              say: `Setting the starting URL to ${siteUrl}.`,
+              targetFallback: { description: 'the Starting URLs box' },
+              action: { type: 'fill_text', value: siteUrl },
+              completion: { type: 'dom_event', value: 'change' },
+            },
+          ]
+        : []),
       {
         actor: 'user',
         navContext: '*',

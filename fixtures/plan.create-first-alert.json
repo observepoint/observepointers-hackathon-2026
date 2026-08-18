@@ -102,9 +102,8 @@
         "description": "\"Rule Failures\" in the report metric menu"
       },
       "completion": {
-        "type": "dom_mutation",
-        "condition": "visible",
-        "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]"
+        "type": "dom_event",
+        "value": "click"
       },
       "id": "s7"
     },

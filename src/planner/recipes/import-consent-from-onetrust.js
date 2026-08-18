@@ -1,6 +1,7 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { normalizeSiteUrl } from '../naming.js'
 import { mentionsArea, wantsAudit, editsExistingAudit } from '../areas.js'
+import { unswept } from './_unswept.js'
 
 /**
  * Import consent categories from OneTrust, for one site and one location.
@@ -36,12 +37,18 @@ import { mentionsArea, wantsAudit, editsExistingAudit } from '../areas.js'
  * "search for Utah" when nobody mentioned Utah is worse than one that says "pick
  * yours".
  *
- * WAITING FOR THE DETECT
+ * WAITING TWICE, FOR TWO DIFFERENT THINGS
  *
  * Detect takes 10-30 seconds, and the honest completion is not the click — it is the
  * result appearing. `.options-selected-container` renders on
  * `detectDomain && !detectingCategories`, which is exactly "the detect finished", so
  * the step waits on that rather than advancing into a spinner.
+ *
+ * The sync then runs behind a progress banner whose own copy says "Do not close this
+ * banner, or leave this page until finished". Advancing on the click ignored that and
+ * sent the next walkthrough off to the sidebar mid-import, so that step waits for
+ * "Cookies are now synchronized" and then closes the banner — which also gets it out of
+ * the way of everything after.
  *
  * SELECTORS
  *   Added upstream — cc-import-onetrust, cc-onetrust-{url,location,detect,sync}. The
@@ -51,8 +58,9 @@ import { mentionsArea, wantsAudit, editsExistingAudit } from '../areas.js'
  *     need no patch. The `:not(.mat-select-search-hidden)` matters: the library
  *     renders TWO inputs with that class and the first is a spacer.
  *
- *   ALL OF IT IS NOW SWEPT — nine targets and every completion, on a live local
- *   moonbeam, each echoing back the element it should. This is the only recipe in the
+ *   SWEPT except the sync banner, which only exists while an import is running and so
+ *   fell between the two passes of this screen. Everything else: nine targets and every
+ *   completion, on a live local moonbeam, each echoing back the element it should. This is the only recipe in the
  *   library that has been verified end to end including the states that only exist
  *   mid-flow: the open create menu, the open location overlay, and the post-detect
  *   result row. Two things it settled that reading could not:
@@ -76,6 +84,16 @@ const SELECTORS = {
   detect: '[op-selector="cc-onetrust-detect"]',
   detected: '.options-selected-container',
   sync: '[op-selector="cc-onetrust-sync"]',
+
+  // The sync runs behind a progress snackbar (bulk-action-progress) that says
+  // "Synchronizing cookies" and, when it lands, swaps that line for "Cookies are now
+  // synchronized". The swap is the only honest completion signal: showProgressDlg is
+  // called with showFinalMessage:false, so .bulk-final-title never renders, and which
+  // footer buttons appear depends on `records` and `showSecondBtn`. The message does
+  // not -- it is messages[3], assigned to firstMessage the moment itsDone flips.
+  synced: '.bulk-first-message >> text=Cookies are now synchronized',
+  // Only rendered once `records && itsDone`, so it cannot be clicked early.
+  closeBanner: '#bulk-action-progress-yes-btn',
 }
 
 /** The default is prose ("the location you need"), not a name we can search for. */
@@ -188,7 +206,11 @@ export default {
           },
         ]
 
-    return numbered([
+    // The sync banner is the one part of this flow nobody has watched: it only exists
+    // while an import is running, and the two sweeps of this screen were done either
+    // side of that. Flagged by selector, since the ids shift with the location branch.
+    const UNSWEPT = new Set([SELECTORS.synced, SELECTORS.closeBanner])
+    const built = numbered([
       ...stepsToLibrary({
         link: NAV.consentCategoriesLink,
         label: 'Consent Categories',
@@ -241,11 +263,35 @@ export default {
       {
         actor: 'user',
         targetSelector: SELECTORS.sync,
-        say: 'Import them. Rerun this per location if you need more.',
+        say: 'Import them. This takes a moment — the banner says when it is done.',
         targetFallback: { description: 'the "Sync Categorized Cookies" button' },
+        // Not the click. The sync takes long enough that advancing on it sends the next
+        // walkthrough off to the sidebar while a banner is still saying "do not leave
+        // this page". Waiting for the finished message is both correct and what the
+        // banner itself asks for.
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: SELECTORS.synced,
+        },
+      },
+      {
+        actor: 'user',
+        targetSelector: SELECTORS.closeBanner,
+        say: 'Done — close the banner. Rerun this per location if you need more.',
+        targetFallback: { description: 'the Close button on the sync banner' },
         completion: { type: 'dom_event', value: 'click' },
       },
     ])
+
+    return unswept(
+      built,
+      built
+        .filter(
+          step => UNSWEPT.has(step.targetSelector) || UNSWEPT.has(step.completion?.targetSelector),
+        )
+        .map(step => step.id),
+    )
   },
 
   /**

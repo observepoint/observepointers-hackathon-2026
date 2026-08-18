@@ -150,8 +150,27 @@
  *                    position 3 of 8. Everything after that is shared with the create
  *                    path and was swept there.
  *
- * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole Quick
- * Audit screen. Every step of the demo chain has now been watched resolve; what is left
+ * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick Audit
+ * screen, and the OneTrust SYNC BANNER — which only exists while an import is running, so
+ * both passes of that screen missed it by timing rather than by oversight.
+ *
+ * 9. A COMPLETION THAT IS ALREADY TRUE SKIPS ITS OWN STEP. Three live-run failures, all
+ *    the same shape and all looking like different bugs: a `dom_mutation`/visible
+ *    completion resolves the instant it is set up if the target is already on screen, so
+ *    the step flashes past, the user never acts, and the next step works on the wrong
+ *    state.
+ *
+ *      "Open a Standards sub-tab" waited for .op-standards-selector -- Alerts is the
+ *      DEFAULT sub-tab, so the run went straight to searching alerts.
+ *      "Add a variable row" waited for the variable grid -- true from row two onward, so
+ *      utc was typed over utt.
+ *      "Choose Rule Failures" waited for the Operator field -- visible before any metric
+ *      is picked, so the metric was never chosen.
+ *
+ *    The rule: if a completion watches a SIBLING of the thing being clicked rather than a
+ *    consequence of clicking it, the completion has to be the click. The opposite case
+ *    exists too and needs the opposite fix -- the OneTrust sync genuinely does not finish
+ *    on its click, so that one waits for the banner's own "now synchronized". Every step of the demo chain has now been watched resolve; what is left
  * needs account states we do not have — a completed audit run for alert_from_report, an
  * account with no data sources for Quick Audit — plus one transient menu row.
  *

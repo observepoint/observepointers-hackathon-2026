@@ -428,7 +428,7 @@ flows for an account that has none of them yet.
 | `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
 | `create_first_alert`            | An alert, metric and threshold included        | ✅ all steps  |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps  |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 8/10 swept |
 
 `create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
 and the split is about the REQUEST rather than the recipe. "Make me a rule" says
@@ -445,6 +445,30 @@ tab, all rendering the same `op-standards-selector`. Fix that shared path once
 and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
+
+### A completion that is already true skips its own step
+
+Worth stating on its own, because it has now caused three separate live-run failures and
+they all looked like different bugs:
+
+**A `dom_mutation` / `visible` completion resolves instantly when its target is already
+on screen.** The step flashes past, the user never does the thing, and the NEXT step acts
+on the wrong state.
+
+| Step                     | Waited for               | Which was already true              | So                                |
+| ------------------------ | ------------------------ | ----------------------------------- | --------------------------------- |
+| Open a Standards sub-tab | `.op-standards-selector` | Alerts is the default sub-tab       | went straight to searching alerts |
+| Add a variable row       | the variable grid        | true from row two onward            | `utc` overwrote `utt`             |
+| Choose "Rule Failures"   | the Operator field       | visible before any metric is picked | the metric was never chosen       |
+
+The general rule, and what the tests now enforce: **if a step's completion watches
+something that is a sibling of what you are clicking rather than a consequence of
+clicking it, the completion has to be the click.** All three are `dom_event`/`click` now.
+
+The mirror case is worth naming too, because the fix is the opposite. The OneTrust sync
+runs behind a banner whose own copy says _"do not leave this page until finished"_ —
+there the click is emphatically not the end of the step, so it waits for _"Cookies are
+now synchronized"_ and then closes the banner.
 
 ### The rehearsed request is pinned
 
@@ -491,7 +515,7 @@ My First Audit to check the site against them with tag rules, follow the Timing
 Value best practice on Google Universal Analytics, and alert me if anything breaks
 ```
 
-**Four walkthroughs, 69 steps**, in dependency order:
+**Four walkthroughs, 73 steps**, in dependency order:
 
 | #   | Walkthrough                    | Steps | What it does                                      |
 | --- | ------------------------------ | ----- | ------------------------------------------------- |
@@ -722,7 +746,9 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **Every step of the demo chain has been watched resolve on a live page.** What is left
+- **Two steps of the demo have not been watched resolve** — the OneTrust sync banner,
+  which only exists while an import is running and so fell between the two passes of that
+  screen. What is left
   unswept needs account states we do not have: `alert_from_report` (6 steps — needs an
   audit with a completed run) and the Quick Audit branch (needs an account with no data
   sources), plus one transient menu row in `create_first_consent_category`. None is on
