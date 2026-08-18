@@ -289,8 +289,7 @@
         "type": "dom_event",
         "value": "input"
       },
-      "id": "s19",
-      "unverified": true
+      "id": "s19"
     },
     {
       "actor": "user",
@@ -304,8 +303,7 @@
         "condition": "visible",
         "targetSelector": ".grid-select-panel mat-option"
       },
-      "id": "s20",
-      "unverified": true
+      "id": "s20"
     },
     {
       "actor": "user",
@@ -350,8 +348,7 @@
         "type": "dom_event",
         "value": "input"
       },
-      "id": "s23",
-      "unverified": true
+      "id": "s23"
     },
     {
       "actor": "user",
@@ -365,8 +362,7 @@
         "condition": "visible",
         "targetSelector": ".grid-select-panel mat-option"
       },
-      "id": "s24",
-      "unverified": true
+      "id": "s24"
     },
     {
       "actor": "user",
@@ -411,8 +407,7 @@
         "type": "dom_event",
         "value": "input"
       },
-      "id": "s27",
-      "unverified": true
+      "id": "s27"
     },
     {
       "actor": "user",
@@ -426,8 +421,7 @@
         "condition": "visible",
         "targetSelector": ".grid-select-panel mat-option"
       },
-      "id": "s28",
-      "unverified": true
+      "id": "s28"
     },
     {
       "actor": "user",

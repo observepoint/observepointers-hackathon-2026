@@ -67,15 +67,18 @@ import { unswept } from './_unswept.js'
  * rule-expect-add-variable, both reading "Add Variable"; and all five WHEN grid cells
  * including their `>> last` forms.
  *
- * STILL UNSWEPT: the EXPECT grid rows (then-condition rule-tag-variable-filter …) and
- * `.grid-select-panel mat-option >> text=is set`. They need a variable row added under
- * EXPECT, which the sweep passes have not done yet.
+ * The EXPECT rows are swept too — then-condition's tag field, its add-variable link,
+ * and both `>> last` grid cells, the operator reading "equals" before it is changed.
+ *
+ * STILL UNSWEPT: `.grid-select-panel mat-option >> text=is set`, two steps, which needs
+ * a row's OPERATOR dropdown open at the moment of the sweep.
  *
  * Two things the sweep settled that reading could not:
  *
- *   - `>> last` resolves on a real grid row. Only ONE row existed when it was checked,
- *     so "the last one" and "the only one" were the same element — the mechanism is
- *     confirmed, its discrimination is not.
+ *   - `>> last` resolves on a real grid row. It has not yet been checked against a
+ *     grid with more than one row, so the mechanism is confirmed and its
+ *     discrimination is not. The sweep now reports "matched N of M" for any selector
+ *     using an operator, which is the thing that would settle it.
  *   - The tag option's visible text is the tag name WITH its category appended. That is
  *     why the contains fallback in selector-query.js has to stay: exact matching alone
  *     could never find a tag.
@@ -137,6 +140,19 @@ function variableList(value) {
 /**
  * One variable row: add it, name it, then three remarks about columns that are
  * already correct.
+ *
+ * THE STEP ORDER IS LOAD-BEARING, NOT STYLISTIC
+ *
+ * "Add Variable" carries `[class.disabled]="formData.invalid"`, and that class sets
+ * `pointer-events: none`. So the link is genuinely unclickable until the row above it
+ * is valid — you cannot add a second row before finishing the first. A walkthrough
+ * that added all three rows and then filled them would point at an element the user
+ * physically cannot click, and wait for a click that can never arrive.
+ *
+ * Hence: add, fill, SET THE OPERATOR, then add the next. The operator matters as much
+ * as the name — a row defaults to "equals", which needs a value, so a row with only a
+ * variable name in it is still invalid and still blocks the next one. "is set" is what
+ * makes the EXPECT rows valid without one.
  *
  * `explain` is only true for the first row. The defaults are the same on every row,
  * and saying so four times is how a helpful walkthrough turns into a tedious one.
@@ -467,16 +483,13 @@ export default {
       completion: { type: 'dom_event', value: 'click' },
     })
 
-    // Everything down the WHEN half is swept; the EXPECT rows and the "is set" option
-    // are not. Flagged by id against the finished list, because the ids depend on
-    // whether a precondition was asked for and how many variables were named.
+    // All that is left unswept is the OPERATOR dropdown's "is set" row, which only
+    // exists while that dropdown is open. Flagged by id against the finished list,
+    // because the ids depend on whether a precondition was asked for and how many
+    // variables were named.
     const built = numbered(steps)
     const unsweptIds = built
-      .filter(
-        step =>
-          step.targetSelector.startsWith('then-condition rule-tag-variable-filter') ||
-          step.targetSelector.includes('grid-select-panel'),
-      )
+      .filter(step => step.targetSelector.includes('grid-select-panel'))
       .map(step => step.id)
 
     return unswept(built, unsweptIds)

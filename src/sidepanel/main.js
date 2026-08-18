@@ -226,10 +226,13 @@ function renderCheck(results, page, target) {
   const body = sorted
     .map(r => {
       const mark = r.visible ? '✓' : r.found ? '·' : '✗'
+      // "matched 3 of 3" is the only thing that proves an operator did anything. On a
+      // grid with one row, `>> last` and a plain selector pick the same element.
+      const which = r.outOf ? ` [matched ${r.matched} of ${r.outOf}]` : ''
       const note = r.visible
         ? r.text
-          ? `visible — "${r.text}"`
-          : 'visible'
+          ? `visible — "${r.text}"${which}`
+          : `visible${which}`
         : r.found
           ? 'in DOM but hidden'
           : (r.error ?? 'not found')

@@ -671,12 +671,12 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **`create_first_alert` is entirely unswept, and the rule's EXPECT half isn't done.**
-  The alert designer's 16 steps have never been watched resolve.
-  `create_tag_variable_rule` is 21 of 30: everything down the WHEN half is confirmed,
-  including the tag autocomplete and all five grid cells; the EXPECT rows and the
-  `is set` option still need a pass. Note `>> last` was checked against a grid with
-  ONE row, so the mechanism is proven and its discrimination is not.
+- **`create_first_alert` is the only recipe still at zero.** Its 16 steps have never
+  been watched resolve. `create_tag_variable_rule` is 27 of 30 — both halves of the
+  grid confirmed, with only the `is set` option left, which exists solely while a
+  row's OPERATOR dropdown is open. `>> last` has still only been checked against a
+  single-row grid, so it resolves but has not had to discriminate; the sweep now
+  reports "matched N of M" for operator selectors, which is what will settle it.
 - **Label matching is proven, scoping is what needs care.** A sweep caught
   `mat-option >> text=Tag` resolving to "Adobe DTMTag Management" while the tag
   autocomplete was open — no option there reads exactly "Tag", so it fell through to

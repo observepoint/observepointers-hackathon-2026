@@ -76,11 +76,26 @@
  *                    `>> last` form — variable, the REGEX checkbox, OPERATOR
  *                    ("equals"), SELECTOR and VALUE.
  *
- *                    Note `>> last` was checked against a grid with ONE row, so the
- *                    mechanism is confirmed and its discrimination is not.
+ *                    Plus the EXPECT half: then-condition's tag field, its
+ *                    add-variable link, and both `>> last` grid cells there.
+ *
+ *                    `>> last` has not yet been checked against a grid with more than
+ *                    one row, so the mechanism is confirmed and its discrimination is
+ *                    not. The sweep now reports "matched N of M" for any selector
+ *                    carrying an operator, which is what would settle it.
+
+ *   ORDERING, learned from using the screen rather than reading it: "Add Variable"
+ *                    sets pointer-events: none while the row above is invalid. You
+ *                    cannot add a second row before finishing the first, and a row
+ *                    with only a name is still invalid because the default operator
+ *                    ("equals") wants a value. So the recipe fills AND sets the
+ *                    operator before adding the next row — reordering it would point
+ *                    at an unclickable element and wait forever.
  *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, the EXPECT half of the rule grid, and the alert designer.
+ * Audit screen, the alert designer, and — inside the otherwise-confirmed rule builder
+ * — `.grid-select-panel mat-option >> text=is set`, which only exists while a variable
+ * row's OPERATOR dropdown is open.
  *
  * 5. AN UNSCOPED OPTION SELECTOR WILL FIND THE WRONG OVERLAY, and did. Checked while
  *    the TAG autocomplete was open, `mat-option >> text=Tag` resolved to "Adobe DTMTag

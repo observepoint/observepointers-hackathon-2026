@@ -187,7 +187,8 @@ function checkSelectors(selectors) {
         selector,
         found: true,
         visible: true,
-        text: (element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+        text: describe(element),
+        ...position(selector, element),
       }
     }
 
@@ -211,14 +212,51 @@ function checkSelectors(selectors) {
     const hidden = applyOperators(candidates, ops)[0]
     if (!hidden) return { id, selector, found: false, visible: false }
 
-    return {
-      id,
-      selector,
-      found: true,
-      visible: false,
-      text: (hidden.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
-    }
+    return { id, selector, found: true, visible: false, text: describe(hidden) }
   })
+}
+
+/**
+ * What the element says, for confirming a tick landed on the right thing.
+ *
+ * Falls back to `value` because the most interesting targets in the rule grid are
+ * INPUTS, and an input has no textContent. A whole sweep of the variable grid came
+ * back as five ticks with nothing beside them — which resolves the selector and says
+ * nothing about which row it found.
+ */
+function describe(element) {
+  const text = (element.textContent || '').replace(/\s+/g, ' ').trim()
+  if (text) return text.slice(0, 40)
+
+  const value = element.value ?? element.querySelector?.('input, textarea, select')?.value
+  return value ? `value: ${String(value).slice(0, 40)}` : ''
+}
+
+/**
+ * Which of the matches did an operator pick?
+ *
+ * The only way to prove `>> last` does anything. Swept against a grid with one row,
+ * "the last one" and "the only one" are the same element and the tick means nothing;
+ * against three rows, "3 of 3" is the whole claim. Reported only when the selector
+ * uses operators, since 1 of 1 on a plain selector is noise.
+ */
+function position(selector, element) {
+  const { css, ops } = parseTargetSelector(selector)
+  if (!ops.length) return {}
+
+  try {
+    const all = Array.from(document.querySelectorAll(css)).filter(isOnScreen)
+    const index = all.indexOf(element)
+    if (index === -1) return {}
+    return { matched: index + 1, outOf: all.length }
+  } catch {
+    return {}
+  }
+}
+
+function isOnScreen(el) {
+  const rect = el.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
 }
 
 let active = false
