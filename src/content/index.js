@@ -20,7 +20,7 @@ import * as pageLayer from './page-layer.js'
 import { openPicker } from './ui/picker.js'
 import { openOnboarding } from './ui/onboarding.js'
 import * as endButton from './ui/end-button.js'
-import { cssPartOf } from './selector-query.js'
+import { parseTargetSelector, applyOperators } from './selector-query.js'
 
 /* ---------------------------------------------------------------------- *
  * PART 1's ACCOUNT BRIDGE
@@ -191,13 +191,24 @@ function checkSelectors(selectors) {
       }
     }
 
-    let hidden
+    // The same query WITHOUT the visibility filter, so "there but hidden" stays
+    // distinguishable from "not in the DOM".
+    //
+    // The operators have to be applied here too. Dropping them and matching the CSS
+    // part alone reports the wrong thing with total confidence: a sweep of the
+    // consent-category create menu said `button[mat-menu-item] >> text=Audits` was
+    // "in DOM but hidden" -- three times -- because SOME menu item existed. There is
+    // no Audits item on that menu and never was. A sweep that invents evidence is
+    // worse than one that misses.
+    const { css, ops } = parseTargetSelector(selector)
+    let candidates
     try {
-      hidden = document.querySelector(cssPartOf(selector))
+      candidates = Array.from(document.querySelectorAll(css))
     } catch {
       return { id, selector, found: false, visible: false, error: 'invalid-selector' }
     }
 
+    const hidden = applyOperators(candidates, ops)[0]
     if (!hidden) return { id, selector, found: false, visible: false }
 
     return {

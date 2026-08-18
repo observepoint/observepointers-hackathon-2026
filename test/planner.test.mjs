@@ -13,7 +13,11 @@ import { matchDeterministic } from '../src/planner/match.js'
 import { rankModels, TIMEOUT_MS } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
 import { rankForSite } from '../src/planner/account.js'
-import { RECIPES, allKnownSelectors } from '../src/planner/recipes/index.js'
+import {
+  RECIPES,
+  allKnownSelectors,
+  representativeParameters,
+} from '../src/planner/recipes/index.js'
 import { unswept } from '../src/planner/recipes/_unswept.js'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -1079,10 +1083,35 @@ check(
   'deduplicates the shared audit path',
   new Set(catalogue.map(c => c.selector)).size === catalogue.length,
 )
+// "waits for" rows are the completion selectors, which are swept too -- a completion
+// that never resolves stalls a step silently.
+const ID_RE = /^[a-z_]+\/s\d+( waits for)?$/
 check(
   'labels each with its recipe and step',
-  catalogue.every(c => /^[a-z_]+\/s\d+$/.test(c.id)),
-  catalogue.find(c => !/^[a-z_]+\/s\d+$/.test(c.id))?.id,
+  catalogue.every(c => ID_RE.test(c.id)),
+  catalogue.find(c => !ID_RE.test(c.id))?.id,
+)
+check(
+  'and sweeps what steps wait on, not just what they point at',
+  catalogue.some(c => c.id.endsWith(' waits for')),
+)
+
+// The bug this guards: buildSteps({}) returns a recipe's DEGENERATE branch, and that
+// is the branch with the fewest selectors in it. A live sweep of the OneTrust flow
+// confirmed the location picker and never looked at the search box or the option row,
+// because with no location named the recipe emits one step instead of three.
+check(
+  'the sweep sees the named-location branch, not the "pick yours" one',
+  catalogue.some(c => c.selector.startsWith('mat-option.loc-autocomplete >> text=')),
+  catalogue
+    .filter(c => c.id.startsWith('import_consent'))
+    .map(c => c.selector)
+    .join(' | '),
+)
+check(
+  'and the whole rule grid, not just the two steps that survive with no variables',
+  catalogue.filter(c => c.id.startsWith('create_tag_variable_rule/')).length > 15,
+  catalogue.filter(c => c.id.startsWith('create_tag_variable_rule/')).length,
 )
 check(
   'reaches recipes that build steps dynamically',
@@ -1093,13 +1122,21 @@ check(
   catalogue.every(c => c.selector),
 )
 
+// Every recipe's RICHEST branch. Asking with no parameters returns the degenerate
+// one, which is both the shortest and the best-verified -- so a sweep of it flatters
+// the library and a fallback check of it misses most of the steps that ship.
+const stepsOf = recipe =>
+  recipe.steps ??
+  recipe.buildSteps?.({ parameters: representativeParameters(recipe), goal: '' }) ??
+  []
+
 // Part 3 is told it can rely on this, and three of six recipes have no swept
 // selectors at all, so the fallback is load-bearing rather than decorative.
 check(
   'no step anywhere ships without a text fallback',
   (() => {
     for (const recipe of RECIPES) {
-      const steps = recipe.steps ?? recipe.buildSteps?.({ parameters: {} }) ?? []
+      const steps = stepsOf(recipe)
       const missing = steps.filter(s => !s.targetFallback?.description)
       if (missing.length) return false
     }
@@ -1112,10 +1149,11 @@ check(
 check(
   'only the swept audit recipes claim zero unverified steps',
   (() => {
-    const clean = RECIPES.filter(recipe => {
-      const steps = recipe.steps ?? recipe.buildSteps?.({ parameters: {} }) ?? []
-      return steps.filter(s => !s.optional).every(s => !s.unverified)
-    }).map(r => r.id)
+    const clean = RECIPES.filter(recipe =>
+      stepsOf(recipe)
+        .filter(s => !s.optional)
+        .every(s => !s.unverified),
+    ).map(r => r.id)
     return (
       clean.join() ===
       [

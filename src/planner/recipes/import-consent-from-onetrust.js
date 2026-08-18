@@ -118,6 +118,11 @@ export default {
       description: 'Which OneTrust location to import',
       required: false,
       default: NAMED_DEFAULT,
+      // Not just documentation: allKnownSelectors() plans with examples so the sweep
+      // sees the named-location branch, which is where the search box and the option
+      // row live. With only the default it emits one "pick yours" step and those two
+      // selectors are invisible to verification.
+      example: 'USA, Utah',
     },
   ],
   summaryTemplate:
@@ -134,6 +139,8 @@ export default {
             actor: 'user',
             targetSelector: SELECTORS.location,
             say: 'Open the location list.',
+            // The picker itself is swept; the overlay it opens is not.
+
             targetFallback: { description: 'the "From Which Location?" dropdown' },
             completion: {
               type: 'dom_mutation',
@@ -141,23 +148,28 @@ export default {
               targetSelector: SELECTORS.locationSearch,
             },
           },
-          {
-            actor: 'ai',
-            targetSelector: SELECTORS.locationSearch,
-            say: `Filtering the list to "${named}".`,
-            targetFallback: { description: 'the search box at the top of the location list' },
-            action: { type: 'fill_text', value: named },
-            completion: { type: 'dom_event', value: 'input' },
-          },
-          {
-            actor: 'user',
-            // Matched on the visible label: the locale names are OneTrust's and
-            // differ between tenants.
-            targetSelector: `${SELECTORS.locationOption} >> text=${named}`,
-            say: `Choose the ${named} row.`,
-            targetFallback: { description: `the ${named} option in the location list` },
-            completion: { type: 'dom_event', value: 'click' },
-          },
+          // Flagged by identity rather than by id: the ids shift between this
+          // three-step branch and the one-step one below, so an id list in unswept()
+          // would mark the wrong steps in half the plans.
+          ...unswept([
+            {
+              actor: 'ai',
+              targetSelector: SELECTORS.locationSearch,
+              say: `Filtering the list to "${named}".`,
+              targetFallback: { description: 'the search box at the top of the location list' },
+              action: { type: 'fill_text', value: named },
+              completion: { type: 'dom_event', value: 'input' },
+            },
+            {
+              actor: 'user',
+              // Matched on the visible label: the locale names are OneTrust's and
+              // differ between tenants.
+              targetSelector: `${SELECTORS.locationOption} >> text=${named}`,
+              say: `Choose the ${named} row.`,
+              targetFallback: { description: `the ${named} option in the location list` },
+              completion: { type: 'dom_event', value: 'click' },
+            },
+          ]),
         ]
       : [
           {
@@ -169,66 +181,64 @@ export default {
           },
         ]
 
-    return unswept(
-      numbered([
-        ...stepsToLibrary({
-          link: NAV.consentCategoriesLink,
-          label: 'Consent Categories',
-          route: '/consent-categories',
-        }).map(({ id: _id, ...step }) => step),
-        {
-          actor: 'user',
-          targetSelector: SELECTORS.createMenu,
-          say: 'Open the create menu.',
-          targetFallback: { description: 'the create button on the Consent Categories page' },
-          completion: {
-            type: 'dom_mutation',
-            condition: 'visible',
-            targetSelector: SELECTORS.importOneTrust,
-          },
-        },
-        {
-          actor: 'user',
+    return numbered([
+      ...stepsToLibrary({
+        link: NAV.consentCategoriesLink,
+        label: 'Consent Categories',
+        route: '/consent-categories',
+      }).map(({ id: _id, ...step }) => step),
+      {
+        actor: 'user',
+        targetSelector: SELECTORS.createMenu,
+        say: 'Open the create menu.',
+        targetFallback: { description: 'the create button on the Consent Categories page' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
           targetSelector: SELECTORS.importOneTrust,
-          say: 'Choose the OneTrust import.',
-          targetFallback: { description: '"Import Consent Categories" with the OneTrust logo' },
-          completion: {
-            type: 'dom_mutation',
-            condition: 'visible',
-            targetSelector: SELECTORS.url,
-          },
         },
-        {
-          actor: 'ai',
+      },
+      {
+        actor: 'user',
+        targetSelector: SELECTORS.importOneTrust,
+        say: 'Choose the OneTrust import.',
+        targetFallback: { description: '"Import Consent Categories" with the OneTrust logo' },
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
           targetSelector: SELECTORS.url,
-          say: 'Setting the site to read the banner from.',
-          targetFallback: { description: 'the "Where can the consent banner be found?" field' },
-          action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
-          completion: { type: 'dom_event', value: 'change' },
         },
-        ...locationLeg,
-        {
-          actor: 'user',
-          targetSelector: SELECTORS.detect,
-          say: 'Detect the categories. It takes 10–30 seconds.',
-          targetFallback: { description: 'the "Detect Your Consent Categories" button' },
-          // The click is not the end of this step — the detect is. Waiting on the
-          // result row means the next step never lands mid-spinner.
-          completion: {
-            type: 'dom_mutation',
-            condition: 'visible',
-            targetSelector: SELECTORS.detected,
-          },
+      },
+      {
+        actor: 'ai',
+        targetSelector: SELECTORS.url,
+        say: 'Setting the site to read the banner from.',
+        targetFallback: { description: 'the "Where can the consent banner be found?" field' },
+        action: { type: 'fill_text', value: '{{parameters.siteUrl}}' },
+        completion: { type: 'dom_event', value: 'change' },
+      },
+      ...locationLeg,
+      {
+        actor: 'user',
+        targetSelector: SELECTORS.detect,
+        say: 'Detect the categories. It takes 10–30 seconds.',
+        targetFallback: { description: 'the "Detect Your Consent Categories" button' },
+        // The click is not the end of this step — the detect is. Waiting on the
+        // result row means the next step never lands mid-spinner.
+        completion: {
+          type: 'dom_mutation',
+          condition: 'visible',
+          targetSelector: SELECTORS.detected,
         },
-        {
-          actor: 'user',
-          targetSelector: SELECTORS.sync,
-          say: 'Import them. Rerun this per location if you need more.',
-          targetFallback: { description: 'the "Sync Categorized Cookies" button' },
-          completion: { type: 'dom_event', value: 'click' },
-        },
-      ]),
-    )
+      },
+      {
+        actor: 'user',
+        targetSelector: SELECTORS.sync,
+        say: 'Import them. Rerun this per location if you need more.',
+        targetFallback: { description: 'the "Sync Categorized Cookies" button' },
+        completion: { type: 'dom_event', value: 'click' },
+      },
+    ])
   },
 
   /**

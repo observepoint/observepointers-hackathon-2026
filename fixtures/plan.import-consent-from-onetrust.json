@@ -19,8 +19,7 @@
         "type": "url_change",
         "value": "/consent-categories"
       },
-      "id": "s1",
-      "unverified": true
+      "id": "s1"
     },
     {
       "actor": "user",
@@ -34,8 +33,7 @@
         "condition": "visible",
         "targetSelector": "[op-selector=\"cc-import-onetrust\"]"
       },
-      "id": "s2",
-      "unverified": true
+      "id": "s2"
     },
     {
       "actor": "user",
@@ -49,8 +47,7 @@
         "condition": "visible",
         "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
       },
-      "id": "s3",
-      "unverified": true
+      "id": "s3"
     },
     {
       "actor": "ai",
@@ -67,8 +64,7 @@
         "type": "dom_event",
         "value": "change"
       },
-      "id": "s4",
-      "unverified": true
+      "id": "s4"
     },
     {
       "actor": "user",
@@ -81,8 +77,7 @@
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s5",
-      "unverified": true
+      "id": "s5"
     },
     {
       "actor": "user",
@@ -96,8 +91,7 @@
         "condition": "visible",
         "targetSelector": ".options-selected-container"
       },
-      "id": "s6",
-      "unverified": true
+      "id": "s6"
     },
     {
       "actor": "user",
@@ -110,8 +104,7 @@
         "type": "dom_event",
         "value": "click"
       },
-      "id": "s7",
-      "unverified": true
+      "id": "s7"
     }
   ]
 }

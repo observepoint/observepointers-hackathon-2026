@@ -128,6 +128,8 @@ export default {
       description: 'Which site should this alert watch',
       required: false,
       default: '',
+      // Gates the URL-filter step, so the sweep needs it. See allKnownSelectors().
+      example: 'https://www.example.com',
     },
     {
       name: 'threshold',

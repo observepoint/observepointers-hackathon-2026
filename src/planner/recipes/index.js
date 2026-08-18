@@ -98,6 +98,32 @@ export const recipeCatalogue = () =>
   }))
 
 /**
+ * A representative parameter set, for asking a recipe what its steps look like.
+ *
+ * `{}` is the wrong question. A recipe asked for its steps with no parameters
+ * produces its DEGENERATE branch, and that branch is exactly the one with the fewest
+ * selectors in it. A live sweep of the OneTrust flow came back with the location
+ * picker confirmed and the search box and option row absent — not because they were
+ * missing from the page, but because with no location named the recipe emits one
+ * "pick yours" step instead of three. The two selectors that most needed looking at
+ * were the two the sweep could not see.
+ *
+ * `example` beats `default`, because they mean different things. An example is by
+ * definition a real value someone might supply. A default is frequently the
+ * nothing-was-said fallback — "the location you need" — which is what selects the
+ * thin branch in the first place.
+ */
+export function representativeParameters(recipe) {
+  const parameters = {}
+  for (const param of recipe.parameters ?? []) {
+    if (param.example) parameters[param.name] = param.example
+    else if (param.default) parameters[param.name] = param.default
+    else if (param.derive) parameters[param.name] = param.derive(parameters)
+  }
+  return parameters
+}
+
+/**
  * Every distinct selector across the library, for verifying a screen without
  * first asking a question.
  *
@@ -112,13 +138,25 @@ export function allKnownSelectors() {
     let steps = recipe.steps
     if (!steps && recipe.buildSteps) {
       try {
-        steps = recipe.buildSteps({ parameters: {} })
+        steps = recipe.buildSteps({ parameters: representativeParameters(recipe), goal: '' })
       } catch {
         steps = []
       }
     }
 
     for (const step of steps ?? []) {
+      // What the step WAITS on, as well as what it points at. A completion selector
+      // that never resolves stalls the walkthrough silently, which is the failure
+      // worth the most to catch and the one nothing was checking.
+      const waitsFor = step.completion?.targetSelector
+      if (waitsFor && waitsFor !== step.targetSelector && !seen.has(waitsFor)) {
+        seen.set(waitsFor, {
+          id: `${recipe.id}/${step.id} waits for`,
+          selector: waitsFor,
+          say: step.say,
+        })
+      }
+
       if (!step.targetSelector || seen.has(step.targetSelector)) continue
       // Kept whole, operators included. The sweep runs them through the same
       // findVisible the runtime uses, so "the option labelled Utah" is exactly the

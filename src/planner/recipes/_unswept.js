@@ -25,6 +25,17 @@
  *   CC library       button[aria-label="CREATE"], and the open create menu
  *   CC create form   cc-name, cc-create-without-report ("Create without
  *                    selecting a report" — the only enabled primary there)
+ *   CC create menu   cc-create-new-category ("Create a New Consent Category") and
+ *                    cc-import-onetrust ("Import Consent Categories") — both echoed
+ *                    back the right label, which is the check that matters here
+ *                    given note 1 below
+ *   OneTrust modal   cc-onetrust-url, cc-onetrust-location ("USA, Utah"),
+ *                    cc-onetrust-detect ("Detect Your Consent Categories"),
+ *                    cc-onetrust-sync ("Sync Categorized Cookies"). All seven
+ *                    selectors added upstream for this flow resolve, to the right
+ *                    elements. Note Sync is visible BEFORE the detect runs, so it
+ *                    is not gated — which is why the detect step waits on
+ *                    .options-selected-container rather than on Sync appearing.
  *
  * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
  *
@@ -42,8 +53,26 @@
  *    the hidden one. Reading the template found all eight buttons; only the
  *    sweep said which one was on screen.
  *
- * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole
- * Quick Audit screen.
+ * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
+ * Audit screen, the rule conditions grid, the alert designer, and — inside the
+ * otherwise-confirmed OneTrust flow — the location overlay's search box and option
+ * rows, plus .options-selected-container, which only exists after a detect completes.
+ *
+ * 3. A SWEEP CAN INVENT EVIDENCE, and did. Two of the OneTrust sweeps reported
+ *    `button[mat-menu-item] >> text=Audits` as "in DOM but hidden" on the consent
+ *    category create menu. There is no Audits item on that menu. The hidden-fallback
+ *    was matching the CSS part with the operators stripped, so ANY menu item on the
+ *    page satisfied it. Fixed in content/index.js — the fallback now applies the
+ *    operators too — but the lesson generalises: a ✓ or a · is a claim, and the echoed
+ *    text is the only thing that substantiates it.
+ *
+ * 4. THE SWEEP ONLY SEES THE BRANCH IT ASKS FOR. allKnownSelectors() used to build
+ *    every recipe with no parameters, which returns the DEGENERATE branch — the
+ *    shortest one. The first OneTrust sweep therefore confirmed the location picker
+ *    and never looked at the search box or the option row inside it, because with no
+ *    location named the recipe emits one "pick yours" step instead of three. The two
+ *    selectors most in need of verification were the two it could not see. It now
+ *    plans with each parameter's `example`.
  *
  * Plus one that is awkward rather than unvisited — the consent-category menu row
  * exists only while the menu is open, a state that lasts between two steps. It is
