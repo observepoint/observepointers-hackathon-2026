@@ -1,6 +1,6 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { normalizeSiteUrl } from '../naming.js'
-import { mentionsArea, wantsAudit } from '../areas.js'
+import { mentionsArea, wantsAudit, editsExistingAudit } from '../areas.js'
 
 /**
  * Import consent categories from OneTrust, for one site and one location.
@@ -267,7 +267,13 @@ export default {
     const links = []
     if (mentionsArea(context.goal, 'rules')) links.push('create_tag_variable_rule')
     if (mentionsArea(context.goal, 'alerts')) links.push('create_first_alert')
-    links.push('audit_with_all_standards')
+
+    // Edit the audit that exists, or build one. The create path types a name and a
+    // starting URL, so running it against an existing audit overwrites two fields
+    // nobody asked about and leaves the account with two audits.
+    links.push(
+      editsExistingAudit(context.goal) ? 'edit_audit_add_standards' : 'audit_with_all_standards',
+    )
     return links
   },
 }

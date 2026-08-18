@@ -14,7 +14,7 @@
 import { recipeCatalogue, getRecipe } from './recipes/index.js'
 // The area vocabulary lives in its own module so recipes can share it without
 // closing an import cycle back through the registry. See areas.js.
-import { areasMentioned } from './areas.js'
+import { areasMentioned, editsExistingAudit } from './areas.js'
 
 const STOPWORDS = new Set([
   'the',
@@ -148,6 +148,17 @@ export function extractParameters(goal, recipe) {
       // A quoted phrase is almost always the thing they want it called.
       const m = goal.match(QUOTED_RE)
       if (m) found[param.name] = m[1]
+      // Otherwise, for an audit specifically: "edit My First Audit to add…". The name
+      // of a thing that already exists is written capitalised and unquoted, and the
+      // walkthrough has to match it against a card, so guessing wrong is worse than
+      // not guessing. Anchored on the verb rather than on capitalisation alone, which
+      // would have swallowed "OneTrust" and every place name in the sentence.
+      else if (name === 'auditname') {
+        const named = goal.match(
+          /\b(?:edit|update|modify|change)\s+((?:[A-Z][\w'-]*)(?:\s+[A-Z][\w'-]*)*)/,
+        )
+        if (named) found[param.name] = named[1]
+      }
     } else if (name.includes('location') || name.includes('region')) {
       const location = extractLocation(goal)
       if (location) found[param.name] = location
@@ -185,6 +196,7 @@ export function extractParameters(goal, recipe) {
  */
 const ALL_STANDARDS = 'audit_with_all_standards'
 const ONETRUST_IMPORT = 'import_consent_from_onetrust'
+const EDIT_STANDARDS = 'edit_audit_add_standards'
 
 export function matchDeterministic(goal) {
   const wanted = tokens(goal)
@@ -231,6 +243,18 @@ export function matchDeterministic(goal) {
     const recipe = getRecipe(ONETRUST_IMPORT)
     return {
       recipeId: ONETRUST_IMPORT,
+      parameters: extractParameters(goal, recipe),
+      confidence: 0.7,
+      matchedBy: 'keywords',
+    }
+  }
+
+  // Two areas AND an audit that already exists: edit it, do not build a second one.
+  // Checked before the combined-audit rule below, which would otherwise win and create.
+  if (areasMentioned(goal).length >= 2 && editsExistingAudit(goal) && getRecipe(EDIT_STANDARDS)) {
+    const recipe = getRecipe(EDIT_STANDARDS)
+    return {
+      recipeId: EDIT_STANDARDS,
       parameters: extractParameters(goal, recipe),
       confidence: 0.7,
       matchedBy: 'keywords',

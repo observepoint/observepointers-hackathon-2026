@@ -1,12 +1,10 @@
 import {
-  SELECTORS,
   stepsToStandardsTab,
-  standardsPickerSteps,
+  standardsSubTabSteps,
   saveAuditStep,
   auditParameters,
 } from './_audit-standards.js'
-import { bestCategoryFor } from './audit-with-consent-categories.js'
-import { hostFrom } from '../naming.js'
+import { bestCategoryFor } from './_consent-matching.js'
 
 /**
  * One audit, all three Standards.
@@ -49,25 +47,6 @@ import { hostFrom } from '../naming.js'
 function numbered(steps, startId = 1) {
   return steps.map((step, i) => ({ ...step, id: `s${startId + i}` }))
 }
-
-const openSubTab = (selector, label) => ({
-  actor: 'user',
-  targetSelector: selector,
-  say: `Open ${label}.`,
-  targetFallback: { description: `the "${label}" sub-tab under Standards` },
-  // Click, not visibility — see the note in audit-with-consent-categories.js. This
-  // recipe walks all three sub-tabs in turn, so a visibility completion would have
-  // been wrong for two of three legs and accidentally right for the third.
-  completion: { type: 'dom_event', value: 'click' },
-})
-
-const attach = say => ({
-  actor: 'user',
-  targetSelector: SELECTORS.standardsAddAll,
-  say,
-  targetFallback: { description: 'the "add all" button in the picker' },
-  completion: { type: 'dom_event', value: 'click' },
-})
 
 export default {
   id: 'audit_with_all_standards',
@@ -144,84 +123,14 @@ export default {
   },
 
   buildSteps(context) {
-    const best = bestCategoryFor(context)
-
-    const consentLeg = [openSubTab(SELECTORS.subTabConsentCategories, 'Consent Categories')]
-    if (best) {
-      consentLeg.push({
-        actor: 'ai',
-        targetSelector: SELECTORS.standardsSearch,
-        say:
-          best.search === best.name
-            ? `Filtering to "${best.name}".`
-            : `Filtering to ${best.search} — ${best.others + 1} of your categories cover it.`,
-        targetFallback: { description: 'the search box in the consent categories picker' },
-        action: { type: 'fill_text', value: best.search },
-        completion: { type: 'dom_event', value: 'input' },
-      })
-      consentLeg.push(
-        attach(
-          best.search !== best.name
-            ? `Pick the one for your region and attach it — ${best.others + 1} match.`
-            : best.others
-              ? `Attach it. ${best.others} other categor${best.others === 1 ? 'y covers' : 'ies cover'} this site if you need more than one.`
-              : 'Attach it.',
-        ),
-      )
-    } else {
-      // No account, but still say what to type: the site. Its name almost always
-      // contains it, and a named guess beats "search for the right one".
-      const host = hostFrom(context.parameters?.siteUrl)
-      // `location` only gets here from the OneTrust import walkthrough ahead of this
-      // one, so its presence means the categories were just created and the host IS
-      // their name prefix — a fact rather than the guess it is otherwise.
-      const imported = Boolean(context.parameters?.location)
-      consentLeg.push({
-        actor: 'ai',
-        targetSelector: SELECTORS.standardsSearch,
-        say: imported
-          ? `Filtering to "${host}" — the ones we just imported.`
-          : `Filtering to "${host}" — best guess at the name.`,
-        targetFallback: { description: 'the search box in the consent categories picker' },
-        action: { type: 'fill_text', value: host },
-        completion: { type: 'dom_event', value: 'input' },
-      })
-      consentLeg.push(
-        attach(
-          imported ? 'Attach the one for this location.' : 'Attach the one that covers this site.',
-        ),
-      )
-    }
-
-    // startId is irrelevant here — numbered() reassigns everything at the end — so
-    // the ids these come back with are placeholders.
+    // The three legs live in _audit-standards.js, because edit_audit_add_standards
+    // needs exactly them and nothing else. From the Standards tab onward the two
+    // recipes are the same walkthrough; they differ only in how they get there.
     const stripId = ({ id: _id, ...step }) => step
-    const picker = opts => standardsPickerSteps({ ...opts, startId: 1 }).map(stripId)
-
-    // Names carried in from a chained walkthrough that just created these. See the
-    // `named` branch in standardsPickerSteps.
-    const namedRule = context.parameters?.ruleName
-    const namedAlert = context.parameters?.alertName
 
     return numbered([
       ...stepsToStandardsTab().map(stripId),
-      openSubTab(SELECTORS.subTabRules, 'Tag & Variable Rules'),
-      ...picker({
-        items: context?.account?.rules,
-        kind: 'rule',
-        plural: 'rules',
-        weight: r => r.usageCount ?? 0,
-        named: namedRule,
-      }),
-      ...consentLeg,
-      openSubTab(SELECTORS.subTabAlerts, 'Alerts'),
-      ...picker({
-        items: context?.account?.alerts,
-        kind: 'alert',
-        plural: 'alerts',
-        weight: a => a.subscribedCount ?? 0,
-        named: namedAlert,
-      }),
+      ...standardsSubTabSteps(context).map(stripId),
       saveAuditStep(null),
     ])
   },

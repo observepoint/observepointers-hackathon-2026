@@ -143,8 +143,19 @@
  *                    operator before adding the next row — reordering it would point
  *                    at an unclickable element and wait forever.
  *
- * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole
- * Quick Audit screen. That is the entire remainder: alert_from_report needs an audit
+ * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
+ * Audit screen, and the three steps that get from Data Sources into an EXISTING audit's
+ * editor — the Audits & Journeys sidebar link, the card's overflow menu, and its Edit
+ * item. Everything edit_audit_add_standards does after that is shared with the create
+ * path and was swept there.
+ *
+ * Worth knowing about that path, because reading found it and nothing else would:
+ * clicking an audit card opens its REPORT. The editor is behind the card's ⋮ menu, and
+ * editAudit() opens AuditEditorComponent with panelClass 'op-audit-editor' — the same
+ * advanced editor the create flow lands in, which is why the Standards half transfers
+ * unchanged. The card's own selector embeds its id (sources-view-card-audit-1234), so
+ * it can only be reached by prefix and the copy names the audit rather than pretending
+ * to point at it. That is the entire remainder: alert_from_report needs an audit
  * with a completed run, and the Quick Audit branch needs an account with no data
  * sources. Everything else in the library has been watched resolve.
  *

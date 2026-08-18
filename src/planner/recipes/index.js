@@ -15,6 +15,9 @@
  *   audit_with_rules               Tag & Variable Rules
  *   audit_with_consent_categories  Consent Categories (privacy)
  *   audit_with_alerts              Alerts
+ *   edit_audit_add_standards       the same three, on an audit that already exists —
+ *                                  which is what "edit My First Audit to add…" means,
+ *                                  and what the onboarding walkthrough leaves behind
  *   audit_with_all_standards       all three at once, because they are three
  *                                  sub-tabs of ONE screen — ask for more than one
  *                                  and you used to get exactly one, silently
@@ -60,6 +63,7 @@ import auditWithRules from './audit-with-rules.js'
 import auditWithConsentCategories from './audit-with-consent-categories.js'
 import auditWithAlerts from './audit-with-alerts.js'
 import auditWithAllStandards from './audit-with-all-standards.js'
+import editAuditAddStandards from './edit-audit-add-standards.js'
 import alertFromReport from './alert-from-report.js'
 import createFirstRule from './create-first-rule.js'
 import createTagVariableRule from './create-tag-variable-rule.js'
@@ -72,6 +76,7 @@ export const RECIPES = [
   auditWithConsentCategories,
   auditWithAlerts,
   auditWithAllStandards,
+  editAuditAddStandards,
   alertFromReport,
   createFirstRule,
   createTagVariableRule,

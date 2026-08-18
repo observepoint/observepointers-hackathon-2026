@@ -52,3 +52,24 @@ const AUDIT_VERBS = /\baudit(s|ing|ed)?\b|\bscan(s|ning|ned)?\b|\bcrawl\b|\bmoni
 export function wantsAudit(goal) {
   return AUDIT_VERBS.test(String(goal ?? ''))
 }
+
+/**
+ * Is this about an audit that already EXISTS?
+ *
+ * The difference decides whether the chain ends by creating an audit or by editing
+ * one, and getting it wrong is not a cosmetic error: the create path types a name and
+ * a starting URL, so running it against an existing audit would overwrite two fields
+ * nobody asked to change — and leave the account with two audits where the user
+ * expected one.
+ *
+ * "edit"/"update" are the explicit signals. The implicit one is a possessive or
+ * demonstrative attached to the word audit — "my audit", "the audit", "that audit" —
+ * which is how people refer to something already in front of them. "an audit" and "a
+ * new audit" are deliberately not matched.
+ */
+const EXISTING_AUDIT =
+  /\b(edit|update|modify|change)\b|\b(my|the|that|this|our|existing)\s+(first\s+)?audit\b/i
+
+export function editsExistingAudit(goal) {
+  return EXISTING_AUDIT.test(String(goal ?? ''))
+}

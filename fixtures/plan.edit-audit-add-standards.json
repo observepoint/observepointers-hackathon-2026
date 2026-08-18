@@ -1,0 +1,205 @@
+{
+  "recipeId": "edit_audit_add_standards",
+  "goal": "edit My First Audit to add rules, consent categories and alerts",
+  "summary": "My First Audit already exists, so this edits it rather than building another one. Rules, Consent Categories and Alerts are three sub-tabs of one Standards screen, so all three go on in one pass.",
+  "executionMode": "templated",
+  "parameters": {
+    "auditName": "My First Audit",
+    "siteUrl": ""
+  },
+  "steps": [
+    {
+      "actor": "user",
+      "navContext": "*",
+      "targetSelector": "[op-selector=\"sidebar-data-sources-audits-journeys\"]",
+      "say": "Open Audits & Journeys in the sidebar.",
+      "targetFallback": {
+        "description": "the \"Audits & Journeys\" link in the left sidebar"
+      },
+      "completion": {
+        "type": "url_change",
+        "value": "/sources"
+      },
+      "id": "s1",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "navContext": "/sources",
+      "targetSelector": "[op-selector^=\"sources-view-card-audit-\"] button[op-selector=\"open-menu-options-btn\"]",
+      "say": "Open the ⋮ menu on My First Audit.",
+      "targetFallback": {
+        "description": "the overflow menu on the My First Audit card"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": "button.op-menu-item"
+      },
+      "id": "s2",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "navContext": "/sources",
+      "targetSelector": "button.op-menu-item >> text=Edit",
+      "say": "Choose Edit — that opens the full editor, not the report.",
+      "targetFallback": {
+        "description": "\"Edit\" in the card menu"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".op-audit-editor"
+      },
+      "id": "s3",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "navContext": "*",
+      "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
+      "say": "Open the Standards tab.",
+      "targetFallback": {
+        "description": "the \"Standards\" tab in the audit editor"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "visible",
+        "targetSelector": ".op-tabs.sub-menu"
+      },
+      "id": "s4"
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"standards-tab-rules\"]",
+      "say": "Open Tag & Variable Rules.",
+      "targetFallback": {
+        "description": "the \"Tag & Variable Rules\" sub-tab under Standards"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s5"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .search-input",
+      "say": "Search your rules.",
+      "targetFallback": {
+        "description": "the search box in the rules picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s6"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .add-all-standards-btn",
+      "say": "Add the rules you want.",
+      "targetFallback": {
+        "description": "the \"add all\" button in the rules picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s7"
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"standards-tab-consent-categories\"]",
+      "say": "Open Consent Categories.",
+      "targetFallback": {
+        "description": "the \"Consent Categories\" sub-tab under Standards"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s8"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .search-input",
+      "say": "Search for the category that covers this site.",
+      "targetFallback": {
+        "description": "the search box in the consent categories picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s9"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .add-all-standards-btn",
+      "say": "Attach the one that covers this site.",
+      "targetFallback": {
+        "description": "the \"add all\" button in the picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s10"
+    },
+    {
+      "actor": "user",
+      "targetSelector": "[op-selector=\"standards-tab-alerts\"]",
+      "say": "Open Alerts.",
+      "targetFallback": {
+        "description": "the \"Alerts\" sub-tab under Standards"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s11"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .search-input",
+      "say": "Search your alerts.",
+      "targetFallback": {
+        "description": "the search box in the alerts picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "input"
+      },
+      "id": "s12"
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".op-standards-selector .add-all-standards-btn",
+      "say": "Add the alerts you want.",
+      "targetFallback": {
+        "description": "the \"add all\" button in the alerts picker"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      },
+      "id": "s13"
+    },
+    {
+      "id": "s14",
+      "actor": "user",
+      "targetSelector": "[op-selector=\"web-audit-create-save\"]",
+      "say": "Save Audit — nothing exists until you do.",
+      "targetFallback": {
+        "description": "the \"Save Audit\" button at the bottom of the editor"
+      },
+      "completion": {
+        "type": "dom_event",
+        "value": "click"
+      }
+    }
+  ],
+  "guards": ["nav-available"]
+}

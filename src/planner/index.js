@@ -18,7 +18,7 @@
  */
 
 import { getRecipe, RECIPES } from './recipes/index.js'
-import { matchDeterministic, matchWithModel } from './match.js'
+import { matchDeterministic, matchWithModel, extractParameters } from './match.js'
 import { render } from './template.js'
 import { validatePlan } from './schema.js'
 import { GeminiClient, getStoredApiKey } from './llm.js'
@@ -278,6 +278,21 @@ function expandChain({
     }
 
     seen.add(nextId)
+
+    // Let each link read the original sentence for what it needs and nobody before it
+    // asked for. `auditName` is the case that forced this: "edit My First Audit to add
+    // rules and alert me" chains through three recipes that have no business knowing
+    // an audit's name, so by the time the link that DOES care is built, the name is
+    // gone and it addresses "your audit" instead. Extraction is per recipe, so a link
+    // only ever sees parameters it declares.
+    //
+    // Carried values win. They are either what the user answered or what an earlier
+    // link resolved, and both beat a regex over the same sentence.
+    const fromGoal = extractParameters(plan.goal, nextRecipe)
+    for (const [key, value] of Object.entries(fromGoal)) {
+      if (carried[key] === undefined || carried[key] === '') carried[key] = value
+    }
+
     const result = buildPlan(nextRecipe, plan.goal, carried, {
       ...context,
       __chainSeen: seen,

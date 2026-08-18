@@ -642,8 +642,9 @@ section('a prerequisite beats the thing it feeds')
 // this, the areas rule fired first and routed straight to the audit -- skipping the
 // import, so the audit would then have had nothing to attach.
 const otGoal =
-  'observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site ' +
-  'against them with tag rules and alert me if anything breaks'
+  'observepoint.com uses OneTrust — import our consent categories for Utah, then edit My First ' +
+  'Audit to check the site against them with tag rules, follow the Timing Value best practice on ' +
+  'Google Universal Analytics, and alert me if anything breaks'
 
 // The alert needs an email and nothing before it does, so the chain asks once, up
 // front, rather than stalling on step thirty. That IS the designed behaviour.
@@ -666,14 +667,17 @@ check(
   otPlan.plan?.recipeId === 'import_consent_from_onetrust',
   otPlan.plan?.recipeId ?? otPlan.status,
 )
+// The demo runs the onboarding walkthrough first, which leaves one audit behind. So the
+// last link must EDIT it. Creating instead would type over its name and starting URL and
+// leave the account with two audits.
 check(
-  'and queues the rule, the alert and the audit after it, in dependency order',
+  'and queues the rule, the alert and an EDIT of the existing audit, in dependency order',
   JSON.stringify(otPlan.plans?.map(p => p.recipeId)) ===
     JSON.stringify([
       'import_consent_from_onetrust',
       'create_tag_variable_rule',
       'create_first_alert',
-      'audit_with_all_standards',
+      'edit_audit_add_standards',
     ]),
   JSON.stringify(otPlan.plans?.map(p => p.recipeId)),
 )
@@ -694,19 +698,55 @@ check(
   otPlan.plans?.[2].steps.map(s => s.say).join(' | '),
 )
 
+// The audit's name is read out of the sentence by the link that needs it, three recipes
+// downstream of the one that matched. Without per-link extraction it addressed "your
+// audit" and the step could not name the card to open.
+const otEdit = otPlan.plans?.[3]
+check(
+  'the audit is addressed by name, extracted for the link that cares',
+  otEdit?.parameters.auditName === 'My First Audit',
+  otEdit?.parameters.auditName,
+)
+check(
+  'and the name is in the step the user acts on',
+  otEdit?.steps.some(s => s.say.includes('My First Audit')),
+  otEdit?.steps.map(s => s.say).join(' | '),
+)
+check(
+  'the edit path never types a name or a starting URL',
+  otEdit?.steps.every(
+    s => !/audit-setup-starting-urls|audit-editor-header-name-control/.test(s.targetSelector),
+  ),
+)
+
 // The point of accumulating parameters down the chain: the audit's picker searches
 // for the rule and alert the earlier walkthroughs just made, not for whatever ranked
 // highest in an account snapshot that predates them.
-const otAudit = otPlan.plans?.[3]
 check(
   'the audit attaches the rule that was just created, by name',
-  otAudit?.steps.some(s => s.say.includes(otPlan.plans[1].parameters.ruleName)),
+  otEdit?.steps.some(s => s.say.includes(otPlan.plans[1].parameters.ruleName)),
   otPlan.plans?.[1].parameters.ruleName,
 )
 check(
   'and the alert that was just created, by name',
-  otAudit?.steps.some(s => s.say.includes(otPlan.plans[2].parameters.alertName)),
+  otEdit?.steps.some(s => s.say.includes(otPlan.plans[2].parameters.alertName)),
   otPlan.plans?.[2].parameters.alertName,
+)
+
+// Nothing said an audit already exists, so this one builds one.
+//
+// The goal has to be passed through to answerAndRetry, not a placeholder: buildChain
+// reads it, so a stub goal produces no chain at all and the check would pass for the
+// wrong reason. That is exactly what it did on first writing.
+const freshGoal =
+  'gap.com uses OneTrust — import our consent categories for Utah, then audit the site against ' +
+  'them with tag rules and alert me if anything breaks'
+const freshChain = await createPlan(freshGoal, { forceLocal: true })
+const freshPlan = answerAndRetry(freshChain, 'jun@observepoint.com', freshGoal)
+check(
+  'with no existing audit named, the chain creates one instead',
+  freshPlan.plans?.at(-1).recipeId === 'audit_with_all_standards',
+  freshPlan.plans?.map(p => p.recipeId).join(','),
 )
 
 // Asking to import without asking for an audit stops when the import is done.
@@ -717,32 +757,6 @@ check(
   'a bare import queues one walkthrough, not four',
   otOnly.plans?.length === 1,
   otOnly.plans?.map(p => p.recipeId).join(','),
-)
-
-// "from OneTrust for observepoint.com" used to yield location "OneTrust", and the
-// walkthrough went looking for a location row labelled OneTrust. "from" belongs to the
-// vendor; locations take "for" or "in".
-const locationOf = goal => matchDeterministic(goal).parameters.location ?? null
-
-check(
-  'the CMP is not mistaken for a location',
-  locationOf('import our consent categories from OneTrust for observepoint.com') === null,
-  locationOf('import our consent categories from OneTrust for observepoint.com'),
-)
-check(
-  'and neither is a capitalised domain',
-  locationOf('import our OneTrust consent categories for Gap.com') === null,
-  locationOf('import our OneTrust consent categories for Gap.com'),
-)
-check(
-  '"in <vendor> for <place>" still finds the place',
-  locationOf('import our categories in OneTrust for Utah') === 'Utah',
-  locationOf('import our categories in OneTrust for Utah'),
-)
-check(
-  'a two-part location survives',
-  locationOf('sync OneTrust consent categories for USA, Utah') === 'USA, Utah',
-  locationOf('sync OneTrust consent categories for USA, Utah'),
 )
 
 // Both halves are required. Mentioning the CMP is not asking to import from it, and

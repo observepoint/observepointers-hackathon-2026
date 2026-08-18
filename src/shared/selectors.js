@@ -176,6 +176,7 @@ export const SIDEBAR_ANCHORS = new Set([
   '[op-selector="sidebar-create-new"]',
   '[op-selector="sidebar-standards-consent-categories"]',
   '[op-selector="sidebar-alerts"]',
+  '[op-selector="sidebar-data-sources-audits-journeys"]',
   ANCHOR.navReports,
   ANCHOR.navDataSources,
   ANCHOR.navTriggeredAlerts,

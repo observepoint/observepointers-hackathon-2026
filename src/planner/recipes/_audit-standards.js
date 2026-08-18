@@ -45,7 +45,11 @@
  *     fallback and the sub-tabs deliberately do not.
  */
 
-import { auditNameFor, normalizeSiteUrl } from '../naming.js'
+import { auditNameFor, normalizeSiteUrl, hostFrom } from '../naming.js'
+// Only for standardsSubTabSteps, which plans the consent leg against the account.
+// From _consent-matching.js rather than the recipe: importing it from there closed a
+// cycle, since that recipe imports SELECTORS from this file.
+import { bestCategoryFor } from './_consent-matching.js'
 
 export const SELECTORS = {
   // The sidebar, which is reachable from every screen in the app — including the
@@ -456,3 +460,127 @@ export const auditParameters = purpose => [
     derive: auditNameFor(purpose),
   },
 ]
+
+/**
+ * The three Standards legs: open each sub-tab, filter it, attach.
+ *
+ * Extracted here because TWO recipes need exactly this and nothing else differs
+ * between them. audit_with_all_standards prefixes it with "create the audit";
+ * edit_audit_add_standards prefixes it with "open the audit that exists". From the
+ * Standards tab onward they are the same walkthrough, and this is the part of it that
+ * has been swept — so duplicating it would have meant one verified copy and one not.
+ *
+ * Ids are placeholders: both callers renumber the finished list, because the length of
+ * the consent leg depends on the account.
+ */
+export function standardsSubTabSteps(context) {
+  const best = bestCategoryFor(context)
+
+  const consentLeg = [openSubTab(SELECTORS.subTabConsentCategories, 'Consent Categories')]
+  if (best) {
+    consentLeg.push({
+      actor: 'ai',
+      targetSelector: SELECTORS.standardsSearch,
+      say:
+        best.search === best.name
+          ? `Filtering to "${best.name}".`
+          : `Filtering to ${best.search} — ${best.others + 1} of your categories cover it.`,
+      targetFallback: { description: 'the search box in the consent categories picker' },
+      action: { type: 'fill_text', value: best.search },
+      completion: { type: 'dom_event', value: 'input' },
+    })
+    consentLeg.push(
+      attach(
+        best.search !== best.name
+          ? `Pick the one for your region and attach it — ${best.others + 1} match.`
+          : best.others
+            ? `Attach it. ${best.others} other categor${best.others === 1 ? 'y covers' : 'ies cover'} this site if you need more than one.`
+            : 'Attach it.',
+      ),
+    )
+  } else {
+    // No account, but still say what to type: the site. Its name almost always
+    // contains it, and a named guess beats "search for the right one".
+    const host = hostFrom(context.parameters?.siteUrl)
+    // `location` only gets here from the OneTrust import walkthrough ahead of this
+    // one, so its presence means the categories were just created and the host IS
+    // their name prefix — a fact rather than the guess it is otherwise.
+    const imported = Boolean(context.parameters?.location)
+
+    // No host to guess with. Ask rather than type: an 'ai' fill with an empty value is
+    // rejected by the validator, and rightly — it would clear the search box and call
+    // that helping. Reached by edit_audit_add_standards when no site was named, since
+    // it has no starting URL of its own to borrow one from.
+    consentLeg.push(
+      host
+        ? {
+            actor: 'ai',
+            targetSelector: SELECTORS.standardsSearch,
+            say: imported
+              ? `Filtering to "${host}" — the ones we just imported.`
+              : `Filtering to "${host}" — best guess at the name.`,
+            targetFallback: { description: 'the search box in the consent categories picker' },
+            action: { type: 'fill_text', value: host },
+            completion: { type: 'dom_event', value: 'input' },
+          }
+        : {
+            actor: 'user',
+            targetSelector: SELECTORS.standardsSearch,
+            say: 'Search for the category that covers this site.',
+            targetFallback: { description: 'the search box in the consent categories picker' },
+            completion: { type: 'dom_event', value: 'input' },
+          },
+    )
+    consentLeg.push(
+      attach(
+        imported ? 'Attach the one for this location.' : 'Attach the one that covers this site.',
+      ),
+    )
+  }
+
+  const stripId = ({ id: _id, ...step }) => step
+  const picker = opts => standardsPickerSteps({ ...opts, startId: 1 }).map(stripId)
+
+  return [
+    // Names carried in from a chained walkthrough that just created these. See the
+    // `named` branch in standardsPickerSteps.
+    openSubTab(SELECTORS.subTabRules, 'Tag & Variable Rules'),
+    ...picker({
+      items: context?.account?.rules,
+      kind: 'rule',
+      plural: 'rules',
+      weight: r => r.usageCount ?? 0,
+      named: context.parameters?.ruleName,
+    }),
+    ...consentLeg,
+    openSubTab(SELECTORS.subTabAlerts, 'Alerts'),
+    ...picker({
+      items: context?.account?.alerts,
+      kind: 'alert',
+      plural: 'alerts',
+      weight: a => a.subscribedCount ?? 0,
+      named: context.parameters?.alertName,
+    }),
+  ].map((step, i) => ({ ...step, id: `sub${i + 1}` }))
+}
+
+/** Open one of the three sub-tabs under Standards. */
+const openSubTab = (selector, label) => ({
+  actor: 'user',
+  targetSelector: selector,
+  say: `Open ${label}.`,
+  targetFallback: { description: `the "${label}" sub-tab under Standards` },
+  // Click, not visibility. Alerts is the DEFAULT sub-tab, so a
+  // `dom_mutation`/visible completion on .op-standards-selector fired instantly for
+  // two of the three legs and accidentally looked right for the third — which is why
+  // a live run went straight to searching for alerts.
+  completion: { type: 'dom_event', value: 'click' },
+})
+
+const attach = say => ({
+  actor: 'user',
+  targetSelector: SELECTORS.standardsAddAll,
+  say,
+  targetFallback: { description: 'the "add all" button in the picker' },
+  completion: { type: 'dom_event', value: 'click' },
+})

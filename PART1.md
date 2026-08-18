@@ -446,51 +446,69 @@ and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
 
-### The demo sentence
+### The demo, in two halves
+
+The onboarding walkthrough runs first — Part 2's `create-first-audit`, 10 steps — and
+leaves exactly one audit behind, named **My First Audit** against
+**https://observepoint.com**. Both of those are now filled by the assistant rather
+than suggested, and the second reason matters more than the first: the walkthrough
+that follows has to find what this one made. A suggested name is a name the second
+walkthrough cannot address.
+
+Then:
 
 ```
-observepoint.com uses OneTrust — import our consent categories for Utah, then audit
-the site against them with tag rules, follow the Timing Value best practice on
-Google Universal Analytics, and alert me if anything breaks
+observepoint.com uses OneTrust — import our consent categories for Utah, then edit
+My First Audit to check the site against them with tag rules, follow the Timing
+Value best practice on Google Universal Analytics, and alert me if anything breaks
 ```
 
-One sentence, **four walkthroughs, 72 steps**, in dependency order:
+**Four walkthroughs, 69 steps**, in dependency order:
 
 | #   | Walkthrough                    | Steps | What it does                                      |
 | --- | ------------------------------ | ----- | ------------------------------------------------- |
 | 1   | `import_consent_from_onetrust` | 9     | Pull the approved cookies for Utah out of the CMP |
 | 2   | `create_tag_variable_rule`     | 30    | `utt`, `utc`, `utv` set on GUA timing beacons     |
 | 3   | `create_first_alert`           | 16    | Rule failures > 0, emailed to you                 |
-| 4   | `audit_with_all_standards`     | 17    | One audit, attaching all three                    |
+| 4   | `edit_audit_add_standards`     | 14    | Open My First Audit and attach all three          |
 
 `fixtures/plan.demo-chain.json` is the whole thing, in the array shape
 `startWalkthrough` takes. The sentence, its routing and its ordering are all in the
 test suite, so none of it can rot quietly.
 
-**Prerequisites first, because that is the actual dependency.** The audit's Standards
-picker can only attach a rule or an alert that already exists, so the three library
-walkthroughs run before it. Before this, the two-areas rule fired first and routed
-straight to the audit — which then had nothing to attach.
+**Edit, not create, and the difference is not cosmetic.** `audit_with_all_standards`
+types a name and a starting URL as part of creating the audit. Run against an audit
+that already exists, those two steps overwrite fields nobody asked to change — and
+the account ends up with two audits where the user expected one. So the last link
+branches on whether the request refers to an audit that exists (`editsExistingAudit`
+in `areas.js`: an explicit _edit/update_, or a possessive attached to the word audit).
+A test asserts the edit path never targets the name or starting-URL fields.
+
+The two paths share everything from the Standards tab onward — `standardsSubTabSteps`
+in `_audit-standards.js` — which is also the swept half. Duplicating it would have
+meant one verified copy and one unverified one.
+
+**Each link reads the sentence for what it needs.** `auditName` is why: the request
+matches on OneTrust, chains through two recipes that have no business knowing an
+audit's name, and only the fourth cares. Extraction runs per link over the original
+goal, so by the time the edit step is built the name is still there. Carried values
+win over re-extraction — they are either what the user answered or what an earlier
+link resolved, and both beat a regex over the same sentence.
+
+**Prerequisites first, because that is the actual dependency.** The Standards picker
+can only attach a rule or an alert that already exists, so the three library
+walkthroughs run before the audit is touched.
 
 **The chain is decided from the request, not fixed on the recipe.** `buildChain(context)`
 mirrors `buildSteps(context)`: _"import our OneTrust categories"_ is finished when they
-are imported and queues nothing, while _"import ours, **then** audit"_ queues the other
-three. Queueing an audit onto the first phrasing would be inventing work; dropping
-three quarters of the second is the bug `audit_with_all_standards` exists to fix, one
-level up.
+are imported and queues nothing, while the sentence above queues three more.
 
 Both halves of the OneTrust rule are required: _"audit gap.com, we use OneTrust"_
 mentions the CMP without asking to import from it, and re-importing categories someone
 already has is not a helpful reading of that.
 
-**Parameters accumulate down the chain.** Each link sees everything the earlier ones
-resolved, which is what carries the rule's derived name (`Google Universal Analytics
-sets utt, utc and utv`) into the audit's picker. Without it the audit would rank a
-rule out of an account snapshot taken before the rule existed — and attach the wrong
-one, convincingly.
-
 **A link that needs an answer blocks the whole request.** The alert needs an email
-address and nothing before it does. Discovering that on step 53 of 72 would be the
+address and nothing before it does. Discovering that on step 50 of 69 would be the
 worst possible place to ask, so a successor's `needs_input` is returned as the result
 of the entire call — attributed to the head recipe, so answering re-plans all four.
 
@@ -671,10 +689,12 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **The whole 72-step demo chain is confirmed on a live page.** What is left unswept
-  in the library is `alert_from_report` (6 steps — needs an audit with a completed
-  run) and one transient menu row in `create_first_consent_category`. Neither is on
-  the demo path.
+- **Three steps of the demo have never been watched resolve** — the ones that get from
+  Data Sources into an existing audit's editor: the Audits & Journeys sidebar link, the
+  card's overflow menu, and its Edit item. Everything from the Standards tab onward was
+  swept on the create path and is shared. Also unswept and off the demo path:
+  `alert_from_report` (6 steps — needs a completed run) and one transient menu row in
+  `create_first_consent_category`.
 - **The selector language is evidenced, not assumed.** `>> last` reported
   "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
   "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.

@@ -1,7 +1,7 @@
 [
   {
     "recipeId": "import_consent_from_onetrust",
-    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then edit My First Audit to check the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
     "summary": "OneTrust already has your approved tags and cookies, one set per domain and location, so this imports rather than rebuilds. We'll pull https://observepoint.com for Utah — rerun it per location if you need more than one.",
     "executionMode": "templated",
     "parameters": {
@@ -140,12 +140,12 @@
         "id": "s9"
       }
     ],
-    "chain": ["create_tag_variable_rule", "create_first_alert", "audit_with_all_standards"],
+    "chain": ["create_tag_variable_rule", "create_first_alert", "edit_audit_add_standards"],
     "guards": ["nav-available"]
   },
   {
     "recipeId": "create_tag_variable_rule",
-    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then edit My First Audit to check the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
     "summary": "A rule says what \"correct\" means; the audit is what checks it. This one asks Google Universal Analytics to set utt, utc, utv. Only on requests where t=timing, so it doesn't fail on every other hit. The grid has six columns and three of them are already right — we'll say which as we go.",
     "executionMode": "templated",
     "parameters": {
@@ -600,7 +600,7 @@
   },
   {
     "recipeId": "create_first_alert",
-    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then edit My First Audit to check the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
     "summary": "An alert is a threshold on a number in an audit report. The metric lives four levels down a nested menu, so we'll point at each one: Audits → Tag & Variable Rules → Rule Failures, greater than 0 on observepoint.com. You confirm the email.",
     "executionMode": "templated",
     "parameters": {
@@ -849,9 +849,9 @@
     "guards": ["nav-available"]
   },
   {
-    "recipeId": "audit_with_all_standards",
-    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then audit the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
-    "summary": "Rules, Consent Categories and Alerts are three sub-tabs of one Standards screen, so this is a single audit rather than three. We'll create \"observepoint.com — All standards\" against https://observepoint.com and attach all three.",
+    "recipeId": "edit_audit_add_standards",
+    "goal": "observepoint.com uses OneTrust — import our consent categories for Utah, then edit My First Audit to check the site against them with tag rules, follow the Timing Value best practice on Google Universal Analytics, and alert me if anything breaks",
+    "summary": "My First Audit already exists, so this edits it rather than building another one. Rules, Consent Categories and Alerts are three sub-tabs of one Standards screen, so all three go on in one pass.",
     "executionMode": "templated",
     "parameters": {
       "siteUrl": "https://observepoint.com",
@@ -864,114 +864,70 @@
       "ruleName": "Google Universal Analytics sets utt, utc, utv",
       "threshold": "0",
       "alertName": "observepoint.com — Rule failures",
-      "auditName": "observepoint.com — All standards"
+      "auditName": "My First Audit"
     },
     "steps": [
       {
         "actor": "user",
         "navContext": "*",
-        "targetSelector": "[op-selector=\"sidebar-create-new\"]",
-        "say": "Click Create New in the left sidebar.",
+        "targetSelector": "[op-selector=\"sidebar-data-sources-audits-journeys\"]",
+        "say": "Open Audits & Journeys in the sidebar.",
         "targetFallback": {
-          "description": "the \"Create New\" button in the left sidebar"
+          "description": "the \"Audits & Journeys\" link in the left sidebar"
+        },
+        "completion": {
+          "type": "url_change",
+          "value": "/sources"
+        },
+        "id": "s1",
+        "unverified": true
+      },
+      {
+        "actor": "user",
+        "navContext": "/sources",
+        "targetSelector": "[op-selector^=\"sources-view-card-audit-\"] button[op-selector=\"open-menu-options-btn\"]",
+        "say": "Open the ⋮ menu on My First Audit.",
+        "targetFallback": {
+          "description": "the overflow menu on the My First Audit card"
         },
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
-          "targetSelector": "[op-selector=\"new-data-option-audit\"]"
+          "targetSelector": "button.op-menu-item"
         },
-        "id": "s1"
+        "id": "s2",
+        "unverified": true
       },
       {
         "actor": "user",
-        "targetSelector": "[op-selector=\"new-data-option-audit\"]",
-        "say": "Choose Audit.",
+        "navContext": "/sources",
+        "targetSelector": "button.op-menu-item >> text=Edit",
+        "say": "Choose Edit — that opens the full editor, not the report.",
         "targetFallback": {
-          "description": "the \"Audit\" option in the Create New dialog"
+          "description": "\"Edit\" in the card menu"
         },
-        "completion": {
-          "type": "dom_mutation",
-          "condition": "visible",
-          "targetSelector": ".op-audit-editor, .audit-setup-modal"
-        },
-        "id": "s2"
-      },
-      {
-        "actor": "user",
-        "optional": true,
-        "targetSelector": "[op-selector=\"web-audit-switch-to-advanced-setup\"]",
-        "say": "Switch to Advanced Setup — Standards lives there.",
-        "targetFallback": {
-          "description": "the \"Switch to Advanced Setup\" button"
-        },
-        "unverified": true,
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
           "targetSelector": ".op-audit-editor"
         },
-        "id": "s3"
-      },
-      {
-        "actor": "ai",
-        "targetSelector": "audit-editor-header-name-control input",
-        "say": "Naming it \"observepoint.com — All standards\".",
-        "targetFallback": {
-          "description": "the audit name field in the editor header"
-        },
-        "action": {
-          "type": "fill_text",
-          "value": "observepoint.com — All standards"
-        },
-        "completion": {
-          "type": "dom_event",
-          "value": "change"
-        },
-        "id": "s4"
+        "id": "s3",
+        "unverified": true
       },
       {
         "actor": "user",
-        "targetSelector": "[op-selector=\"audit-tab-url-sources\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(2)",
-        "say": "Open URL Sources.",
-        "targetFallback": {
-          "description": "the URL Sources tab in the audit editor"
-        },
-        "completion": {
-          "type": "dom_event",
-          "value": "click"
-        },
-        "id": "s5"
-      },
-      {
-        "actor": "ai",
-        "targetSelector": "[op-selector=\"audit-setup-starting-urls-textarea\"] textarea",
-        "say": "Setting the starting URL.",
-        "targetFallback": {
-          "description": "the \"URLs to Scan\" box on the URL Sources tab"
-        },
-        "action": {
-          "type": "fill_text",
-          "value": "https://observepoint.com"
-        },
-        "completion": {
-          "type": "dom_event",
-          "value": "change"
-        },
-        "id": "s6"
-      },
-      {
-        "actor": "user",
+        "navContext": "*",
         "targetSelector": "[op-selector=\"audit-tab-standards\"], .op-audit-editor .op-tabs:not(.sub-menu) .op-tab:nth-child(4)",
         "say": "Open the Standards tab.",
         "targetFallback": {
-          "description": "the Standards tab in the audit editor"
+          "description": "the \"Standards\" tab in the audit editor"
         },
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
           "targetSelector": ".op-tabs.sub-menu"
         },
-        "id": "s7"
+        "id": "s4"
       },
       {
         "actor": "user",
@@ -984,7 +940,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s8"
+        "id": "s5"
       },
       {
         "actor": "ai",
@@ -1001,7 +957,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s9"
+        "id": "s6"
       },
       {
         "actor": "user",
@@ -1014,7 +970,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s10"
+        "id": "s7"
       },
       {
         "actor": "user",
@@ -1027,7 +983,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s11"
+        "id": "s8"
       },
       {
         "actor": "ai",
@@ -1044,7 +1000,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s12"
+        "id": "s9"
       },
       {
         "actor": "user",
@@ -1057,7 +1013,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s13"
+        "id": "s10"
       },
       {
         "actor": "user",
@@ -1070,7 +1026,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s14"
+        "id": "s11"
       },
       {
         "actor": "ai",
@@ -1087,7 +1043,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s15"
+        "id": "s12"
       },
       {
         "actor": "user",
@@ -1100,10 +1056,10 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s16"
+        "id": "s13"
       },
       {
-        "id": "s17",
+        "id": "s14",
         "actor": "user",
         "targetSelector": "[op-selector=\"web-audit-create-save\"]",
         "say": "Save Audit — nothing exists until you do.",

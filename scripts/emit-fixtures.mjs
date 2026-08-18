@@ -74,11 +74,17 @@ const cases = [
     // only against single plans has never run the second one.
     file: 'plan.demo-chain.json',
     goal:
-      'observepoint.com uses OneTrust — import our consent categories for Utah, then audit the ' +
-      'site against them with tag rules, follow the Timing Value best practice on Google ' +
-      'Universal Analytics, and alert me if anything breaks',
+      'observepoint.com uses OneTrust — import our consent categories for Utah, then edit My ' +
+      'First Audit to check the site against them with tag rules, follow the Timing Value best ' +
+      'practice on Google Universal Analytics, and alert me if anything breaks',
     answer: 'jun@observepoint.com',
     chain: true,
+  },
+  {
+    // The edit path on its own, for the runtime to test the three steps that get from
+    // Data Sources into an existing audit's editor -- the only part of it that is new.
+    file: 'plan.edit-audit-add-standards.json',
+    goal: 'edit My First Audit to add rules, consent categories and alerts',
   },
 ]
 
