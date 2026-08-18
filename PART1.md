@@ -417,18 +417,18 @@ the tests use.
 Focused on audits and the three things you attach to them, plus the two starter
 flows for an account that has none of them yet.
 
-| Recipe                          | Covers                                         | Verified       |
-| ------------------------------- | ---------------------------------------------- | -------------- |
-| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps   |
-| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps   |
-| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps   |
-| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps   |
-| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept   |
-| `create_first_rule`             | Fill an empty rule library, named and no more  | ✅ all steps   |
-| `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept  |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept   |
-| `create_first_alert`            | An alert, metric and threshold included        | ⚠️ 14/16 swept |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps   |
+| Recipe                          | Covers                                         | Verified      |
+| ------------------------------- | ---------------------------------------------- | ------------- |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps  |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps  |
+| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps  |
+| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps  |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept  |
+| `create_first_rule`             | Fill an empty rule library, named and no more  | ✅ all steps  |
+| `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
+| `create_first_alert`            | An alert, metric and threshold included        | ✅ all steps  |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps  |
 
 `create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
 and the split is about the REQUEST rather than the recipe. "Make me a rule" says
@@ -671,10 +671,10 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **Two steps of the demo have never been seen resolve.** The alert's subscriber
-  field and its Save button live on the designer's last two screens, which the sweep
-  passes did not reach. Everything else in the 72-step chain is confirmed on a live
-  page.
+- **The whole 72-step demo chain is confirmed on a live page.** What is left unswept
+  in the library is `alert_from_report` (6 steps — needs an audit with a completed
+  run) and one transient menu row in `create_first_consent_category`. Neither is on
+  the demo path.
 - **The selector language is evidenced, not assumed.** `>> last` reported
   "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
   "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.

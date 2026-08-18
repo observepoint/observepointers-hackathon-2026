@@ -1171,6 +1171,10 @@ check(
         // "is set" -- which is the ninth entry in TagVariableOperators. The selector
         // language discriminates rather than coincidentally agreeing.
         'create_tag_variable_rule',
+        // Swept end to end across four screens of the designer. Note Next and Save
+        // SWAP: Next is hidden on Preview, Save hidden everywhere else. Three Nexts
+        // land on Preview, and only then does a step point at Save.
+        'create_first_alert',
         // Swept end to end on /consent-categories, including the three states that
         // only exist mid-flow: the open create menu, the open location overlay, and
         // the post-detect result row. Nine targets and every completion.

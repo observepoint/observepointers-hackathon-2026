@@ -50,19 +50,23 @@
  * completion, including the three states that only exist mid-flow. It is the only
  * recipe in the library that can say that.
  *
- *   Alert designer   14 of 16 steps, everything reachable on the Logic step.
+ *   Alert designer   ALL 16 STEPS, across four screens.
  *                    button[aria-label="Create Alert"]; alert-name-control input;
  *                    input[aria-label="Select report metric"]; the whole metric menu
  *                    — "Audits" [1 of 24], "Tag & Variable Rules" [5 of 24], "Rule
  *                    Failures" [18 of 24]; the operator select and its option; the
  *                    threshold; input[aria-label="Search by URL"]; and Next.
  *
- *                    SAVE IS HIDDEN UNTIL THE LAST STEP, which contradicted what the
- *                    recipe claimed. updateButtons() reads `saveButton.hidden =
- *                    isEditMode ? false : currentStep !== Preview`, so on a new alert
- *                    it appears only on Preview. The recipe was right by accident and
- *                    its comment was wrong; the sweep reporting "in DOM but hidden"
- *                    on every pass is what sent us back to the source.
+                     Plus the subscriber field on Notification and Save on Preview.
+ *
+ *                    NEXT AND SAVE SWAP, which contradicted what the recipe claimed.
+ *                    updateButtons() reads `saveButton.hidden = isEditMode ? false :
+ *                    currentStep !== Preview` and `nextButton.hidden = currentStep
+ *                    === Preview`, and the sweep saw both halves: Save hidden on
+ *                    Logic, Next hidden on Preview. Neither button is present
+ *                    throughout. The recipe was right by accident — three Nexts land
+ *                    on Preview before anything points at Save — and its comment said
+ *                    the opposite.
  *
  * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
  *
@@ -139,9 +143,10 @@
  *                    operator before adding the next row — reordering it would point
  *                    at an unclickable element and wait forever.
  *
- * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, and the alert designer's last two screens — the subscriber field on
- * Notification and Save on Preview.
+ * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole
+ * Quick Audit screen. That is the entire remainder: alert_from_report needs an audit
+ * with a completed run, and the Quick Audit branch needs an account with no data
+ * sources. Everything else in the library has been watched resolve.
  *
  * 7. A LABEL THAT IS A PREFIX OF ANOTHER LABEL WILL SILENTLY PICK THE WRONG ONE, and
  *    the alert operator sweep is the proof that including the sign prevents it.

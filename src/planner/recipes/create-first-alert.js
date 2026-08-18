@@ -1,6 +1,5 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { alertNameFrom, hostFrom } from '../naming.js'
-import { unswept } from './_unswept.js'
 
 /**
  * Create an Alert from the Alerts Library, all the way through the designer.
@@ -50,17 +49,21 @@ import { unswept } from './_unswept.js'
  *     is unaffected — Save is its last step, reached after three Nexts — but the
  *     wrong reason was written down, and "both are visible throughout" would have
  *     justified an edit that broke it. The sweep reported Save as "in DOM but
- *     hidden" on every pass of the Logic step, which is what sent me back to read
- *     the source properly.
+ *     hidden" on every pass of the Logic step, which sent me back to the source —
+ *     and then showed the other half on Preview, where Save reads "Save" and NEXT is
+ *     the one in the DOM and hidden. The two buttons SWAP; neither is present
+ *     throughout. The step order is what makes that safe: three Nexts land on
+ *     Preview, and only then does anything point at Save.
  *   Semantic, no patch needed — input[aria-label="Select report metric"],
  *     input[aria-label="Search by URL"] (op-filter-bar builds it from
  *     searchByTextPlaceholderSuffix), mat-chip-grid#email-chip-grid input,
  *     and the alert-trigger form controls.
  *   Product vocabulary — the menu path and the operator, matched by label.
  *
- * SWEPT: everything reachable on the Logic step, which is 14 of the 16 steps. The
- * whole metric menu — "Audits" [1 of 24], "Tag & Variable Rules" [5 of 24], "Rule
- * Failures" [18 of 24] — the operator, the threshold, the URL filter and Next.
+ * SWEPT END TO END, all 16 steps across four screens of the designer. The whole metric
+ * menu — "Audits" [1 of 24], "Tag & Variable Rules" [5 of 24], "Rule Failures"
+ * [18 of 24] — the operator, the threshold, the URL filter, the subscriber field on
+ * Notification, and Save on Preview.
  *
  * THE OPERATOR RESULT IS THE ONE WORTH KEEPING. `.alert-operator-selector mat-option
  * >> text=Greater than (>)` resolved to "Greater than (>)" at position 2 OF 13, while
@@ -70,8 +73,6 @@ import { unswept } from './_unswept.js'
  * so matching on the words alone would have selected the wrong operator — silently,
  * and with a tick. Position 2 is `Greater` in AlertMetricThresholdOperators.
  *
- * STILL UNSWEPT: the subscriber field and Save, both of which live on later steps of
- * the designer that the sweep passes did not reach.
  */
 
 const SELECTORS = {
@@ -320,16 +321,6 @@ export default {
       },
     )
 
-    // Only the two steps on screens the sweep has not reached: the subscriber field
-    // (Notification) and Save (Preview). Flagged by selector rather than by id,
-    // because the ids shift with whether a site was named.
-    const built = numbered(steps)
-    const unsweptIds = built
-      .filter(
-        step => step.targetSelector === SELECTORS.emails || step.targetSelector === SELECTORS.save,
-      )
-      .map(step => step.id)
-
-    return unswept(built, unsweptIds)
+    return numbered(steps)
   },
 }

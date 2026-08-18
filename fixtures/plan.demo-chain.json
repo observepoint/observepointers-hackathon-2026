@@ -802,8 +802,7 @@
           "type": "dom_event",
           "value": "change"
         },
-        "id": "s13",
-        "unverified": true
+        "id": "s13"
       },
       {
         "actor": "user",
@@ -842,8 +841,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s16",
-        "unverified": true
+        "id": "s16"
       }
     ]
   },
