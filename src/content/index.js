@@ -165,7 +165,7 @@ function describeScreen() {
       /* ignore */
     }
   }
-  return 'an unrecognised page'
+  return 'an unrecognized page'
 }
 
 function checkSelectors(selectors) {

@@ -19,7 +19,7 @@
 // WHY THE ACCOUNT FETCH LIVES HERE
 // The first attempt made the call from the content script, on the app's own origin.
 // Every /api/* path came back 200 text/html, which means that host serves the SPA for
-// anything it doesn't recognise -- the API is on a different host. A content script's
+// anything it doesn't recognize -- the API is on a different host. A content script's
 // cross-origin fetch obeys the *page's* CORS policy; the service worker's obeys the
 // extension's host_permissions, which is why the call has to happen here.
 //

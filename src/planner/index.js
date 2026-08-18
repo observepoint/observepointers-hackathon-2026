@@ -23,6 +23,7 @@ import { render } from './template.js'
 import { validatePlan } from './schema.js'
 import { GeminiClient, getStoredApiKey } from './llm.js'
 import { amendmentFor } from './amend.js'
+import { demoMatch } from './demo.js'
 // Part 2's, at the integration merge. Pure constants, no DOM.
 import { SIDEBAR_ANCHORS } from '../shared/selectors.js'
 
@@ -118,7 +119,10 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
   // reason buildSteps is: what follows "import our consent categories" depends on
   // whether the user also asked for an audit. Only set when there is something to
   // set, so the field stays absent rather than null for everything else.
-  const chain = recipe.buildChain ? recipe.buildChain(planningContext) : recipe.chain
+  // context.chain overrides both, for the one caller that must not have its chain
+  // inferred from the words in the sentence. See demo.js.
+  const chain =
+    context.chain ?? (recipe.buildChain ? recipe.buildChain(planningContext) : recipe.chain)
   if (chain?.length) plan.chain = chain
 
   // App state that has to hold for the whole run, which Part 2's runner polls and
@@ -339,6 +343,26 @@ export async function createPlan(goal, options = {}) {
     return { status: 'no_match', message: 'Tell me what you want to set up.', suggestions: [] }
   }
 
+  // The rehearsed request short-circuits everything above the plan builder — no model
+  // call, no extraction. See demo.js for why one sentence gets that treatment and
+  // nothing else does. It still goes through buildPlan, so the chain, the email
+  // question and the validator all behave normally.
+  const rehearsed = demoMatch(goal)
+  if (rehearsed) {
+    const recipe = getRecipe(rehearsed.recipeId)
+    const result = buildPlan(recipe, goal, rehearsed.parameters, {
+      account: options.account,
+      chain: rehearsed.chain,
+    })
+    result.confidence = rehearsed.confidence
+    // Carried on the needs_input branch too, so answerAndRetry can put the chain back
+    // when the email arrives — otherwise the answer re-plans through the normal path
+    // and the pinning is lost at the one moment it matters.
+    result.matchedBy = rehearsed.matchedBy
+    if (result.status === 'needs_input') result.chain = rehearsed.chain
+    return result
+  }
+
   let match
   try {
     const apiKey = options.forceLocal ? null : (options.apiKey ?? (await getStoredApiKey()))
@@ -412,7 +436,16 @@ export function answerAndRetry(pending, answer, goal, context = {}) {
   if (!recipe) return { status: 'error', message: `Unknown recipe ${pending.recipeId}` }
 
   const parameters = { ...pending.draftParameters, [pending.missing[0]]: answer.trim() }
-  return buildPlan(recipe, goal, parameters, context)
+  // A pinned chain survives the round trip. Without this the rehearsed request asks for
+  // an email and then rebuilds through buildChain, which is the path the pinning exists
+  // to avoid — and it would do it on the answer, not the question, so nothing would
+  // look wrong until the walkthroughs ran.
+  const result = buildPlan(recipe, goal, parameters, {
+    ...context,
+    chain: pending.chain ?? context.chain,
+  })
+  if (result.status === 'plan' && pending.matchedBy) result.matchedBy = pending.matchedBy
+  return result
 }
 
 /** What the assistant can actually do — shown when nothing matches. */

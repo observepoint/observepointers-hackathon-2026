@@ -442,7 +442,7 @@ export const saveAuditStep = id => ({
 
 /**
  * Every recipe here needs these two. `purpose` is what the audit name says it
- * checks — the point of a default name is to be recognisable in a long list, so
+ * checks — the point of a default name is to be recognizable in a long list, so
  * it leads with the site and names the thing: "gap.com — Consent & privacy".
  */
 export const auditParameters = purpose => [

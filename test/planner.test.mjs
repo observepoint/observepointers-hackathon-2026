@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseTargetSelector, applyOperators, cssPartOf } from '../src/content/selector-query.js'
 import { looksLikeAmendment } from '../src/planner/amend.js'
+import { demoMatch, DEMO_GOAL } from '../src/planner/demo.js'
 import {
   ONBOARDING_QUESTION,
   onboardingOptions,
@@ -2135,6 +2136,92 @@ check(
   'the starting URL is left to the user',
   firstAudit.steps.find(s => s.id === 'starting-urls')?.actor === 'user',
 )
+
+/* ---------------------------------------------------------------- */
+section('the rehearsed request answers from a fixed result')
+
+// One sentence is pinned, and nothing else is. The transcripts below are the shapes a
+// speech transcriber actually produces: the domain read out as words, the em dash gone,
+// case reassigned, and clauses dropped. All four must produce the SAME four
+// walkthroughs, because that is the only claim this file makes.
+const TRANSCRIPTS = [
+  ['exact', DEMO_GOAL],
+  [
+    'domain read as words, no punctuation',
+    'observe point dot com uses one trust import our consent categories for utah then edit my ' +
+      'first audit to check the site against them with tag rules follow the timing value best ' +
+      'practice on google universal analytics and alert me if anything breaks',
+  ],
+  [
+    'clauses dropped, case reassigned',
+    'OBSERVEPOINT.COM USES ONETRUST, IMPORT OUR CONSENT CATEGORIES FOR UTAH, THEN EDIT MY FIRST ' +
+      'AUDIT... TIMING VALUE BEST PRACTICE... ALERTS',
+  ],
+]
+
+const EXPECTED_CHAIN = [
+  'import_consent_from_onetrust',
+  'create_tag_variable_rule',
+  'create_first_alert',
+  'edit_audit_add_standards',
+]
+
+for (const [label, transcript] of TRANSCRIPTS) {
+  const ask = await createPlan(transcript, { forceLocal: true })
+  check(
+    `${label}: still asks for the email, and nothing else`,
+    ask.status === 'needs_input' && JSON.stringify(ask.missing) === JSON.stringify(['notifyEmail']),
+    `${ask.status} ${JSON.stringify(ask.missing)}`,
+  )
+  const built = answerAndRetry(ask, 'jun@observepoint.com', transcript)
+  check(
+    `${label}: produces the rehearsed chain`,
+    JSON.stringify(built.plans?.map(p => p.recipeId)) === JSON.stringify(EXPECTED_CHAIN),
+    JSON.stringify(built.plans?.map(p => p.recipeId)),
+  )
+  check(
+    `${label}: and says it came from the pinned path`,
+    built.matchedBy === 'demo',
+    built.matchedBy,
+  )
+}
+
+// The clause-dropping transcript is the one that justifies pinning the chain rather
+// than just the parameters: buildChain queues the rule walkthrough because the sentence
+// says "tag rules", and that transcript does not.
+check(
+  'the chain is pinned, not re-derived from the words that survived',
+  demoMatch(TRANSCRIPTS[2][1])?.chain?.length === 3,
+  JSON.stringify(demoMatch(TRANSCRIPTS[2][1])?.chain),
+)
+
+// Parameters are supplied, not parsed — "observe point dot com" defeats URL extraction
+// and lowercase defeats the location and audit-name extractors, all three of which the
+// normal path depends on.
+const spoken = answerAndRetry(
+  await createPlan(TRANSCRIPTS[1][1], { forceLocal: true }),
+  'jun@observepoint.com',
+  TRANSCRIPTS[1][1],
+)
+check(
+  'the site survives a transcriber that spelled it out',
+  spoken.plan?.parameters.siteUrl === 'https://observepoint.com',
+  spoken.plan?.parameters.siteUrl,
+)
+check(
+  'so does the audit name, from an all-lowercase transcript',
+  spoken.plans?.at(-1).parameters.auditName === 'My First Audit',
+  spoken.plans?.at(-1).parameters.auditName,
+)
+
+// And it must not swallow neighbouring requests. Each of these drops one signal.
+for (const near of [
+  'import our consent categories from OneTrust for Utah',
+  'edit My First Audit to add rules and alert me if anything breaks',
+  'import from OneTrust for Utah and alert me about my first audit',
+]) {
+  check(`"${near.slice(0, 40)}…" is not the rehearsed request`, demoMatch(near) === null)
+}
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)
 process.exit(failures ? 1 : 0)

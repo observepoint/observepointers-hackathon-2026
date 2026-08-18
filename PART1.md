@@ -446,6 +446,34 @@ and all three improve. The two starters share `_standards-library.js`.
 
 **Two things sweeping taught us that reading the source did not.**
 
+### The rehearsed request is pinned
+
+`demo.js` matches one sentence by fingerprint and answers from a fixed result: recipe,
+parameters and chain. Nothing else in the planner works that way, and the reasons are
+specific to a live demo.
+
+**The model is a different call every time.** With a key present, `matchWithModel` picks
+the recipe and extracts the parameters. It has been right in testing, which is not the
+same as being right once, in front of people, on a sentence that routes through four
+chained recipes.
+
+**A transcript is not the sentence.** Speech recognition returns "observe point dot com"
+often enough that URL extraction misses it, drops the em dash, and reassigns
+capitalisation — which matters because the location and audit-name extractors both key
+on it. So the fingerprint is six tolerant signals rather than a string comparison, and
+the parameters are supplied rather than parsed.
+
+**The chain is pinned too, and that one is not belt-and-braces.** `buildChain` queues the
+rule walkthrough because the sentence says _"tag rules"_. A transcript that drops that
+clause produces a three-link chain, and the audit then attaches a rule nobody created.
+That is not hypothetical — it is what the second test transcript did before the chain
+was pinned.
+
+What it does **not** do is skip the email question or build the plan. It returns a match,
+so chaining, parameter accumulation, validation and every summary run exactly as they do
+for any other request. Three transcript shapes are in the test suite, alongside three
+near-miss requests that must not reach it.
+
 ### The demo, in two halves
 
 The onboarding walkthrough runs first — Part 2's `create-first-audit`, 10 steps — and

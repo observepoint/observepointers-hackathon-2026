@@ -7,6 +7,11 @@
     "parameters": {
       "siteUrl": "https://observepoint.com",
       "location": "Utah",
+      "auditName": "My First Audit",
+      "tagName": "Google Universal Analytics",
+      "expectVariables": "utt, utc, utv",
+      "whenVariable": "t",
+      "whenValue": "timing",
       "notifyEmail": "jun@observepoint.com"
     },
     "steps": [
@@ -151,11 +156,12 @@
     "parameters": {
       "siteUrl": "https://observepoint.com",
       "location": "Utah",
-      "notifyEmail": "jun@observepoint.com",
+      "auditName": "My First Audit",
       "tagName": "Google Universal Analytics",
       "expectVariables": "utt, utc, utv",
       "whenVariable": "t",
       "whenValue": "timing",
+      "notifyEmail": "jun@observepoint.com",
       "ruleName": "Google Universal Analytics sets utt, utc, utv"
     },
     "steps": [
@@ -596,6 +602,7 @@
         "id": "s30"
       }
     ],
+    "chain": ["create_tag_variable_rule", "create_first_alert", "edit_audit_add_standards"],
     "guards": ["nav-available"]
   },
   {
@@ -606,11 +613,12 @@
     "parameters": {
       "siteUrl": "https://observepoint.com",
       "location": "Utah",
-      "notifyEmail": "jun@observepoint.com",
+      "auditName": "My First Audit",
       "tagName": "Google Universal Analytics",
       "expectVariables": "utt, utc, utv",
       "whenVariable": "t",
       "whenValue": "timing",
+      "notifyEmail": "jun@observepoint.com",
       "ruleName": "Google Universal Analytics sets utt, utc, utv",
       "threshold": "0",
       "alertName": "observepoint.com — Rule failures"
@@ -846,6 +854,7 @@
         "id": "s16"
       }
     ],
+    "chain": ["create_tag_variable_rule", "create_first_alert", "edit_audit_add_standards"],
     "guards": ["nav-available"]
   },
   {
@@ -856,15 +865,15 @@
     "parameters": {
       "siteUrl": "https://observepoint.com",
       "location": "Utah",
-      "notifyEmail": "jun@observepoint.com",
+      "auditName": "My First Audit",
       "tagName": "Google Universal Analytics",
       "expectVariables": "utt, utc, utv",
       "whenVariable": "t",
       "whenValue": "timing",
+      "notifyEmail": "jun@observepoint.com",
       "ruleName": "Google Universal Analytics sets utt, utc, utv",
       "threshold": "0",
-      "alertName": "observepoint.com — Rule failures",
-      "auditName": "My First Audit"
+      "alertName": "observepoint.com — Rule failures"
     },
     "steps": [
       {
@@ -1087,6 +1096,7 @@
         }
       }
     ],
+    "chain": ["create_tag_variable_rule", "create_first_alert", "edit_audit_add_standards"],
     "guards": ["nav-available"]
   }
 ]

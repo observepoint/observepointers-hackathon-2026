@@ -37,7 +37,7 @@ export const ONBOARDING_QUESTION = 'What do you need ObservePoint to tell you?'
  * Four answers, phrased as outcomes rather than features. "Attach a consent
  * category to an audit" is the thing we will do; "are we complying with cookie
  * consent" is the thing they came here worrying about, and it is the only one
- * of the two they can recognise on day one.
+ * of the two they can recognize on day one.
  *
  * `emptyAccount` is the retarget for an account with nothing in that library.
  * Options without one have nothing to retarget to — audit_with_alerts builds

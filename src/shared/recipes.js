@@ -81,7 +81,7 @@ const createFirstAudit = {
       actor: 'ai',
       navContext: '*',
       targetSelector: ANCHOR.auditName,
-      say: 'Naming it "{{parameters.auditName}}" — a name you will recognise in a list later.',
+      say: 'Naming it "{{parameters.auditName}}" — a name you will recognize in a list later.',
       action: { type: 'input', value: '{{parameters.auditName}}' },
       completion: { type: 'dom_mutation', targetSelector: ANCHOR.auditName },
     },
