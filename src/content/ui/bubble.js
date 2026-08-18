@@ -37,6 +37,11 @@ let recording = false
 // A question we are waiting on. While set, submitting answers THAT rather than asking
 // something new -- otherwise "jun@observepoint.com" would be planned as a fresh request.
 let pending = null
+// What the mic heard, held for confirmation. A transcript is a guess, and sending a guess
+// is how a demo goes sideways -- so it waits for Ask, and the pencil is there if the guess
+// was close but wrong.
+let staged = ''
+let dismissTimer = null
 
 function build() {
   const layer = getLayer(LAYER)
@@ -70,11 +75,33 @@ function build() {
   send.type = 'button'
   send.textContent = 'Ask'
 
+  const actions = document.createElement('div')
+  actions.className = 'op-launcher-actions'
+  actions.hidden = true
+
+  const edit = document.createElement('button')
+  edit.className = 'op-launcher-icon-btn'
+  edit.type = 'button'
+  edit.setAttribute('aria-label', 'Edit before asking')
+  const editIcon = document.createElement('span')
+  editIcon.className = 'op-icon'
+  editIcon.textContent = 'edit'
+  edit.appendChild(editIcon)
+
+  const accept = document.createElement('button')
+  accept.className = 'op-btn'
+  accept.type = 'button'
+  accept.textContent = 'Ask'
+
+  const spacer = document.createElement('span')
+  spacer.className = 'op-launcher-spacer'
+
   const hint = document.createElement('p')
   hint.className = 'op-launcher-hint'
 
   form.append(input, send)
-  card.append(text, form, hint)
+  actions.append(spacer, edit, accept)
+  card.append(text, form, actions, hint)
 
   /* ---------------------------- the bar ----------------------------- */
 
@@ -114,7 +141,7 @@ function build() {
   root.append(card, shell)
   layer.appendChild(root)
 
-  nodes = { root, card, text, form, input, send, hint, bar, mic, type, logo }
+  nodes = { root, card, text, form, input, send, actions, edit, accept, hint, bar, mic, type, logo }
   wire()
   return nodes
 }
@@ -154,11 +181,16 @@ function wire() {
     openInput()
   })
 
-  send.addEventListener('click', submit)
+  send.addEventListener('click', () => commit(nodes.input.value))
+  nodes.accept.addEventListener('click', () => commit(staged))
+  // Pencil: hand the heard sentence to the input rather than replacing it, cursor at the
+  // end, so a small correction is a small edit.
+  nodes.edit.addEventListener('click', () => openInput(staged))
+
   input.addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      submit()
+      commit(input.value)
     }
     if (event.key === 'Escape') closeCard()
   })
@@ -176,42 +208,84 @@ function setState(state) {
  * The card
  * ------------------------------------------------------------------ */
 
-function showCard({ message, dim = false, withInput, placeholder }) {
-  const { card, text, form, input } = nodes
+/**
+ * How long a message that wants nothing from the user stays up.
+ *
+ * Replies are read once. Leaving them on screen means the app is permanently wearing a
+ * card that has stopped being true -- the walkthrough has moved on and the summary has
+ * not. Anything that WANTS something (a question, a transcript to confirm, an open
+ * input) is exempt: dismissing a prompt is destroying the interaction.
+ */
+const DISMISS_MS = 5000
+
+function clearDismiss() {
+  if (dismissTimer) clearTimeout(dismissTimer)
+  dismissTimer = null
+}
+
+function showCard({ message, dim = false, withInput, withActions, placeholder, prefill }) {
+  const { card, text, form, input, actions } = nodes
+
+  // Every path clears it: a card that replaces another must not inherit its countdown.
+  clearDismiss()
+
   card.hidden = false
   text.textContent = message ?? ''
   text.dataset.dim = String(dim)
   text.hidden = !message
 
+  actions.hidden = !withActions
   form.hidden = !withInput
+
   if (withInput) {
     if (placeholder) input.placeholder = placeholder
-    input.value = ''
+    input.value = prefill ?? ''
     input.style.height = 'auto'
     // Focus after paint, or Chrome drops it while the card is still display:none.
-    requestAnimationFrame(() => input.focus())
+    requestAnimationFrame(() => {
+      input.focus()
+      // Cursor at the end, not selecting everything: the point of editing a transcript is
+      // usually to fix one word, and select-all makes the next keystroke destroy it.
+      const end = input.value.length
+      input.setSelectionRange(end, end)
+      input.style.height = `${Math.min(input.scrollHeight, 120)}px`
+    })
+  }
+
+  // Nothing is being asked for, so it can go by itself.
+  if (!withInput && !withActions) {
+    dismissTimer = setTimeout(closeCard, DISMISS_MS)
   }
 }
 
 function closeCard() {
+  clearDismiss()
   nodes.card.hidden = true
   nodes.form.hidden = true
+  nodes.actions.hidden = true
   nodes.hint.textContent = ''
+  staged = ''
   pending = null
 }
 
-function openInput() {
-  showCard({ withInput: true, placeholder: 'What are you trying to set up?' })
+function openInput(prefill = '') {
+  showCard({
+    withInput: true,
+    prefill,
+    placeholder: 'What are you trying to set up?',
+  })
 }
 
-function submit() {
-  const value = nodes.input.value.trim()
+/** The one door out. Typed, edited or spoken, everything commits through here. */
+function commit(raw) {
+  const value = String(raw ?? '').trim()
   if (!value) return
 
   nodes.input.value = ''
   nodes.input.style.height = 'auto'
+  staged = ''
 
-  // An outstanding question owns the next thing typed. Without this the answer to
+  // An outstanding question owns the next thing said. Without this the answer to
   // "who should this alert email?" would be planned as a brand-new request.
   const answering = pending
   pending = null
@@ -263,6 +337,9 @@ export function toggleBubble() {
 /** Live transcript while the mic is on. */
 export function showTranscript(partial) {
   if (!nodes) return
+  // Straight to the node rather than through showCard: this fires on every syllable, and
+  // it must not restart an auto-dismiss timer or steal focus mid-sentence.
+  clearDismiss()
   nodes.text.textContent = partial || 'Listening… pause when you are done.'
   nodes.text.dataset.dim = String(!partial)
   nodes.text.hidden = false
@@ -277,6 +354,26 @@ export function recordingEnded() {
 }
 
 /**
+ * What the mic heard, held for confirmation rather than sent.
+ *
+ * A transcript is a guess. It renders the demo sentence as "observe point dot com" often
+ * enough that sending it unseen is a coin toss on the one interaction people are watching
+ * — and the fingerprint in demo.js exists precisely because that guess is unreliable.
+ *
+ * So: show it, Ask to accept, pencil to fix. No auto-dismiss, because this is waiting on
+ * a decision and taking it away would make it.
+ */
+export function confirmTranscript(text) {
+  if (!nodes) build()
+  const heard = String(text ?? '').trim()
+  if (!heard) return
+
+  staged = heard
+  setState(STATE.COLLAPSED)
+  showCard({ message: heard, withActions: true })
+}
+
+/**
  * A question the planner needs answered before it can build anything — the alert's email
  * address, on the demo path. Pops the card above the circle and opens the input, which is
  * the whole reason the card and the input are one component.
@@ -287,10 +384,16 @@ export function askQuestion(question) {
   if (!nodes) build()
   pending = question
   setState(STATE.COLLAPSED)
+  // withInput, so it is exempt from the auto-dismiss: taking a question away five seconds
+  // after asking it would strand the whole chain waiting for an answer nobody can give.
   showCard({ message: question.question, withInput: true, placeholder: 'Type your answer…' })
 }
 
-/** One line of reply. Not a transcript — the walkthrough itself is the output. */
+/**
+ * One line of reply. Not a transcript — the walkthrough itself is the output.
+ *
+ * Auto-dismisses, because it wants nothing back. See DISMISS_MS.
+ */
 export function say(message, { dim = false } = {}) {
   if (!nodes) build()
   showCard({ message, dim, withInput: false })

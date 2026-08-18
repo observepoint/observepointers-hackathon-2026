@@ -121,6 +121,18 @@ The mic collapses it back to a circle and ripples, because a ripple needs a circ
 ripple from. The logo does double duty as open and close, which is what makes the
 expansion read as one object growing rather than three appearing.
 
+**A spoken sentence is confirmed, not sent.** The mic hands its transcript to the card with
+an **Ask** and a **pencil** rather than straight to the planner. A transcript is a guess —
+it renders the demo sentence as "observe point dot com" often enough that the fingerprint
+in `demo.js` exists to survive it — and acting on a guess unseen is a coin toss on the one
+interaction people are watching. The pencil pre-fills the input with what was heard and
+puts the cursor at the end, because a correction is usually one word.
+
+**Cards that want nothing go away after five seconds.** A reply is read once, and leaving
+it up means the app permanently wears a card that has stopped being true. Anything that
+wants something back — a question, a transcript awaiting Ask, an open input — is exempt,
+because dismissing a prompt is destroying the interaction rather than tidying up after it.
+
 A question the planner needs answered — the alert's email, on the demo path — appears in a
 card **above** the circle with the input already open. That is why the card and the input
 are one component: the answer has to land on the outstanding question rather than be

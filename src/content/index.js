@@ -575,7 +575,11 @@ function startVoice() {
     onPartial: partial => bubble.showTranscript(partial),
     onError: message => bubble.say(message),
     onEnd: () => bubble.recordingEnded(),
-    onResult: text => askPlanner(text, pendingQuestion),
+    // Confirmed, not sent. The transcript is a guess -- it renders the demo sentence as
+    // "observe point dot com" often enough that acting on it unseen is a coin toss -- so
+    // the launcher shows it with an Ask and a pencil, and commits through the same door
+    // typing does.
+    onResult: text => bubble.confirmTranscript(text),
   })
 }
 
