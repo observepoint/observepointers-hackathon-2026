@@ -124,6 +124,16 @@ function apiBasesFor(origin, hostname) {
   return canonical === origin ? [origin] : [origin, canonical]
 }
 
+/**
+ * A read that never comes back is worse than one that fails.
+ *
+ * There was no timeout here, and the consequence was not a slow account panel — it was
+ * "No answer from the planner". readAccount() awaits three of these before planning
+ * starts, so one hung socket held the OP_PLAN handler open until Chrome closed the
+ * message port, and the launcher saw a rejected sendMessage with nothing to report.
+ */
+const FETCH_TIMEOUT_MS = 6000
+
 async function fetchJson(base, path, token, init = {}) {
   const url = new URL(path, base).toString()
 
@@ -136,6 +146,7 @@ async function fetchJson(base, path, token, init = {}) {
         ...(init.body ? { 'content-type': 'application/json' } : {}),
       },
       credentials: 'include',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
 
     const contentType = response.headers.get('content-type') ?? ''
@@ -234,6 +245,39 @@ async function apiRequest(path, init = {}) {
  * account" rather than "the account is empty", so a failed read costs a specific
  * suggestion and nothing else. Blocking a plan on it would be the wrong trade.
  */
+/**
+ * How long the account read may hold up a plan.
+ *
+ * The answer should really be "not at all". Every recipe treats a missing list as "could
+ * not see the account" rather than "the account is empty", so a failed read costs one
+ * specific suggestion — it names a real consent category instead of guessing at the site.
+ * Blocking a plan on that is the wrong trade, and blocking it FOREVER is what produced
+ * "No answer from the planner": three untimed fetches, one of which never returned.
+ *
+ * So it is time-boxed, and the timeout resolves rather than throws. A plan built without
+ * the account is a slightly worse plan; a plan that never arrives is not a plan.
+ */
+const ACCOUNT_READ_BUDGET_MS = 4000
+
+async function readAccountOrGiveUp() {
+  let done
+  const gaveUp = new Promise(resolve => {
+    done = setTimeout(() => {
+      console.warn('[observe-pointers] account read is slow — planning without it')
+      resolve(null)
+    }, ACCOUNT_READ_BUDGET_MS)
+  })
+
+  try {
+    return await Promise.race([readAccount(), gaveUp])
+  } catch (error) {
+    console.warn('[observe-pointers] account read failed — planning without it', error)
+    return null
+  } finally {
+    clearTimeout(done)
+  }
+}
+
 async function readAccount() {
   // apiGet/apiPost directly, with account.js's own mappers on top. Every field those
   // produce is load-bearing: rankForSite reads `labels`, and bestCategoryFor chooses
@@ -285,7 +329,7 @@ async function handle(type, payload, message) {
       // plan that was built successfully is never lost to a problem delivering it.
       let result
       try {
-        const account = await readAccount()
+        const account = await readAccountOrGiveUp()
         result = payload?.pending
           ? answerAndRetry(payload.pending, payload.answer ?? '', payload.goal ?? '', { account })
           : await createPlan(payload?.goal ?? '', { account })

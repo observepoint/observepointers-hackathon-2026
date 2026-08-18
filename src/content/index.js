@@ -504,14 +504,23 @@ async function askPlanner(goal, answering) {
   bubble.setHint('Working out the steps…')
 
   try {
-    const result = await sendToBackground('OP_PLAN', {
-      goal: answering ? lastGoal : goal,
-      pending: answering ?? null,
-      answer: answering ? goal : undefined,
+    // chrome.runtime.sendMessage directly, not sendToBackground: that helper swallows a
+    // rejection and returns null, which reached the user as "No answer from the planner"
+    // while the actual reason -- a closed message port, because the worker was still
+    // waiting on an untimed account fetch -- went to a console nobody was reading.
+    //
+    // Third time in a row that discarding an error cost a round trip. The reason travels.
+    const result = await chrome.runtime.sendMessage({
+      type: 'OP_PLAN',
+      payload: {
+        goal: answering ? lastGoal : goal,
+        pending: answering ?? null,
+        answer: answering ? goal : undefined,
+      },
     })
     handlePlannerResult(result, answering ? lastGoal : goal)
   } catch (error) {
-    bubble.say(`Could not plan that: ${error?.message ?? 'unknown error'}`)
+    bubble.say(`Could not reach the planner: ${error?.message ?? 'unknown error'}`)
   } finally {
     bubble.setBusy(false)
     bubble.setHint('')
