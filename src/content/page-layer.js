@@ -152,6 +152,7 @@ import { ANCHOR, INJECTED_ATTR } from '../shared/selectors.js'
 import { GUARDS, guardsFor, activeRemedy, appliesToStep, isConfirmed } from '../shared/guards.js'
 import { matchesNavContext, onRouteChange } from './navigation.js'
 import { parseTargetSelector, applyOperators, cssPartOf } from './selector-query.js'
+import { advanceModeFor } from './advance.js'
 import {
   highlightElement,
   unhighlightElement,
@@ -854,52 +855,12 @@ function scrollIntoViewIfNeeded(element) {
 }
 
 /**
- * Does this step get a Continue button, and does the button do the advancing?
- *
- * The rule the walkthrough is judged on, in the user's words: "if any operation is
- * a click, don't display continue. Things where it asks user to fill something out,
- * display continue."
- *
- * That is a rule about the OPERATION, so it is derived from the operation rather
- * than restated on every step:
- *
- *   'auto'    A click the user performs. It announces itself — we listen for it and
- *             move on. Putting a button here is the thing this project exists to
- *             fix: being told to click something and then having to confirm it.
- *             The button still exists, but STAYS HIDDEN until the step has been
- *             sitting there long enough to look stuck (see STUCK_MS). Detection is
- *             good, not perfect, and a walkthrough with no way forward is worse
- *             than a button nobody needed.
- *   'button'  Either we typed something (the user needs a beat to read what we put
- *             in the field and agree to it), or the step is a remark about a value
- *             the app already set — "Operator is equals by default" — where there
- *             is nothing to detect because nothing is supposed to happen.
- *   'race'    Part 2's recipes, which ask for a manual button because their
- *             dom_mutation completions have nothing watchable. Detection wins if it
- *             works, the button covers it when it doesn't.
- *
- * `advance: 'continue' | 'auto'` on a step overrides the default. It is needed for
- * exactly one shape — the remark-about-a-default step, which is an actor:'user' step
- * that must NOT auto-advance — and it stays out of every other recipe.
- *
- * @returns {'auto' | 'button' | 'race'}
- */
-/**
  * How long a self-advancing step may sit before we offer a way past it.
  *
- * Long enough that nobody waiting to be told what to click ever sees the button;
- * short enough that a missed click is a pause, not a dead end.
+ * Long enough that nobody waiting to be told what to click ever sees the button; short
+ * enough that a missed click is a pause, not a dead end.
  */
 const STUCK_MS = 8000
-
-function advanceModeFor(step) {
-  if (step.advance === 'auto') return 'auto'
-  if (step.advance === 'continue') return 'button'
-  if (step.actor === 'ai') return 'button'
-  const isDomMutation = step.completion?.type === 'dom_mutation'
-  if (isDomMutation && step.completion.condition !== 'visible') return 'race'
-  return 'auto'
-}
 
 export async function startWalkthrough(plans) {
   // Stop anything already running FIRST. This used to just overwrite abortController, which

@@ -205,10 +205,10 @@
     {
       "id": "s15",
       "actor": "user",
-      "targetSelector": "[op-selector=\"web-audit-create-save\"]",
-      "say": "Save Audit — nothing exists until you do.",
+      "targetSelector": "[op-selector=\"web-audit-create-save-and-run\"]",
+      "say": "Save Changes & Run Now — the audit starts crawling immediately.",
       "targetFallback": {
-        "description": "the \"Save Audit\" button at the bottom of the editor"
+        "description": "the \"Save Changes & Run Now\" button at the bottom of the editor"
       },
       "completion": {
         "type": "dom_event",

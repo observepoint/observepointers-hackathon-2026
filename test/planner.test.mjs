@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 import { parseTargetSelector, applyOperators, cssPartOf } from '../src/content/selector-query.js'
 import { looksLikeAmendment } from '../src/planner/amend.js'
 import { demoMatch, DEMO_GOAL } from '../src/planner/demo.js'
+import { advanceModeFor } from '../src/content/advance.js'
 import {
   ONBOARDING_QUESTION,
   onboardingOptions,
@@ -2394,6 +2395,93 @@ check(
   'the final Save Audit still advances on the click',
   finalSave?.completion.type === 'dom_event',
   JSON.stringify(finalSave?.completion),
+)
+
+/* ---------------------------------------------------------------- */
+section('what gets a Continue button, decided without a browser')
+
+// This is in its own module BECAUSE of the bug below, which no DOM test would have
+// caught and which ended two walkthroughs without saving anything.
+//
+// A dom_mutation completion is watchable when it says which way the target is moving:
+// 'visible' waits for it to appear, 'hidden' waits for it to go away. Both are a poll for
+// a specific element. A dom_mutation with NO condition is the unwatchable one -- it names
+// something already present -- and that is the only case that should get a button up
+// front.
+//
+// The check originally read `condition !== 'visible'`, written before 'hidden' existed.
+// So when 'hidden' arrived it landed in the 'race' branch, and the two steps using it were
+// the Save at the end of the rule builder and the Save at the end of the alert designer.
+// Both showed "Continue →" immediately and both were continued past, so both walkthroughs
+// finished without saving.
+const click = { actor: 'user', completion: { type: 'dom_event', value: 'click' } }
+check('a click advances itself', advanceModeFor(click) === 'auto')
+check(
+  'an ai fill waits for the button',
+  advanceModeFor({ actor: 'ai', action: { type: 'fill_text', value: 'x' } }) === 'button',
+)
+check(
+  'a remark waits for the button and nothing else',
+  advanceModeFor({ actor: 'user', advance: 'continue' }) === 'button',
+)
+for (const condition of ['visible', 'hidden']) {
+  check(
+    `dom_mutation/${condition} is watchable, so no button up front`,
+    advanceModeFor({
+      actor: 'user',
+      completion: { type: 'dom_mutation', condition, targetSelector: '.x' },
+    }) === 'auto',
+    condition,
+  )
+}
+check(
+  'dom_mutation with no condition has nothing to watch, so it races the button',
+  advanceModeFor({ actor: 'user', completion: { type: 'dom_mutation', targetSelector: '.x' } }) ===
+    'race',
+)
+
+// The consequence, stated against the real recipes: nothing that ends a walkthrough by
+// committing something may offer a Continue button, because a Continue button is exactly
+// how you skip it.
+const commitSteps = everyStep.filter(({ step }) => /^Save/.test(step.say))
+check('there are Save steps', commitSteps.length >= 3, commitSteps.length)
+check(
+  'and not one of them offers a Continue button',
+  commitSteps.every(({ step }) => advanceModeFor(step) === 'auto'),
+  JSON.stringify(commitSteps.find(({ step }) => advanceModeFor(step) !== 'auto')?.step),
+)
+
+/* ---------------------------------------------------------------- */
+section('the edit path ends by running the audit')
+
+// The create paths end on Save Audit; this one ends on its sibling. The audit already
+// exists, it has just had all three Standards attached, and an audit that has never run
+// shows nothing -- so the useful ending is the crawl starting.
+const ranAudit = buildPlan(
+  RECIPES.find(r => r.id === 'edit_audit_add_standards'),
+  'g',
+  { auditName: 'My First Audit', siteUrl: 'gap.com' },
+).plan?.steps.at(-1)
+check(
+  'edit_audit_add_standards ends on Save Changes & Run Now',
+  ranAudit?.targetSelector === '[op-selector="web-audit-create-save-and-run"]',
+  ranAudit?.targetSelector,
+)
+// Starting a crawl on someone's site is a bigger step than saving a configuration, and
+// the create paths have just invented the audit rather than finished one.
+const createdAudit = buildPlan(
+  RECIPES.find(r => r.id === 'audit_with_all_standards'),
+  'g',
+  { siteUrl: 'gap.com' },
+).plan?.steps.at(-1)
+check(
+  'but the create paths still just save',
+  createdAudit?.targetSelector === '[op-selector="web-audit-create-save"]',
+  createdAudit?.targetSelector,
+)
+check(
+  'and every Save stays with the user',
+  [ranAudit, createdAudit].every(s => s.actor === 'user'),
 )
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)

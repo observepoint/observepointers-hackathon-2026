@@ -249,7 +249,10 @@ export default {
     const built = numbered([
       ...openEditor,
       ...standardsSubTabSteps(context).map(({ id: _id, ...step }) => step),
-      saveAuditStep(null),
+      // Save AND run. The audit exists, it now has all three Standards on it, and an
+      // audit that has never run shows nothing — so the useful ending is the crawl
+      // starting, not a saved configuration.
+      saveAuditStep(null, { andRun: true }),
     ])
 
     return built

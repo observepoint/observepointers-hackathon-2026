@@ -145,6 +145,9 @@ selectors through the same path, so the sweep and the run cannot disagree.
 
 ### Who gets a Continue button, and why it isn't in the recipes
 
+`advanceModeFor` in `src/content/advance.js` — pure, no DOM, and in its own module because
+of the bug below.
+
 The rule: **a click the user performs advances by itself; anything we type waits for
 Continue.** It's derived from the operation in `advanceModeFor()` rather than restated
 on every step:
@@ -154,6 +157,19 @@ on every step:
 | `actor: "ai"` (a fill)    | Continue, immediately   | the button               |
 | `actor: "user"` (a click) | hidden for the first 8s | the click, or the button |
 | `advance: "continue"`     | Continue, immediately   | the button only          |
+
+A `dom_mutation` completion is **watchable** when it says which way the target is moving:
+`visible` waits for it to appear, `hidden` waits for it to go away. Both are a poll for a
+specific element. A `dom_mutation` with no condition is the unwatchable one — it names
+something already present — and that is the only case that gets a button up front.
+
+That distinction cost two walkthroughs. The check read `condition !== 'visible'`, written
+before `hidden` existed, so when `hidden` arrived it landed in the button-up-front branch —
+and the two steps using it were the Save at the end of the rule builder and the Save at the
+end of the alert designer. Both offered "Continue →", both were continued past, and both
+walkthroughs finished without saving. **Adding a completion type changed the meaning of a
+rule three files away.** There is now a test that no step whose copy starts with "Save" can
+offer a button, because a button is exactly how you skip one.
 
 The 8-second reveal is the compromise between the stated rule and not stranding
 anyone: detection is good and not perfect, and a walkthrough with no way forward is

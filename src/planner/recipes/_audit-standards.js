@@ -132,6 +132,10 @@ export const SELECTORS = {
   // <button>, so no descend. Label is literally "Save Audit"
   // (audit-editor.component.ts:155), and "Save Changes & Run Now" is the sibling.
   saveAudit: '[op-selector="web-audit-create-save"]',
+  // The sibling. Saves and starts a run in one go, which is the right ending for an audit
+  // that already has its Standards attached — there is nothing left to configure, and a
+  // saved audit that has never run shows nothing.
+  saveAuditAndRun: '[op-selector="web-audit-create-save-and-run"]',
 
   // op-standards-selector — identical markup for all three standard types.
   standardsSearch: '.op-standards-selector .search-input',
@@ -430,15 +434,33 @@ export function standardsPickerSummary({ items, kind, plural, weight }) {
  * Now" as the alternative, which is true and not what a step is for — `say` is the
  * instruction, and the sibling button is visible right next to the one we are
  * pointing at. Anyone who wants it will see it.
+ *
+ * `andRun` points at that sibling instead. Used by edit_audit_add_standards, where the
+ * audit already exists and has just had all three Standards attached: there is nothing
+ * left to configure, and an audit that has never run has nothing to show. On the CREATE
+ * paths it stays Save Audit — those have just invented an audit, and starting a crawl
+ * on someone's site is a bigger step than saving a configuration.
  */
-export const saveAuditStep = id => ({
-  id,
-  actor: 'user',
-  targetSelector: SELECTORS.saveAudit,
-  say: 'Save Audit — nothing exists until you do.',
-  targetFallback: { description: 'the "Save Audit" button at the bottom of the editor' },
-  completion: { type: 'dom_event', value: 'click' },
-})
+export const saveAuditStep = (id, { andRun = false } = {}) =>
+  andRun
+    ? {
+        id,
+        actor: 'user',
+        targetSelector: SELECTORS.saveAuditAndRun,
+        say: 'Save Changes & Run Now — the audit starts crawling immediately.',
+        targetFallback: {
+          description: 'the "Save Changes & Run Now" button at the bottom of the editor',
+        },
+        completion: { type: 'dom_event', value: 'click' },
+      }
+    : {
+        id,
+        actor: 'user',
+        targetSelector: SELECTORS.saveAudit,
+        say: 'Save Audit — nothing exists until you do.',
+        targetFallback: { description: 'the "Save Audit" button at the bottom of the editor' },
+        completion: { type: 'dom_event', value: 'click' },
+      }
 
 /**
  * Every recipe here needs these two. `purpose` is what the audit name says it

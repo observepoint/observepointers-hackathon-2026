@@ -211,7 +211,18 @@
  *    the app's own confirmation the save landed.
  *
  *    The final Save Audit is deliberately left on the click: nothing downstream reads
- *    it, and waiting on the editor closing would add a way to stall for no gain. The banner's dismiss step
+ *    it, and waiting on the editor closing would add a way to stall for no gain.
+ *
+ *    AND THE FOLLOW-ON BUG, worth more than the fix. advanceModeFor read
+ *    `condition !== 'visible'`, written before 'hidden' existed — so 'hidden' landed in
+ *    the branch that offers a Continue button UP FRONT, and the two steps using it were
+ *    those same two Saves. Both showed "Continue →" and both were continued past, so
+ *    both walkthroughs finished without saving anything. Adding a completion type
+ *    changed the meaning of a rule three files away.
+ *
+ *    The decision now lives in content/advance.js, pure and tested, alongside a check
+ *    that no step whose `say` starts with "Save" can ever offer a button — because a
+ *    button is exactly how you skip one. The banner's dismiss step
  *    listened for a click on Close and never advanced -- the snackbar tears itself down
  *    as it closes, and Escape, the Assign action and its own timeout all dismiss it
  *    without touching that button. `condition: 'hidden'` is true for all of them. Every step of the demo chain has now been watched resolve; what is left
