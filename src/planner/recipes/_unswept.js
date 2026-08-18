@@ -50,6 +50,20 @@
  * completion, including the three states that only exist mid-flow. It is the only
  * recipe in the library that can say that.
  *
+ *   Alert designer   14 of 16 steps, everything reachable on the Logic step.
+ *                    button[aria-label="Create Alert"]; alert-name-control input;
+ *                    input[aria-label="Select report metric"]; the whole metric menu
+ *                    — "Audits" [1 of 24], "Tag & Variable Rules" [5 of 24], "Rule
+ *                    Failures" [18 of 24]; the operator select and its option; the
+ *                    threshold; input[aria-label="Search by URL"]; and Next.
+ *
+ *                    SAVE IS HIDDEN UNTIL THE LAST STEP, which contradicted what the
+ *                    recipe claimed. updateButtons() reads `saveButton.hidden =
+ *                    isEditMode ? false : currentStep !== Preview`, so on a new alert
+ *                    it appears only on Preview. The recipe was right by accident and
+ *                    its comment was wrong; the sweep reporting "in DOM but hidden"
+ *                    on every pass is what sent us back to the source.
+ *
  * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
  *
  * 1. A ✓ can be the wrong element. On the CC create menu,
@@ -126,8 +140,16 @@
  *                    at an unclickable element and wait forever.
  *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, and the alert designer — which is now the ONLY recipe with no swept
- * steps at all.
+ * Audit screen, and the alert designer's last two screens — the subscriber field on
+ * Notification and Save on Preview.
+ *
+ * 7. A LABEL THAT IS A PREFIX OF ANOTHER LABEL WILL SILENTLY PICK THE WRONG ONE, and
+ *    the alert operator sweep is the proof that including the sign prevents it.
+ *    `.alert-operator-selector mat-option >> text=Greater than (>)` resolved at
+ *    position 2 of 13; the unfiltered `.alert-operator-selector mat-option` resolved
+ *    at position 1, "Greater than or equal to (≥)". Matching "Greater than" on the
+ *    words alone would have chosen the wrong operator, with a tick and no complaint.
+ *    When a label is a prefix of a sibling, carry whatever distinguishes them.
  *
  * 6. THE SELECTOR LANGUAGE DISCRIMINATES — evidenced, not assumed. Every earlier tick
  *    on a `>> last` selector came from a grid with ONE row, where "the last one" and

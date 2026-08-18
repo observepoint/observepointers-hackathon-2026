@@ -41,14 +41,37 @@ import { unswept } from './_unswept.js'
  *
  * SELECTORS
  *   Added upstream — alert-designer-{continue,save}-btn. AlertComponent had none.
- *     Both are visible from the first screen (saveButton.hidden is only set in edit
- *     mode), so one pair of selectors covers all four steps.
+ *     Next is visible from the first screen; SAVE IS NOT, and an earlier version of
+ *     this comment said otherwise. updateButtons() reads
+ *
+ *       saveButton.hidden = isEditMode ? false : currentStep !== Preview
+ *
+ *     so on a NEW alert Save appears only on the last of the four steps. The recipe
+ *     is unaffected — Save is its last step, reached after three Nexts — but the
+ *     wrong reason was written down, and "both are visible throughout" would have
+ *     justified an edit that broke it. The sweep reported Save as "in DOM but
+ *     hidden" on every pass of the Logic step, which is what sent me back to read
+ *     the source properly.
  *   Semantic, no patch needed — input[aria-label="Select report metric"],
  *     input[aria-label="Search by URL"] (op-filter-bar builds it from
  *     searchByTextPlaceholderSuffix), mat-chip-grid#email-chip-grid input,
  *     and the alert-trigger form controls.
  *   Product vocabulary — the menu path and the operator, matched by label.
- *   Nothing here is swept.
+ *
+ * SWEPT: everything reachable on the Logic step, which is 14 of the 16 steps. The
+ * whole metric menu — "Audits" [1 of 24], "Tag & Variable Rules" [5 of 24], "Rule
+ * Failures" [18 of 24] — the operator, the threshold, the URL filter and Next.
+ *
+ * THE OPERATOR RESULT IS THE ONE WORTH KEEPING. `.alert-operator-selector mat-option
+ * >> text=Greater than (>)` resolved to "Greater than (>)" at position 2 OF 13, while
+ * the unfiltered `.alert-operator-selector mat-option` resolved to position 1,
+ * "Greater than or equal to (≥)". That is precisely the collision the sign in the
+ * label exists to prevent: "Greater than" is a prefix of "Greater than or equal to",
+ * so matching on the words alone would have selected the wrong operator — silently,
+ * and with a tick. Position 2 is `Greater` in AlertMetricThresholdOperators.
+ *
+ * STILL UNSWEPT: the subscriber field and Save, both of which live on later steps of
+ * the designer that the sweep passes did not reach.
  */
 
 const SELECTORS = {
@@ -297,6 +320,16 @@ export default {
       },
     )
 
-    return unswept(numbered(steps))
+    // Only the two steps on screens the sweep has not reached: the subscriber field
+    // (Notification) and Save (Preview). Flagged by selector rather than by id,
+    // because the ids shift with whether a site was named.
+    const built = numbered(steps)
+    const unsweptIds = built
+      .filter(
+        step => step.targetSelector === SELECTORS.emails || step.targetSelector === SELECTORS.save,
+      )
+      .map(step => step.id)
+
+    return unswept(built, unsweptIds)
   },
 }

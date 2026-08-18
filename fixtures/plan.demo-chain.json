@@ -625,8 +625,7 @@
           "type": "url_change",
           "value": "/alerts"
         },
-        "id": "s1",
-        "unverified": true
+        "id": "s1"
       },
       {
         "actor": "user",
@@ -640,8 +639,7 @@
           "condition": "visible",
           "targetSelector": "alert-name-control input"
         },
-        "id": "s2",
-        "unverified": true
+        "id": "s2"
       },
       {
         "actor": "ai",
@@ -658,8 +656,7 @@
           "type": "dom_event",
           "value": "change"
         },
-        "id": "s3",
-        "unverified": true
+        "id": "s3"
       },
       {
         "actor": "user",
@@ -673,8 +670,7 @@
           "condition": "visible",
           "targetSelector": "button[mat-menu-item]"
         },
-        "id": "s4",
-        "unverified": true
+        "id": "s4"
       },
       {
         "actor": "user",
@@ -687,8 +683,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s5",
-        "unverified": true
+        "id": "s5"
       },
       {
         "actor": "user",
@@ -701,8 +696,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s6",
-        "unverified": true
+        "id": "s6"
       },
       {
         "actor": "user",
@@ -716,8 +710,7 @@
           "condition": "visible",
           "targetSelector": "alert-trigger mat-select[formControlName=\"operator\"]"
         },
-        "id": "s7",
-        "unverified": true
+        "id": "s7"
       },
       {
         "actor": "user",
@@ -731,8 +724,7 @@
           "condition": "visible",
           "targetSelector": ".alert-operator-selector mat-option"
         },
-        "id": "s8",
-        "unverified": true
+        "id": "s8"
       },
       {
         "actor": "user",
@@ -745,8 +737,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s9",
-        "unverified": true
+        "id": "s9"
       },
       {
         "actor": "ai",
@@ -763,8 +754,7 @@
           "type": "dom_event",
           "value": "change"
         },
-        "id": "s10",
-        "unverified": true
+        "id": "s10"
       },
       {
         "actor": "ai",
@@ -781,8 +771,7 @@
           "type": "dom_event",
           "value": "change"
         },
-        "id": "s11",
-        "unverified": true
+        "id": "s11"
       },
       {
         "actor": "user",
@@ -796,8 +785,7 @@
           "condition": "visible",
           "targetSelector": "mat-chip-grid#email-chip-grid input"
         },
-        "id": "s12",
-        "unverified": true
+        "id": "s12"
       },
       {
         "actor": "ai",
@@ -828,8 +816,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s14",
-        "unverified": true
+        "id": "s14"
       },
       {
         "actor": "user",
@@ -842,8 +829,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s15",
-        "unverified": true
+        "id": "s15"
       },
       {
         "actor": "user",

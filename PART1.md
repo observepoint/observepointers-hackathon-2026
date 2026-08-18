@@ -417,18 +417,18 @@ the tests use.
 Focused on audits and the three things you attach to them, plus the two starter
 flows for an account that has none of them yet.
 
-| Recipe                          | Covers                                         | Verified      |
-| ------------------------------- | ---------------------------------------------- | ------------- |
-| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps  |
-| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps  |
-| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps  |
-| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps  |
-| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept  |
-| `create_first_rule`             | Fill an empty rule library, named and no more  | ✅ all steps  |
-| `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
-| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
-| `create_first_alert`            | An alert, metric and threshold included        | ⚠️ 0/16 swept |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps  |
+| Recipe                          | Covers                                         | Verified       |
+| ------------------------------- | ---------------------------------------------- | -------------- |
+| `audit_with_rules`              | Audit + Tag & Variable Rules                   | ✅ all steps   |
+| `audit_with_consent_categories` | Audit + Consent Categories (privacy/GDPR)      | ✅ all steps   |
+| `audit_with_alerts`             | Audit + Alerts                                 | ✅ all steps   |
+| `audit_with_all_standards`      | One audit, all three Standards sub-tabs        | ✅ all steps   |
+| `alert_from_report`             | "Alert me when X breaks", from a report widget | ⚠️ 0/6 swept   |
+| `create_first_rule`             | Fill an empty rule library, named and no more  | ✅ all steps   |
+| `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept  |
+| `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept   |
+| `create_first_alert`            | An alert, metric and threshold included        | ⚠️ 14/16 swept |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps   |
 
 `create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
 and the split is about the REQUEST rather than the recipe. "Make me a rule" says
@@ -671,14 +671,21 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **`create_first_alert` is the only recipe with no swept steps at all.** Its 16 steps
-  have never been watched resolve, and it is the last unverified stretch of the demo.
+- **Two steps of the demo have never been seen resolve.** The alert's subscriber
+  field and its Save button live on the designer's last two screens, which the sweep
+  passes did not reach. Everything else in the 72-step chain is confirmed on a live
+  page.
 - **The selector language is evidenced, not assumed.** `>> last` reported
   "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
   "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.
   Every earlier tick came from a single-row grid, where "the last one" and "the only
-  one" are the same element, so none of them proved anything. Scoping is what still
-  needs care: a sweep caught
+  one" are the same element, so none of them proved anything. The alert operator is
+  the sharpest case: `>> text=Greater than (>)` resolved at position **2 of 13**,
+  while the same selector without the text filter resolved at position 1, "Greater
+  than or equal to (≥)". Matching on the words alone would have picked the wrong
+  operator with a tick and no complaint — which is why a label that is a prefix of a
+  sibling has to carry whatever distinguishes them. Scoping is what still needs care:
+  a sweep caught
   `mat-option >> text=Tag` resolving to "Adobe DTMTag Management" while the tag
   autocomplete was open — no option there reads exactly "Tag", so it fell through to
   contains. Tightening contains is not available: tag options render their category
