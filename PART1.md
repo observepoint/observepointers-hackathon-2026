@@ -428,7 +428,7 @@ flows for an account that has none of them yet.
 | `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
 | `create_first_alert`            | An alert, metric and threshold included        | ⚠️ 0/16 swept |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 0/9 swept  |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps  |
 
 `create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
 and the split is about the REQUEST rather than the recipe. "Make me a rule" says
@@ -671,11 +671,13 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **The three longest recipes are entirely unswept, and one of them is the demo.**
-  `create_tag_variable_rule` (30 steps), `create_first_alert` (16) and
-  `import_consent_from_onetrust` (9) are all source-accurate and none has been watched
-  resolve. That is 55 of the demo's 72 steps. They also need the newest moonbeam
-  branch: five of the rule selectors and six of the OneTrust ones were added there.
+- **The two longest recipes are still entirely unswept.** `create_tag_variable_rule`
+  (30 steps) and `create_first_alert` (16) are source-accurate and neither has been
+  watched resolve — 46 of the demo's 72 steps. They also need the newest moonbeam
+  branch, where five of the rule selectors were added.
+  `import_consent_from_onetrust` **is** swept now, end to end, and it proved the
+  `>> text=` machinery those two lean on — so the remaining risk is which selectors
+  exist, not whether label matching works.
 - **Two fields we type and cannot commit.** The alert's URL filter reads its input on
   `keyup`, and the subscriber list turns text into a chip on Enter. Setting `.value`
   and firing `input`/`change` puts the text in the box without registering it, so both
