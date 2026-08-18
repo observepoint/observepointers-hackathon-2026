@@ -21,7 +21,7 @@
 // services — several of those go through `apiUploadAppUrl`, which is /old/v2/
 // rather than /api/v2/, and one is a POST.
 //   RulesRoute.scala:41   pathEndOrSingleSlash { get … getRules(pagination) }
-const API = {
+export const API = {
   consentCategories: '/api/v3/consent-categories/library',
   // withUsages=true swaps getRules for getRulesWihUsages (RulesRoute.scala:42), which
   // is the only way to learn which rules the account's other audits already use.
@@ -159,35 +159,51 @@ function displayName(row) {
 }
 
 /**
- * The library endpoint takes every filter as optional, so no argument lists
- * everything. Shapes vary by endpoint version, hence the defensive unwrap.
+ * Whatever shape the endpoint chose to wrap its rows in.
+ *
+ * Exported with the three mappers below because there are now TWO callers: these
+ * functions, which reach the API through the service worker, and the worker itself,
+ * which reaches it directly and cannot use them — planner/account.js talks to the worker
+ * over chrome.runtime.sendMessage, and a sender does not receive its own message.
+ *
+ * The mapping had been duplicated there instead, and it cost an outage: the copy omitted
+ * `labels`, so rankForSite's `category.labels.join(' ')` threw and every plan came back
+ * as "Planning failed: Cannot read properties of undefined". The fields below are not
+ * decoration — four of them are the whole basis for choosing between 79 otherwise
+ * identical consent categories — so there is one mapping now, and both callers use it.
+ */
+export const rowsOf = (data, ...keys) => {
+  if (Array.isArray(data)) return data
+  for (const key of keys) if (Array.isArray(data?.[key])) return data[key]
+  return []
+}
+
+export const toConsentCategory = row => ({
+  id: row.id,
+  name: displayName(row),
+  type: row.type,
+  // labels are ILabel objects, not strings — joining them raw produced
+  // "[object Object]" and quietly broke every label match.
+  labels: (row.labels ?? []).map(l => (typeof l === 'string' ? l : l?.name)).filter(Boolean),
+  // The strongest signal available: for CMP-synced categories this is
+  // literally the domain the group belongs to.
+  cmpDomain: row.cmpData?.oneTrustCookieGroupDomain ?? null,
+  // The geography this CMP group applies to ("Canada, Alberta"). It is the
+  // only thing distinguishing 79 otherwise-identical categories, so it is the
+  // field that decides which one is correct.
+  cmpGeo: cleanText(row.cmpData?.oneTrustCookieGroupGeo) || null,
+  // How many audits already use this category. The best available answer to
+  // "which region did they mean?" is the one they keep choosing.
+  auditCount: row.auditCount ?? 0,
+})
+
+/**
+ * The library endpoint takes every filter as optional, so no argument lists everything.
  */
 export async function listConsentCategories({ name } = {}) {
   const query = name ? `?name=${encodeURIComponent(name)}` : ''
   const data = await get(`${API.consentCategories}${query}`)
-
-  const rows = Array.isArray(data)
-    ? data
-    : (data?.consentCategories ?? data?.items ?? data?.data ?? [])
-
-  return rows.map(row => ({
-    id: row.id,
-    name: displayName(row),
-    type: row.type,
-    // labels are ILabel objects, not strings — joining them raw produced
-    // "[object Object]" and quietly broke every label match.
-    labels: (row.labels ?? []).map(l => (typeof l === 'string' ? l : l?.name)).filter(Boolean),
-    // The strongest signal available: for CMP-synced categories this is
-    // literally the domain the group belongs to.
-    cmpDomain: row.cmpData?.oneTrustCookieGroupDomain ?? null,
-    // The geography this CMP group applies to ("Canada, Alberta"). It is the
-    // only thing distinguishing 79 otherwise-identical categories, so it is the
-    // field that decides which one is correct.
-    cmpGeo: cleanText(row.cmpData?.oneTrustCookieGroupGeo) || null,
-    // How many audits already use this category. The best available answer to
-    // "which region did they mean?" is the one they keep choosing.
-    auditCount: row.auditCount ?? 0,
-  }))
+  return rowsOf(data, 'consentCategories', 'items', 'data').map(toConsentCategory)
 }
 
 /**
@@ -198,17 +214,18 @@ export async function listConsentCategories({ name } = {}) {
  * in either direction is a bad first impression, so we read it rather than
  * assume it — and callers must treat a throw as "unknown", not as "empty".
  */
+export const toRule = row => ({
+  id: row.id,
+  name: cleanText(row.name) || `Rule ${row.id}`,
+  // "What your other audits already use" is the only ranking signal a rule has.
+  // Unlike a consent category there is no site to match on — a rule is about a tag,
+  // not a domain — so popularity within the account is the honest recommendation.
+  usageCount: row.usageCount ?? row.auditCount ?? 0,
+})
+
 export async function listRules() {
   const data = await get(API.rules)
-  const rows = Array.isArray(data) ? data : (data?.rules ?? data?.items ?? data?.data ?? [])
-  return rows.map(row => ({
-    id: row.id,
-    name: cleanText(row.name) || `Rule ${row.id}`,
-    // "What your other audits already use" is the only ranking signal a rule has.
-    // Unlike a consent category there is no site to match on — a rule is about a tag,
-    // not a domain — so popularity within the account is the honest recommendation.
-    usageCount: row.usageCount ?? row.auditCount ?? 0,
-  }))
+  return rowsOf(data, 'rules', 'items', 'data').map(toRule)
 }
 
 /**
@@ -219,17 +236,18 @@ export async function listRules() {
  * (alerts-library.service.ts:30) — filters in the body, paging in the query. An
  * empty body means no filters.
  */
+export const toAlert = row => ({
+  id: row.id,
+  name: cleanText(row.name) || `Alert ${row.id}`,
+  metricType: row.metricType ?? null,
+  // How many people watch it. The nearest thing an alert has to "your other audits
+  // use this", and it is the field the library itself sorts on.
+  subscribedCount: row.subscribedCount ?? 0,
+})
+
 export async function listAlerts() {
   const data = await post(API.alerts, {})
-  const rows = Array.isArray(data) ? data : (data?.alerts ?? data?.items ?? data?.data ?? [])
-  return rows.map(row => ({
-    id: row.id,
-    name: cleanText(row.name) || `Alert ${row.id}`,
-    metricType: row.metricType ?? null,
-    // How many people watch it. The nearest thing an alert has to "your other audits
-    // use this", and it is the field the library itself sorts on.
-    subscribedCount: row.subscribedCount ?? 0,
-  }))
+  return rowsOf(data, 'alerts', 'items', 'data').map(toAlert)
 }
 
 /**

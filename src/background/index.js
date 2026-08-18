@@ -39,6 +39,11 @@ import { generatePlan } from './generate-plan.js'
 // it would put the model prompt, and on the API-key path the key itself, on the app's
 // origin. Planning was already listed above as belonging here.
 import { createPlan, answerAndRetry } from '../planner/index.js'
+// The row -> object mappers, NOT the list functions: those reach the API through this
+// worker over chrome.runtime.sendMessage, and a sender does not receive its own message.
+// Importing the mappers means there is one mapping rather than two — the duplicate cost
+// an outage, see the note above rowsOf in account.js.
+import { API, rowsOf, toConsentCategory, toRule, toAlert } from '../planner/account.js'
 
 console.log('[observe-pointers] service worker started')
 
@@ -229,54 +234,29 @@ async function apiRequest(path, init = {}) {
  * account" rather than "the account is empty", so a failed read costs a specific
  * suggestion and nothing else. Blocking a plan on it would be the wrong trade.
  */
-const ACCOUNT_PATHS = {
-  consentCategories: '/api/v3/consent-categories/library',
-  // withUsages=true swaps getRules for getRulesWihUsages, which is the only way to learn
-  // which rules the account's other audits already use.
-  rules: '/api/v2/rules?withUsages=true',
-  alerts: '/api/v3/alerts/library?page=0&size=200&sortBy=name&sortDesc=false',
-}
-
-/** Whatever shape the endpoint chose to return its rows in. */
-const rowsOf = (data, ...keys) => {
-  if (Array.isArray(data)) return data
-  for (const key of keys) if (Array.isArray(data?.[key])) return data[key]
-  return []
-}
-
 async function readAccount() {
-  // apiGet/apiPost, not planner/account.js: that module talks to THIS worker over
-  // chrome.runtime.sendMessage, and a sender does not receive its own message. Calling it
-  // from here would hang rather than fail, which is the worse of the two.
+  // apiGet/apiPost directly, with account.js's own mappers on top. Every field those
+  // produce is load-bearing: rankForSite reads `labels`, and bestCategoryFor chooses
+  // between 79 otherwise identical consent categories on `cmpDomain`, `cmpGeo` and
+  // `auditCount`. A hand-written copy of the mapping here omitted `labels` and every
+  // plan came back as "Cannot read properties of undefined (reading 'join')".
   const [ccReply, ruleReply, alertReply] = await Promise.all([
-    apiGet(ACCOUNT_PATHS.consentCategories).catch(() => ({ ok: false })),
-    apiGet(ACCOUNT_PATHS.rules).catch(() => ({ ok: false })),
-    apiPost(ACCOUNT_PATHS.alerts, {}).catch(() => ({ ok: false })),
+    apiGet(API.consentCategories).catch(() => ({ ok: false })),
+    apiGet(API.rules).catch(() => ({ ok: false })),
+    apiPost(API.alerts, {}).catch(() => ({ ok: false })),
   ])
 
+  // undefined, not [], when a read fails: every recipe treats a missing list as "could
+  // not see the account" rather than "the account is empty", and telling someone with a
+  // full library to go build a duplicate is the worse error.
   const consentCategories = ccReply.ok
-    ? rowsOf(ccReply.data, 'consentCategories', 'items', 'data').map(row => ({
-        id: row.id,
-        name: row.name ?? '',
-        type: row.type,
-        domains: row.domains ?? [],
-      }))
+    ? rowsOf(ccReply.data, 'consentCategories', 'items', 'data').map(toConsentCategory)
     : undefined
-
   const rules = ruleReply.ok
-    ? rowsOf(ruleReply.data, 'rules', 'items', 'data').map(row => ({
-        id: row.id,
-        name: row.name ?? '',
-        usageCount: row.usageCount ?? row.usages?.length ?? 0,
-      }))
+    ? rowsOf(ruleReply.data, 'rules', 'items', 'data').map(toRule)
     : undefined
-
   const alerts = alertReply.ok
-    ? rowsOf(alertReply.data, 'alerts', 'items', 'data').map(row => ({
-        id: row.id,
-        name: row.name ?? '',
-        subscribedCount: row.subscribedCount ?? 0,
-      }))
+    ? rowsOf(alertReply.data, 'alerts', 'items', 'data').map(toAlert)
     : undefined
 
   if (!consentCategories && !rules && !alerts) return null

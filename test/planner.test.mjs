@@ -12,7 +12,7 @@ import { render, placeholdersIn } from '../src/planner/template.js'
 import { matchDeterministic } from '../src/planner/match.js'
 import { rankModels, TIMEOUT_MS } from '../src/planner/llm.js'
 import { hostFrom, auditNameFor, alertNameFrom, normalizeSiteUrl } from '../src/planner/naming.js'
-import { rankForSite } from '../src/planner/account.js'
+import { rankForSite, toConsentCategory, toRule, toAlert, rowsOf } from '../src/planner/account.js'
 import {
   RECIPES,
   allKnownSelectors,
@@ -2483,6 +2483,59 @@ check(
   'and every Save stays with the user',
   [ranAudit, createdAudit].every(s => s.actor === 'user'),
 )
+
+/* ---------------------------------------------------------------- */
+section('one mapping from API row to account object')
+
+// The service worker reads the account directly -- it cannot use listConsentCategories(),
+// because that function messages the worker and a sender does not receive its own message.
+// So the mapping had been written twice, and the second copy omitted `labels`. rankForSite
+// does `category.labels.join(' ')`, so every plan came back as
+// "Planning failed: Cannot read properties of undefined (reading 'join')".
+//
+// One mapping now. These checks pin the fields the ranking actually reads, so dropping one
+// fails here instead of at the top of a demo.
+const rawCategory = {
+  id: 7,
+  name: 'Analytical Cookies',
+  type: 'approved',
+  labels: [{ id: 1, name: 'privacy' }, 'raw-string', null],
+  cmpData: { oneTrustCookieGroupDomain: 'gap.com', oneTrustCookieGroupGeo: 'USA, Utah' },
+  auditCount: 3,
+}
+const mapped = toConsentCategory(rawCategory)
+
+for (const field of ['labels', 'cmpDomain', 'cmpGeo', 'auditCount', 'name', 'id', 'type']) {
+  check(`toConsentCategory keeps ${field}`, mapped[field] !== undefined, JSON.stringify(mapped))
+}
+check(
+  'labels are strings, so joining them cannot produce [object Object]',
+  mapped.labels.every(label => typeof label === 'string'),
+  JSON.stringify(mapped.labels),
+)
+// The exact call that threw — rankForSite takes a HOST, not a URL.
+check(
+  'and rankForSite can read them',
+  rankForSite([mapped], 'gap.com')[0].score === 3,
+  JSON.stringify(rankForSite([mapped], 'gap.com')),
+)
+
+check(
+  'toRule keeps the ranking signal',
+  toRule({ id: 1, name: 'r', usageCount: 4 }).usageCount === 4,
+)
+check(
+  'toAlert keeps the ranking signal',
+  toAlert({ id: 1, name: 'a', subscribedCount: 2 }).subscribedCount === 2,
+)
+
+// Both callers unwrap the same three shapes, which is the other half of the duplication.
+check('rowsOf takes a bare array', rowsOf([1, 2]).length === 2)
+check(
+  'rowsOf finds the named key',
+  rowsOf({ consentCategories: [1] }, 'consentCategories').length === 1,
+)
+check('rowsOf falls back to empty rather than throwing', rowsOf(null, 'items').length === 0)
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)
 process.exit(failures ? 1 : 0)
