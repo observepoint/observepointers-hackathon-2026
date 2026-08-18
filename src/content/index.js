@@ -621,7 +621,9 @@ async function boot() {
   bubble.mountBubble({
     onAsk: (text, answering) => askPlanner(text, answering ?? pendingQuestion),
     onMicStart: startVoice,
-    onMicStop: () => voice.stopListening(),
+    // Finish, not cancel: the circle means "I am done", so what was said comes back for
+    // review instead of being thrown away.
+    onMicStop: () => voice.finishNow(),
   })
 
   // Safe to start immediately — it's watching for a menu panel that may not exist for

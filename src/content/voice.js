@@ -32,6 +32,11 @@ const SILENCE_MS = 2500
 let recognition = null
 let micPrimed = false
 let finalText = ''
+// The chunk the service has not committed to yet. It is already on screen — onPartial
+// shows finalText + interim — so leaving it out of the handover means the box comes back
+// with LESS than the user just watched themselves say. Ending mid-word makes that the
+// common case rather than the edge one.
+let lastInterim = ''
 let silenceTimer = null
 let finishing = false
 let submitted = false
@@ -87,7 +92,7 @@ function finish() {
   clearSilenceTimer()
   teardown()
 
-  const text = finalText.trim()
+  const text = `${finalText}${lastInterim}`.trim()
   callbacks.onEnd?.()
   if (text) callbacks.onResult?.(text)
 }
@@ -95,13 +100,16 @@ function finish() {
 /**
  * stop() vs abort(), which is not a detail.
  *
- * stop() means "stop taking audio, but finish what you have" — the service still returns a
- * final result and the stream lingers while it does. That is right when SILENCE ended the
- * sentence: we want that last word.
+ * stop() means "stop taking audio, but finish what you have". That is what FINISHING wants,
+ * whether the silence timer or the circle triggered it.
  *
- * abort() discards and releases immediately. That is right when the USER ended it, and it
- * is what makes clicking the circle actually stop recording rather than stop listening —
- * with stop(), the ripple went away and the mic stayed live for another beat.
+ * abort() discards and releases the mic immediately. That is what CANCELLING wants — the
+ * error paths, where there is nothing worth keeping and the mic should be free the moment
+ * the ripple stops.
+ *
+ * The axis is keep-or-discard, not who-pressed-what. An earlier version had it as the
+ * latter and aborted when the user ended the capture, which is why clicking the circle
+ * looked like it had swallowed the sentence.
  */
 function teardown({ discard = false } = {}) {
   const active = recognition
@@ -114,14 +122,28 @@ function teardown({ discard = false } = {}) {
   }
 }
 
-/** Abandon without submitting — the mic button's second press, or a click on the circle. */
+/**
+ * "I am done" — end the capture and keep what was heard.
+ *
+ * What clicking the circle means. It is the same path the silence timer takes, just
+ * triggered deliberately, so the user never has to sit through 2.5 seconds of nothing to
+ * hand over a sentence they have finished saying.
+ *
+ * Distinct from stopListening() below, which throws the sentence away. Conflating them is
+ * what made the circle look like it had swallowed the transcript.
+ */
+export function finishNow() {
+  if (!recognition) return
+  finish()
+}
+
+/** Abandon and discard — the error paths, where there is nothing worth keeping. */
 export function stopListening() {
   if (!recognition) return
   submitted = true
   finishing = true
   clearSilenceTimer()
-  // Discard: nothing heard so far is wanted, and the mic should be free the moment the
-  // ripple stops.
+  // Discard: the mic should be free the moment the ripple stops.
   teardown({ discard: true })
   callbacks.onEnd?.()
 }
@@ -144,7 +166,8 @@ function listen() {
       if (event.results[i].isFinal) finalText += chunk
       else interim += chunk
     }
-    callbacks.onPartial?.((finalText + interim).trim())
+    lastInterim = interim
+    callbacks.onPartial?.(`${finalText}${interim}`.trim())
     armSilenceTimer()
   }
 
@@ -196,6 +219,7 @@ export async function startListening(handlers = {}) {
   }
 
   finalText = ''
+  lastInterim = ''
   finishing = false
   submitted = false
   listen()

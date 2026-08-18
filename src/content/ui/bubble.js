@@ -168,7 +168,7 @@ function wire() {
       event.preventDefault()
       commit(input.value)
     }
-    if (event.key === 'Escape') closeCard()
+    if (event.key === 'Escape') dismiss()
   })
   input.addEventListener('input', () => {
     input.style.height = 'auto'
@@ -238,12 +238,27 @@ function showCard({ message, dim = false, withInput, placeholder, prefill, stick
   }
 }
 
+/**
+ * Hide the card, WITHOUT forgetting an outstanding question.
+ *
+ * It used to clear `pending`, and that was a real defect once the mic started closing the
+ * card on its way to reopening it with the transcript: answering the email question by
+ * voice would have dropped the question on the floor between the two, and the answer would
+ * have been planned as a brand-new request.
+ *
+ * Giving up on a question is a deliberate act — see dismiss().
+ */
 function closeCard() {
   clearDismiss()
   nodes.card.hidden = true
   nodes.form.hidden = true
   nodes.hint.textContent = ''
+}
+
+/** The user dismissed it. That does forget the question. */
+function dismiss() {
   pending = null
+  closeCard()
 }
 
 function openInput(prefill = '') {
@@ -281,12 +296,17 @@ function startRecording() {
   handlers.onMicStart?.()
 }
 
+/**
+ * The circle, while recording, means "I am done" — not "cancel".
+ *
+ * So it hands off rather than discarding, and the card it leaves up is replaced a moment
+ * later by the transcript in the input. Closing it here is what made the circle look like
+ * it had swallowed what was said.
+ */
 function stopRecording() {
   if (!recording) return
   recording = false
   nodes.bar.dataset.recording = 'false'
-  // Nothing was accepted, so nothing should be left on screen suggesting otherwise.
-  closeCard()
   handlers.onMicStop?.()
 }
 
@@ -325,11 +345,18 @@ export function showTranscript(partial) {
   nodes.card.hidden = false
 }
 
-/** Voice finished: drop out of recording state so the rings stop. */
+/**
+ * Voice is over, either way: stop the rings and take down "Listening…".
+ *
+ * Fires before onResult, so a capture that heard something closes this card and
+ * immediately reopens it with the transcript — and a capture that heard nothing simply
+ * closes, rather than leaving "Listening…" on screen with nothing listening.
+ */
 export function recordingEnded() {
   if (!nodes) return
   recording = false
   nodes.bar.dataset.recording = 'false'
+  closeCard()
 }
 
 /**
