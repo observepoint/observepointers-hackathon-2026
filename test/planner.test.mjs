@@ -1165,6 +1165,10 @@ check(
         // Swept end to end on /rules/library: sidebar link, Create Rule,
         // name field, Next, Save.
         'create_first_rule',
+        // Swept end to end on /consent-categories, including the three states that
+        // only exist mid-flow: the open create menu, the open location overlay, and
+        // the post-detect result row. Nine targets and every completion.
+        'import_consent_from_onetrust',
       ].join()
     )
   })(),

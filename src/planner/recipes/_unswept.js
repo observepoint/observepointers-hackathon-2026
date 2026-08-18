@@ -36,6 +36,19 @@
  *                    elements. Note Sync is visible BEFORE the detect runs, so it
  *                    is not gated — which is why the detect step waits on
  *                    .options-selected-container rather than on Sync appearing.
+ *   Location overlay input.mat-select-search-input:not(.mat-select-search-hidden) —
+ *                    the :not() earns its keep, the library renders two inputs with
+ *                    that class and the first is a spacer — and
+ *                    `mat-option.loc-autocomplete >> text=USA, Utah`, which resolved
+ *                    to "USA, Utah". FIRST LIVE PROOF OF LABEL-MATCHING, and the
+ *                    reason to believe the rule and alert recipes, which address
+ *                    every menu they touch that way.
+ *   Post-detect      .options-selected-container -> "Detected with observepoint.com,
+ *                    USA, Uta[h]". The wait is real and lands on the right element.
+ *
+ * import_consent_from_onetrust is therefore swept END TO END — nine targets and every
+ * completion, including the three states that only exist mid-flow. It is the only
+ * recipe in the library that can say that.
  *
  * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
  *
@@ -54,9 +67,7 @@
  *    sweep said which one was on screen.
  *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, the rule conditions grid, the alert designer, and — inside the
- * otherwise-confirmed OneTrust flow — the location overlay's search box and option
- * rows, plus .options-selected-container, which only exists after a detect completes.
+ * Audit screen, the rule conditions grid, and the alert designer.
  *
  * 3. A SWEEP CAN INVENT EVIDENCE, and did. Two of the OneTrust sweeps reported
  *    `button[mat-menu-item] >> text=Audits` as "in DOM but hidden" on the consent

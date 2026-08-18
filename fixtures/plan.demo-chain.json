@@ -97,7 +97,6 @@
           "type": "dom_event",
           "value": "input"
         },
-        "unverified": true,
         "id": "s6"
       },
       {
@@ -111,7 +110,6 @@
           "type": "dom_event",
           "value": "click"
         },
-        "unverified": true,
         "id": "s7"
       },
       {

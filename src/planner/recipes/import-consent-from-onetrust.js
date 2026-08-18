@@ -1,6 +1,5 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { normalizeSiteUrl } from '../naming.js'
-import { unswept } from './_unswept.js'
 import { mentionsArea, wantsAudit } from '../areas.js'
 
 /**
@@ -51,7 +50,20 @@ import { mentionsArea, wantsAudit } from '../areas.js'
  *     come from ngx-mat-select-search and the modal's template respectively, so they
  *     need no patch. The `:not(.mat-select-search-hidden)` matters: the library
  *     renders TWO inputs with that class and the first is a spacer.
- *   Nothing here is swept.
+ *
+ *   ALL OF IT IS NOW SWEPT — nine targets and every completion, on a live local
+ *   moonbeam, each echoing back the element it should. This is the only recipe in the
+ *   library that has been verified end to end including the states that only exist
+ *   mid-flow: the open create menu, the open location overlay, and the post-detect
+ *   result row. Two things it settled that reading could not:
+ *
+ *     - `mat-option.loc-autocomplete >> text=USA, Utah` resolves, to "USA, Utah".
+ *       That is the first live proof of label-matching, which is how the rule and
+ *       alert recipes address every menu they touch.
+ *     - `.options-selected-container` resolves after the detect, to "Detected with
+ *       observepoint.com, USA, Uta[h]". So the wait is real and lands on the right
+ *       thing — which matters because Sync is visible from the start and waiting on
+ *       it instead would have advanced straight into the spinner.
  */
 
 const SELECTORS = {
@@ -148,28 +160,23 @@ export default {
               targetSelector: SELECTORS.locationSearch,
             },
           },
-          // Flagged by identity rather than by id: the ids shift between this
-          // three-step branch and the one-step one below, so an id list in unswept()
-          // would mark the wrong steps in half the plans.
-          ...unswept([
-            {
-              actor: 'ai',
-              targetSelector: SELECTORS.locationSearch,
-              say: `Filtering the list to "${named}".`,
-              targetFallback: { description: 'the search box at the top of the location list' },
-              action: { type: 'fill_text', value: named },
-              completion: { type: 'dom_event', value: 'input' },
-            },
-            {
-              actor: 'user',
-              // Matched on the visible label: the locale names are OneTrust's and
-              // differ between tenants.
-              targetSelector: `${SELECTORS.locationOption} >> text=${named}`,
-              say: `Choose the ${named} row.`,
-              targetFallback: { description: `the ${named} option in the location list` },
-              completion: { type: 'dom_event', value: 'click' },
-            },
-          ]),
+          {
+            actor: 'ai',
+            targetSelector: SELECTORS.locationSearch,
+            say: `Filtering the list to "${named}".`,
+            targetFallback: { description: 'the search box at the top of the location list' },
+            action: { type: 'fill_text', value: named },
+            completion: { type: 'dom_event', value: 'input' },
+          },
+          {
+            actor: 'user',
+            // Matched on the visible label: the locale names are OneTrust's and
+            // differ between tenants.
+            targetSelector: `${SELECTORS.locationOption} >> text=${named}`,
+            say: `Choose the ${named} row.`,
+            targetFallback: { description: `the ${named} option in the location list` },
+            completion: { type: 'dom_event', value: 'click' },
+          },
         ]
       : [
           {
