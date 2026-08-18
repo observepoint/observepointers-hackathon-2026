@@ -463,8 +463,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s21",
-        "unverified": true
+        "id": "s21"
       },
       {
         "actor": "user",
@@ -522,8 +521,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s25",
-        "unverified": true
+        "id": "s25"
       },
       {
         "actor": "user",
@@ -581,8 +579,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s29",
-        "unverified": true
+        "id": "s29"
       },
       {
         "actor": "user",

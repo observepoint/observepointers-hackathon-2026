@@ -671,13 +671,14 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **`create_first_alert` is the only recipe still at zero.** Its 16 steps have never
-  been watched resolve. `create_tag_variable_rule` is 27 of 30 — both halves of the
-  grid confirmed, with only the `is set` option left, which exists solely while a
-  row's OPERATOR dropdown is open. `>> last` has still only been checked against a
-  single-row grid, so it resolves but has not had to discriminate; the sweep now
-  reports "matched N of M" for operator selectors, which is what will settle it.
-- **Label matching is proven, scoping is what needs care.** A sweep caught
+- **`create_first_alert` is the only recipe with no swept steps at all.** Its 16 steps
+  have never been watched resolve, and it is the last unverified stretch of the demo.
+- **The selector language is evidenced, not assumed.** `>> last` reported
+  "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
+  "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.
+  Every earlier tick came from a single-row grid, where "the last one" and "the only
+  one" are the same element, so none of them proved anything. Scoping is what still
+  needs care: a sweep caught
   `mat-option >> text=Tag` resolving to "Adobe DTMTag Management" while the tag
   autocomplete was open — no option there reads exactly "Tag", so it fell through to
   contains. Tightening contains is not available: tag options render their category

@@ -66,6 +66,39 @@
  *    the hidden one. Reading the template found all eight buttons; only the
  *    sweep said which one was on screen.
  *
+ *   Rule builder     ALL 30 STEPS, across four passes. button[aria-label="Add
+ *                    condition"]; Filter By and its "Tag" option; the Operator that
+ *                    follows ("equals"); the tag autocomplete and `mat-option
+ *                    .tag-id-option >> text=Google Universal Analytics` -> "Google
+ *                    Universal AnalyticsWeb Analytics"; rule-when-add-variable and
+ *                    rule-expect-add-variable; every grid cell in BOTH halves,
+ *                    including their `>> last` forms; and `.grid-select-panel
+ *                    mat-option >> text=is set`.
+ *
+ *   ORDERING, learned from using the screen rather than reading it: "Add Variable"
+ *                    sets pointer-events: none while the row above is invalid. You
+ *                    cannot add a second row before finishing the first, and a row
+ *                    with only a name is still invalid because the default operator
+ *                    ("equals") wants a value. So the recipe fills AND sets the
+ *                    operator before adding the next row — reordering it would point
+ *                    at an unclickable element and wait forever.
+ *
+ * TWO SWEEP RESULTS WORTH KEEPING, because neither was findable by reading:
+ *
+ * 1. A ✓ can be the wrong element. On the CC create menu,
+ *    `.mat-menu-op-button-2021 button[mat-menu-item]` reported VISIBLE while
+ *    pointing at "Import Category Data from Template" instead of "Create a New
+ *    Consent Category". So a tick is necessary and not sufficient — read the text
+ *    the checker echoes back. That is what the echo is for.
+ *
+ * 2. "in DOM but hidden" is a finding, not a near miss. cc-create-next and
+ *    cc-create-save both came back hidden on the consent-category create screen.
+ *    That was not a timing problem: initFooterButtons() hides five of the eight
+ *    footer buttons on the create path, and the step we wanted was a third
+ *    button entirely. cc-create-save was also on TWO buttons, so it resolved to
+ *    the hidden one. Reading the template found all eight buttons; only the
+ *    sweep said which one was on screen.
+ *
  *   Rule builder     button[aria-label="Add condition"]; Filter By
  *                    (if-condition mat-select[formControlName="type"]) and its "Tag"
  *                    option; the Operator that follows, reading "equals"; the tag
@@ -93,9 +126,17 @@
  *                    at an unclickable element and wait forever.
  *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, the alert designer, and — inside the otherwise-confirmed rule builder
- * — `.grid-select-panel mat-option >> text=is set`, which only exists while a variable
- * row's OPERATOR dropdown is open.
+ * Audit screen, and the alert designer — which is now the ONLY recipe with no swept
+ * steps at all.
+ *
+ * 6. THE SELECTOR LANGUAGE DISCRIMINATES — evidenced, not assumed. Every earlier tick
+ *    on a `>> last` selector came from a grid with ONE row, where "the last one" and
+ *    "the only one" are the same element, so all of them were equally consistent with
+ *    the operator being ignored. Against three EXPECT rows it reported "matched 3 of
+ *    3", and `>> text=is set` reported "matched 9 of 13" reading "is set" — the ninth
+ *    entry in TagVariableOperators. That is why the sweep reports position at all: a
+ *    tick proves a selector resolves, and only the position proves it resolved to the
+ *    element that was asked for.
  *
  * 5. AN UNSCOPED OPTION SELECTOR WILL FIND THE WRONG OVERLAY, and did. Checked while
  *    the TAG autocomplete was open, `mat-option >> text=Tag` resolved to "Adobe DTMTag
@@ -109,6 +150,13 @@
  *    never find a tag. Scoping is. Material 22 gives every panel a type class
  *    (.mat-mdc-select-panel, .mat-mdc-autocomplete-panel) and this app supplies its own
  *    where it matters — .grid-select-panel, .alert-operator-selector.
+ *
+ *    Note the type class is shared by every select panel, so the Filter By scope also
+ *    matches the grid's operator panel. Harmless — Material closes one overlay before
+ *    opening another — and left alone rather than swapped for a panelClass added
+ *    upstream, because the current selector is proven on a live page and a new one
+ *    would not be. That trade is worth making the other way after the demo, not
+ *    before it.
  *
  * 3. A SWEEP CAN INVENT EVIDENCE, and did. Two of the OneTrust sweeps reported
  *    `button[mat-menu-item] >> text=Audits` as "in DOM but hidden" on the consent

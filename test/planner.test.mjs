@@ -1165,6 +1165,12 @@ check(
         // Swept end to end on /rules/library: sidebar link, Create Rule,
         // name field, Next, Save.
         'create_first_rule',
+        // Swept end to end across four passes, both halves of the conditions grid.
+        // The pass that mattered: `>> last` reported "matched 3 of 3" against three
+        // EXPECT rows, and `>> text=is set` reported "matched 9 of 13" reading
+        // "is set" -- which is the ninth entry in TagVariableOperators. The selector
+        // language discriminates rather than coincidentally agreeing.
+        'create_tag_variable_rule',
         // Swept end to end on /consent-categories, including the three states that
         // only exist mid-flow: the open create menu, the open location overlay, and
         // the post-detect result row. Nine targets and every completion.

@@ -1,6 +1,5 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { ruleNameFrom } from '../naming.js'
-import { unswept } from './_unswept.js'
 
 /**
  * Build a Tag & Variable Rule all the way through the conditions grid.
@@ -67,18 +66,23 @@ import { unswept } from './_unswept.js'
  * rule-expect-add-variable, both reading "Add Variable"; and all five WHEN grid cells
  * including their `>> last` forms.
  *
- * The EXPECT rows are swept too — then-condition's tag field, its add-variable link,
- * and both `>> last` grid cells, the operator reading "equals" before it is changed.
- *
- * STILL UNSWEPT: `.grid-select-panel mat-option >> text=is set`, two steps, which needs
- * a row's OPERATOR dropdown open at the moment of the sweep.
+ * SWEPT END TO END. Every step, across four passes, on a live local moonbeam.
  *
  * Two things the sweep settled that reading could not:
  *
- *   - `>> last` resolves on a real grid row. It has not yet been checked against a
- *     grid with more than one row, so the mechanism is confirmed and its
- *     discrimination is not. The sweep now reports "matched N of M" for any selector
- *     using an operator, which is the thing that would settle it.
+ *   - `>> last` DISCRIMINATES, which a single-row grid could never have shown. Against
+ *     three EXPECT rows it reported "matched 3 of 3" — so the operator is doing the
+ *     work, not being quietly ignored while a plain selector happened to be right.
+ *     `.grid-select-panel mat-option >> text=is set` reported "matched 9 of 13" and
+ *     read "is set", and "is set" is the ninth entry in TagVariableOperators. Both
+ *     halves of the selector language are now evidenced rather than assumed.
+ *
+ *   - `.mat-mdc-select-panel` is Material's class for EVERY select panel, so the
+ *     Filter By scope also matches the grid's operator panel — a sweep with the grid
+ *     dropdown open resolved it to "equals". Harmless: Material closes one overlay
+ *     before opening another, so the two are never up together. Left alone
+ *     deliberately rather than swapped for a `panelClass` added upstream, because the
+ *     current selector is proven on a live page and the replacement would not be.
  *   - The tag option's visible text is the tag name WITH its category appended. That is
  *     why the contains fallback in selector-query.js has to stay: exact matching alone
  *     could never find a tag.
@@ -483,15 +487,6 @@ export default {
       completion: { type: 'dom_event', value: 'click' },
     })
 
-    // All that is left unswept is the OPERATOR dropdown's "is set" row, which only
-    // exists while that dropdown is open. Flagged by id against the finished list,
-    // because the ids depend on whether a precondition was asked for and how many
-    // variables were named.
-    const built = numbered(steps)
-    const unsweptIds = built
-      .filter(step => step.targetSelector.includes('grid-select-panel'))
-      .map(step => step.id)
-
-    return unswept(built, unsweptIds)
+    return numbered(steps)
   },
 }

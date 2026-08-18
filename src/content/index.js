@@ -228,6 +228,14 @@ function describe(element) {
   const text = (element.textContent || '').replace(/\s+/g, ' ').trim()
   if (text) return text.slice(0, 40)
 
+  // A checkbox's `value` is the string "on" whether or not it is ticked, which reads
+  // exactly like state and is not. The sweep of the REGEX column said "value: on"
+  // while the box was empty. Report what is actually being asked about.
+  const box = element.matches?.('input[type=checkbox], input[type=radio]')
+    ? element
+    : element.querySelector?.('input[type=checkbox], input[type=radio]')
+  if (box) return box.checked ? 'checked' : 'unchecked'
+
   const value = element.value ?? element.querySelector?.('input, textarea, select')?.value
   return value ? `value: ${String(value).slice(0, 40)}` : ''
 }
