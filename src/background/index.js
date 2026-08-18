@@ -11,7 +11,7 @@
 //
 // What genuinely belongs here:
 //   - plan generation (the one context that should hold an API key)
-//   - the toolbar action and the side panel behaviour
+//   - the toolbar action
 //   - tabs.onUpdated, relayed as a backup url_change signal
 //   - a central place to log step traffic when a walkthrough won't advance
 //   - the authenticated API reads, for the reason below
@@ -34,25 +34,22 @@ import { MSG, sendToTab } from '../shared/messages.js'
 import { storage, KEYS } from '../shared/utils.js'
 import { recipeSummaries } from '../shared/recipes.js'
 import { generatePlan } from './generate-plan.js'
+// Part 1's planner. It used to be imported by the side panel; the launcher that replaced
+// the panel lives in a content script, and a content script is the wrong place for this --
+// it would put the model prompt, and on the API-key path the key itself, on the app's
+// origin. Planning was already listed above as belonging here.
+import { createPlan, answerAndRetry } from '../planner/index.js'
 
 console.log('[observe-pointers] service worker started')
 
 // Part 1's panel sends these; they are answered by the content script, not here.
 const FORWARD_TO_TAB = new Set(['PLAN_READY', 'OP_ACCOUNT_STATUS', 'OP_CHECK_SELECTORS'])
 
-// The toolbar opens the side panel, because that is where the chat and voice input
-// live and voice needs the extension origin.
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
-})
-
-// Part 2's picker was reached from the toolbar. It no longer can be: while
-// openPanelOnActionClick is true Chrome opens the panel and this listener never
-// fires. Kept, not deleted, because it becomes live again the moment that flag is
-// flipped -- and because the picker already has a better entry point than a toolbar
-// icon, the "Walkthroughs" item Part 2 added to the app's own Settings menu.
+// The toolbar brings the launcher forward. There is no side panel to open any more --
+// the chat is a circle in the corner of the app itself, so the toolbar icon is a way back
+// to it rather than a second place to look.
 chrome.action.onClicked.addListener(tab => {
-  if (tab.id) sendToTab(tab.id, MSG.OPEN_PICKER)
+  if (tab.id) sendToTab(tab.id, 'OP_TOGGLE_BUBBLE')
 })
 
 // Backup route-change signal. This does fire with changeInfo.url for History API
@@ -226,6 +223,67 @@ async function apiRequest(path, init = {}) {
 }
 
 /**
+ * Whatever we can read about the live account, for the state-aware recipes.
+ *
+ * Best effort on purpose. Every recipe treats a missing list as "could not see the
+ * account" rather than "the account is empty", so a failed read costs a specific
+ * suggestion and nothing else. Blocking a plan on it would be the wrong trade.
+ */
+const ACCOUNT_PATHS = {
+  consentCategories: '/api/v3/consent-categories/library',
+  // withUsages=true swaps getRules for getRulesWihUsages, which is the only way to learn
+  // which rules the account's other audits already use.
+  rules: '/api/v2/rules?withUsages=true',
+  alerts: '/api/v3/alerts/library?page=0&size=200&sortBy=name&sortDesc=false',
+}
+
+/** Whatever shape the endpoint chose to return its rows in. */
+const rowsOf = (data, ...keys) => {
+  if (Array.isArray(data)) return data
+  for (const key of keys) if (Array.isArray(data?.[key])) return data[key]
+  return []
+}
+
+async function readAccount() {
+  // apiGet/apiPost, not planner/account.js: that module talks to THIS worker over
+  // chrome.runtime.sendMessage, and a sender does not receive its own message. Calling it
+  // from here would hang rather than fail, which is the worse of the two.
+  const [ccReply, ruleReply, alertReply] = await Promise.all([
+    apiGet(ACCOUNT_PATHS.consentCategories).catch(() => ({ ok: false })),
+    apiGet(ACCOUNT_PATHS.rules).catch(() => ({ ok: false })),
+    apiPost(ACCOUNT_PATHS.alerts, {}).catch(() => ({ ok: false })),
+  ])
+
+  const consentCategories = ccReply.ok
+    ? rowsOf(ccReply.data, 'consentCategories', 'items', 'data').map(row => ({
+        id: row.id,
+        name: row.name ?? '',
+        type: row.type,
+        domains: row.domains ?? [],
+      }))
+    : undefined
+
+  const rules = ruleReply.ok
+    ? rowsOf(ruleReply.data, 'rules', 'items', 'data').map(row => ({
+        id: row.id,
+        name: row.name ?? '',
+        usageCount: row.usageCount ?? row.usages?.length ?? 0,
+      }))
+    : undefined
+
+  const alerts = alertReply.ok
+    ? rowsOf(alertReply.data, 'alerts', 'items', 'data').map(row => ({
+        id: row.id,
+        name: row.name ?? '',
+        subscribedCount: row.subscribedCount ?? 0,
+      }))
+    : undefined
+
+  if (!consentCategories && !rules && !alerts) return null
+  return { consentCategories, rules, alerts }
+}
+
+/**
  * Handle one message. Split out so the listener can stay synchronous about its
  * return value (see the `return true` note below).
  */
@@ -233,6 +291,34 @@ async function handle(type, payload, message) {
   switch (type) {
     case MSG.INTENT_RECEIVED:
       return generatePlan(payload?.intent ?? '', payload?.pageContext)
+
+    // Part 1's planning, from the launcher. The content script sends a goal and gets
+    // back the same discriminated union createPlan() has always returned; when it is a
+    // plan, PLAN_READY goes to the tab from here, exactly as the side panel used to send
+    // it. So the handoff to Part 2 is unchanged.
+    case 'OP_PLAN': {
+      const account = await readAccount()
+      const result = payload?.pending
+        ? answerAndRetry(payload.pending, payload.answer ?? '', payload.goal ?? '', { account })
+        : await createPlan(payload?.goal ?? '', { account })
+
+      if (result.status === 'plan') {
+        const tab = await activeTab().catch(() => null)
+        if (tab?.id) {
+          await ensureContentScript(tab.id)
+          // Flat, not via sendToTab: PLAN_READY is Part 1's shape and the content script
+          // reads message.plan / message.plans directly. sendToTab wraps into
+          // { type, payload }, which would arrive as an empty PLAN_READY.
+          await chrome.tabs
+            .sendMessage(tab.id, { type: 'PLAN_READY', plan: result.plan, plans: result.plans })
+            .catch(() => {})
+        }
+      }
+
+      // `recipe` carries functions (buildSteps, derive) and cannot cross the message
+      // boundary; nothing on the other side wants it.
+      return Object.fromEntries(Object.entries(result).filter(([key]) => key !== 'recipe'))
+    }
 
     case MSG.LIST_RECIPES:
       return { recipes: recipeSummaries() }

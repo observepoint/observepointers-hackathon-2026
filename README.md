@@ -93,7 +93,8 @@ src/
 │   ├── account.js    # Reads the signed-in account so plans can name real objects
 │   ├── schema.js     # The Plan contract, and the validator every plan passes
 │   └── match.js      # intent → recipe, with and without a model
-├── sidepanel/        # The chat surface. input.js is the voice/text seam.
+├── content/ui/       # The launcher (bubble.js) and the rest of the injected UI.
+│                     content/voice.js is the voice seam.
 ├── content/          # On-page: reads the session token, describes the screen,
 │                     # verifies selectors. Part 2's walkthrough lands here.
 │                     # Injected only on ObservePoint hosts + localhost, not

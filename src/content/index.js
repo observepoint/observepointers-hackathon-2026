@@ -23,6 +23,11 @@ import { openPicker } from './ui/picker.js'
 import { openOnboarding } from './ui/onboarding.js'
 import { showOffer } from './ui/offer.js'
 import * as endButton from './ui/end-button.js'
+import * as bubble from './ui/bubble.js'
+import * as voice from './voice.js'
+// Part 1's recipe catalogue, for the selector sweep below. Pure data and pure functions --
+// no DOM, no API key -- so it is safe on the app's origin.
+import { allKnownSelectors } from '../planner/recipes/index.js'
 import { parseTargetSelector, applyOperators } from './selector-query.js'
 
 /* ---------------------------------------------------------------------- *
@@ -475,8 +480,93 @@ async function requestWalkthrough(intent) {
   return { ok: true, source: result.source }
 }
 
+/* ---------------------------------------------------------------------- *
+ * THE LAUNCHER
+ *
+ * What the side panel used to do, in the corner of the app. Planning happens in the
+ * service worker (OP_PLAN) rather than here: a content script runs on the app's origin,
+ * and the model prompt -- with the API key on that path -- has no business there.
+ *
+ * When the result is a plan, the worker sends PLAN_READY to this tab itself, so the
+ * handoff to Part 2 is the same one it has always been.
+ * ---------------------------------------------------------------------- */
+
+// A `needs_input` result waiting on an answer. The launcher hands it back on submit so
+// the answer resumes the plan rather than being read as a new request.
+let pendingQuestion = null
+// The ORIGINAL request. answerAndRetry rebuilds from it, so the goal that reaches the
+// planner on an answer has to be the question's goal and not the answer itself --
+// buildChain reads it, and "jun@observepoint.com" chains to nothing.
+let lastGoal = ''
+
+async function askPlanner(goal, answering) {
+  bubble.setBusy(true)
+  bubble.setHint('Working out the steps…')
+
+  try {
+    const result = await sendToBackground('OP_PLAN', {
+      goal: answering ? lastGoal : goal,
+      pending: answering ?? null,
+      answer: answering ? goal : undefined,
+    })
+    handlePlannerResult(result, answering ? lastGoal : goal)
+  } catch (error) {
+    bubble.say(`Could not plan that: ${error?.message ?? 'unknown error'}`)
+  } finally {
+    bubble.setBusy(false)
+    bubble.setHint('')
+  }
+}
+
+function handlePlannerResult(result, goal) {
+  if (!result) return bubble.say('No answer from the planner.')
+
+  switch (result.status) {
+    case 'plan':
+      pendingQuestion = null
+      // The worker has already sent PLAN_READY, so the walkthrough is starting. One line
+      // is the right amount to say -- the walkthrough itself is the output.
+      bubble.say(result.plan.summary, { dim: true })
+      break
+
+    case 'needs_input':
+      // Asking beats guessing: an invented URL gets typed into a real form.
+      pendingQuestion = result
+      bubble.askQuestion(result)
+      break
+
+    case 'no_match':
+      pendingQuestion = null
+      bubble.say(result.message)
+      break
+
+    default:
+      pendingQuestion = null
+      bubble.say(result.message || 'Something went wrong building that plan.')
+  }
+
+  if (goal) lastGoal = goal
+}
+
+function startVoice() {
+  voice.startListening({
+    onPartial: partial => bubble.showTranscript(partial),
+    onError: message => bubble.say(message),
+    onEnd: () => bubble.recordingEnded(),
+    onResult: text => askPlanner(text, pendingQuestion),
+  })
+}
+
 async function boot() {
   startNavigationWatch()
+
+  // Mounted before the app shell check below: the launcher is how someone asks for
+  // anything, and it should be there on every route the content script runs on.
+  bubble.mountBubble({
+    onAsk: (text, answering) => askPlanner(text, answering ?? pendingQuestion),
+    onMicStart: startVoice,
+    onMicStop: () => voice.stopListening(),
+  })
 
   // Safe to start immediately — it's watching for a menu panel that may not exist for
   // minutes, and it works on every route.
@@ -505,6 +595,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   switch (type) {
     case MSG.OPEN_PICKER:
       showPicker()
+      break
+
+    // The toolbar icon. There is no side panel to open any more.
+    case 'OP_TOGGLE_BUBBLE':
+      bubble.toggleBubble()
       break
 
     case MSG.URL_CHANGED:
@@ -578,7 +673,80 @@ boot()
 // Dev handle. The content script runs in an isolated world, so this is reachable from
 // DevTools once you switch the console context to the extension, and is not exposed to
 // the page.
+/**
+ * The selector sweep, as a console command.
+ *
+ * It used to be a button in the side panel, and the panel is gone. Losing it was not an
+ * option: it is the only thing that turns `unverified: true` into evidence, and every
+ * selector this library trusts was confirmed with it.
+ *
+ * A console command is arguably the better home anyway — the output gets read and pasted,
+ * which is not what a panel is for.
+ *
+ *   __opWt.check()             every selector we ship, against this screen
+ *   __opWt.check('create_first_alert')   just that recipe's
+ *
+ * Read the ECHOED TEXT, not just the tick. A ✓ on the wrong element is the failure mode
+ * that costs the most, and the echo is the only thing that catches it.
+ */
+async function sweepScreen(recipeId) {
+  const { RECIPES: PLANNER_RECIPES, representativeParameters } =
+    await import('../planner/recipes/index.js')
+
+  let steps
+  if (recipeId) {
+    const recipe = PLANNER_RECIPES.find(r => r.id === recipeId)
+    if (!recipe) return `No recipe "${recipeId}".`
+    steps =
+      recipe.steps ?? recipe.buildSteps({ parameters: representativeParameters(recipe), goal: '' })
+    steps = steps.map(step => ({ id: `${recipe.id}/${step.id}`, ...step }))
+  } else {
+    steps = allKnownSelectors().map(s => ({ id: s.id, targetSelector: s.selector }))
+  }
+
+  // What a step WAITS on as well as what it points at: a completion that never resolves
+  // stalls the walkthrough silently, which is the failure worth the most to catch.
+  const selectors = steps.flatMap(step => {
+    const target = { id: step.id, selector: step.targetSelector }
+    const waitsFor = step.completion?.targetSelector
+    if (!waitsFor || waitsFor === step.targetSelector) return [target]
+    return [target, { id: `${step.id} waits for`, selector: waitsFor }]
+  })
+
+  const results = checkSelectors(selectors)
+
+  // Found-first: on a sweep of everything we ship, the handful that resolve are the
+  // answer and the rest are noise.
+  const sorted = [...results].sort(
+    (a, b) => Number(b.visible) - Number(a.visible) || Number(b.found) - Number(a.found),
+  )
+
+  const body = sorted
+    .map(r => {
+      const mark = r.visible ? '✓' : r.found ? '·' : '✗'
+      // "matched 3 of 3" is the only thing that proves an operator did anything: on a grid
+      // with one row, `>> last` and a plain selector pick the same element.
+      const which = r.outOf ? ` [matched ${r.matched} of ${r.outOf}]` : ''
+      const note = r.visible
+        ? r.text
+          ? `visible — "${r.text}"${which}`
+          : `visible${which}`
+        : r.found
+          ? 'in DOM but hidden'
+          : (r.error ?? 'not found')
+      return `${mark} ${r.id}  ${note}\n   ${r.selector}`
+    })
+    .join('\n')
+
+  // Lead with where we looked. Without it "0 of 9" reads as "the selectors are wrong"
+  // when the answer is almost always "wrong screen".
+  return `Checking ${selectors.length} selectors\non ${describeScreen()} — ${location.href}\n\n${body}`
+}
+
 window.__opWt = {
+  check: async recipeId => {
+    console.log(await sweepScreen(recipeId))
+  },
   recipes: RECIPES,
   segments: NAV_SEGMENTS,
   // What the guards see right now. Run it in each nav state -- pinned, unpinned, mobile

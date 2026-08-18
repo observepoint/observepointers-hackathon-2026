@@ -108,6 +108,49 @@ Guarantees the validator enforces, so you don't have to defend against them:
 - **No `{{placeholders}}` survive.** An unsubstituted one would have you typing
   `{{parameters.auditName}}` into a real form.
 
+### The chat is a circle in the corner, not a side panel
+
+The panel was a second window to look at. Everything it did happens ON the page —
+pointing at a control, highlighting it, waiting for a click — so the chat sat beside the
+thing it was talking about and the user's eyes had to travel between them.
+
+`src/content/ui/bubble.js`: a 48px circle, 48px in from the right and 80px up from the
+bottom, which expands **left** into `[mic] [type] [logo]`. It is anchored by its right
+edge, so "expands left" is just the width animating — there is no direction to get wrong.
+The mic collapses it back to a circle and ripples, because a ripple needs a circle to
+ripple from. The logo does double duty as open and close, which is what makes the
+expansion read as one object growing rather than three appearing.
+
+A question the planner needs answered — the alert's email, on the demo path — appears in a
+card **above** the circle with the input already open. That is why the card and the input
+are one component: the answer has to land on the outstanding question rather than be
+planned as a fresh request, and the launcher hands the `needs_input` result back on submit
+to make sure it does.
+
+Three things moved with it, and each for a reason worth stating:
+
+**Planning went to the service worker.** A content script runs on the app's origin, and
+the model prompt — with the API key on that path — has no business there. `OP_PLAN` takes
+a goal and returns the same discriminated union `createPlan` has always returned. When it
+is a plan, the worker sends `PLAN_READY` to the tab itself, so the handoff to Part 2 is
+byte-for-byte what it was.
+
+**Account reads went with it,** and had to be rewritten rather than reused:
+`planner/account.js` talks to the worker over `chrome.runtime.sendMessage`, and a sender
+does not receive its own message — calling it from the worker would hang rather than fail,
+which is the worse of the two.
+
+**Voice now runs at the page's origin.** That is the one real cost. `SpeechRecognition` and
+`getUserMedia` are origin-scoped; the panel was `chrome-extension://`, a stable origin
+granted once. Every host the manifest matches is a secure context, so the grant works and
+is remembered per host — but if it is ever needed somewhere untrusted, the answer is an MV3
+offscreen document with `USER_MEDIA`, not moving the panel back.
+
+**Check screen survived as a console command.** `__opWt.check()` sweeps every selector we
+ship against the current screen, `__opWt.check('<recipeId>')` just one recipe's. Losing it
+was not an option — it is the only thing that turns `unverified: true` into evidence — and
+output that gets read and pasted was never really what a panel was for.
+
 ### Selectors may carry `>>` operators
 
 Three of the screens this now drives — the rule conditions grid, the alert's

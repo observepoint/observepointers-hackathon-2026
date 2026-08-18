@@ -404,4 +404,185 @@ export const STYLES = /* css */ `
     align-items: center;
     gap: 8px;
   }
+
+  /* ------------------------------------------------------------------ *
+   * The launcher.
+   *
+   * Replaces the side panel. A 48px circle that expands LEFT into a three-button
+   * pill, because it is anchored by its right edge: "right" is fixed and the width
+   * animates, so the growth direction falls out of the anchoring rather than
+   * needing to be animated.
+   *
+   * pointer-events are re-enabled per element: the host is inset:0 with
+   * pointer-events:none so the app stays usable underneath.
+   * ------------------------------------------------------------------ */
+
+  .op-launcher {
+    position: fixed;
+    right: 48px;
+    bottom: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  .op-launcher-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    height: 48px;
+    width: 48px;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    pointer-events: auto;
+    transition:
+      width 220ms cubic-bezier(0.2, 0, 0, 1),
+      padding 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .op-launcher-bar[data-state='open'] {
+    width: 156px;
+    padding: 0 4px;
+  }
+
+  /* Each slot is a 44px hit target. The logo is always the rightmost, so it stays
+     put as the bar grows and reads as the same object throughout. */
+  .op-launcher-btn {
+    all: unset;
+    flex: 0 0 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 120ms ease;
+  }
+
+  .op-launcher-btn:hover { background: var(--op-gray-3); }
+  .op-root.op-dark .op-launcher-btn:hover { background: var(--op-gray-7); }
+
+  .op-launcher-btn:focus-visible {
+    outline: 2px solid var(--op-blue);
+    outline-offset: -2px;
+  }
+
+  /* Hidden rather than removed while collapsed, so the width transition has
+     something to reveal and focus order never changes. */
+  .op-launcher-bar[data-state='collapsed'] .op-launcher-btn[data-slot='mic'],
+  .op-launcher-bar[data-state='collapsed'] .op-launcher-btn[data-slot='type'] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .op-launcher-logo {
+    width: 26px;
+    height: 26px;
+    display: block;
+    border-radius: 6px;
+  }
+
+  /* Recording. The bar is back to a circle and the rings say why -- two of them,
+     offset, so there is always one mid-flight. */
+  .op-launcher-bar[data-recording='true'] {
+    border-color: var(--op-red);
+  }
+
+  .op-launcher-ripple {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    border: 2px solid var(--op-red);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .op-launcher-bar[data-recording='true'] .op-launcher-ripple {
+    animation: op-launcher-ripple 1600ms ease-out infinite;
+  }
+
+  .op-launcher-bar[data-recording='true'] .op-launcher-ripple:nth-child(2) {
+    animation-delay: 800ms;
+  }
+
+  @keyframes op-launcher-ripple {
+    0%   { transform: scale(1);   opacity: 0.55; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+
+  .op-launcher-shell {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  /* The card above the circle: a question we need answered, or a line of reply. */
+  .op-launcher-card {
+    width: 320px;
+    max-width: min(320px, calc(100vw - 96px));
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+    pointer-events: auto;
+  }
+
+  .op-launcher-card[hidden] { display: none; }
+
+  .op-launcher-card-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .op-launcher-card-text[data-dim='true'] { color: var(--text-dim); }
+
+  .op-launcher-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .op-launcher-form[hidden] { display: none; }
+
+  .op-launcher-input {
+    all: unset;
+    flex: 1;
+    box-sizing: border-box;
+    min-height: 34px;
+    max-height: 120px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-raised);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    resize: none;
+    overflow-y: auto;
+  }
+
+  .op-launcher-input:focus { border-color: var(--op-yellow); }
+
+  .op-launcher-hint {
+    margin: 8px 0 0;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    min-height: 14px;
+  }
 `
