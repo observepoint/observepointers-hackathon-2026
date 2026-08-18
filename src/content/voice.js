@@ -37,6 +37,25 @@ let finishing = false
 let submitted = false
 let callbacks = { onPartial: null, onResult: null, onError: null, onEnd: null }
 
+/**
+ * The two errors worth naming, because they look identical from the outside and have
+ * completely different fixes.
+ *
+ * `not-allowed` is a permission: this origin has not been granted the mic, or it was
+ * denied. `audio-capture` is the device: nothing is available to record from, which is
+ * what a headset switching profiles mid-call looks like — Bluetooth in particular, where
+ * another app claiming it in hands-free mode can leave Chrome with no usable input.
+ *
+ * Everything else keeps its raw code. A made-up explanation is worse than a short one.
+ */
+const MESSAGES = {
+  'not-allowed': 'Microphone blocked for this site. Allow it in the address bar and try again.',
+  'service-not-allowed': 'Speech recognition is blocked by browser policy on this profile.',
+  'audio-capture':
+    'No microphone available — another app may have taken it. Check the input device and try again.',
+  network: 'Speech recognition needs the network and could not reach it.',
+}
+
 export const voiceSupported = Boolean(SpeechRecognition)
 
 /**
@@ -121,11 +140,7 @@ function listen() {
     // is not over, so let the silence timer stay in charge.
     if (event.error === 'no-speech' || event.error === 'aborted') return
 
-    callbacks.onError?.(
-      event.error === 'not-allowed'
-        ? 'Microphone blocked for this site. Allow it and try again.'
-        : `Speech error: ${event.error}`,
-    )
+    callbacks.onError?.(MESSAGES[event.error] ?? `Speech error: ${event.error}`)
     stopListening()
   }
 
