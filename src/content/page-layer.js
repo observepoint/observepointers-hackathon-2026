@@ -1056,7 +1056,7 @@ export async function startWalkthrough(plans) {
           label: advance === 'auto' ? 'Next →' : 'Continue →',
           revealAfterMs: advance === 'auto' ? STUCK_MS : 0,
         })
-        reportState({ status: 'running', goal: plan.goal })
+        reportState({ status: 'running', goal: plan.goal, recipeId: plan.recipeId })
 
         if (step.actor === 'ai') {
           await executeAiAction(element, step.action, step.dwellMs)
@@ -1238,6 +1238,29 @@ function waitForCompletion(step, signal, stepElement) {
         if (findVisible(rawSelector)) finish()
       }, 100)
       if (findVisible(rawSelector)) return finish()
+      signal?.addEventListener('abort', finish, { once: true })
+    })
+  }
+
+  // 'hidden' is 'visible' inverted, and it exists for one shape that a click cannot
+  // express: "wait until this thing is GONE".
+  //
+  // The OneTrust sync banner is the case. Its dismiss step listened for a click on the
+  // Close button, and the click never got reported — the snackbar tears itself down, so
+  // whether the listener survives long enough is a race, and dismissing it a different
+  // way (Escape, the Assign action, the snackbar's own timeout) does not touch that
+  // button at all. Waiting for the banner to stop existing is true in every one of those
+  // cases, which a click on one particular control is not.
+  if (completion.type === 'dom_mutation' && completion.condition === 'hidden') {
+    return new Promise(resolve => {
+      const finish = () => {
+        clearInterval(poll)
+        resolve()
+      }
+      const poll = setInterval(() => {
+        if (!findVisible(rawSelector)) finish()
+      }, 100)
+      if (!findVisible(rawSelector)) return finish()
       signal?.addEventListener('abort', finish, { once: true })
     })
   }

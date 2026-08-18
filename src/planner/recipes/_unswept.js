@@ -170,7 +170,12 @@
  *    The rule: if a completion watches a SIBLING of the thing being clicked rather than a
  *    consequence of clicking it, the completion has to be the click. The opposite case
  *    exists too and needs the opposite fix -- the OneTrust sync genuinely does not finish
- *    on its click, so that one waits for the banner's own "now synchronized". Every step of the demo chain has now been watched resolve; what is left
+ *    on its click, so that one waits for the banner's own "now synchronized".
+ *
+ *    And a third: some steps end when something DISAPPEARS. The banner's dismiss step
+ *    listened for a click on Close and never advanced -- the snackbar tears itself down
+ *    as it closes, and Escape, the Assign action and its own timeout all dismiss it
+ *    without touching that button. `condition: 'hidden'` is true for all of them. Every step of the demo chain has now been watched resolve; what is left
  * needs account states we do not have — a completed audit run for alert_from_report, an
  * account with no data sources for Quick Audit — plus one transient menu row.
  *

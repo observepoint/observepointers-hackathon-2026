@@ -154,9 +154,11 @@
           "description": "the Close button on the sync banner"
         },
         "completion": {
-          "type": "dom_event",
-          "value": "click"
+          "type": "dom_mutation",
+          "condition": "hidden",
+          "targetSelector": ".bulk-action-progress"
         },
+        "optional": true,
         "id": "s10",
         "unverified": true
       }

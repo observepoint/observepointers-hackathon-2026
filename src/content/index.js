@@ -276,6 +276,10 @@ let active = false
 pageLayer.registerHostCallbacks({
   onState: state => {
     active = Boolean(state) && state.status !== 'idle'
+    // Remembered so endWalkthrough() knows what was on screen. The End button hands us
+    // a reason, not a recipe, and the offer below is worth showing for exactly one of
+    // them.
+    if (state?.recipeId) runningRecipeId = state.recipeId
     endButton.sync(state)
   },
   onCompleted: recipeId => {
@@ -347,11 +351,16 @@ async function startWalkthroughs(recipeIds, parameters = {}, { includeSettingsIn
   pageLayer.startWalkthrough(plans)
 }
 
+let runningRecipeId = null
+
 const SUGGEST_OFFER_ID = 'suggest-after-orientation'
 
 // Long enough for the confetti and the completion popup (which self-dismisses at 6s) to
 // clear, so the suggestion reads as the next beat rather than competing with the applause.
 const SUGGEST_DELAY_MS = 6500
+
+// Nothing to wait out when the user ended it themselves — no confetti, no popup.
+const SUGGEST_AFTER_END_MS = 1200
 
 /**
  * Offer the next walkthrough once orientation finishes.
@@ -361,7 +370,7 @@ const SUGGEST_DELAY_MS = 6500
  * keeps the choice with them, and reuses the same offer toast and the same two-dismissals
  * suppression rule as the contextual triggers.
  */
-async function suggestNextAfterOrientation() {
+async function suggestNextAfterOrientation({ delayMs = SUGGEST_DELAY_MS } = {}) {
   const [profile, progress] = await Promise.all([
     storage.sync.get(KEYS.PROFILE),
     storage.local.get(KEYS.PROGRESS),
@@ -383,7 +392,7 @@ async function suggestNextAfterOrientation() {
   const recipe = resolveRecipe(recipeId)
   if (!recipe) return
 
-  await new Promise(r => window.setTimeout(r, SUGGEST_DELAY_MS))
+  await new Promise(r => window.setTimeout(r, delayMs))
 
   // They may have started something else in the meantime.
   if (active) return
@@ -402,10 +411,25 @@ async function suggestNextAfterOrientation() {
 }
 
 function endWalkthrough(reason) {
+  const wasRunning = runningRecipeId
+  runningRecipeId = null
+
   active = false
   pageLayer.endWalkthrough(reason)
   endButton.hide()
   sendToBackground(MSG.END_WALKTHROUGH, { reason })
+
+  // Ending the tour early is not the same as not wanting anything. Someone who has seen
+  // enough of the nav still has an empty account, and the offer is the only place the
+  // next thing is mentioned — so it now follows an abandoned orientation as well as a
+  // finished one.
+  //
+  // Shorter delay than the completion path: that one waits for confetti and a popup to
+  // clear, and neither happens here. Long enough to not read as an argument with the
+  // button they just pressed.
+  if (reason === END_REASON.USER && wasRunning === ORIENTATION_RECIPE_ID) {
+    suggestNextAfterOrientation({ delayMs: SUGGEST_AFTER_END_MS })
+  }
 }
 
 // The only place the Settings intro is switched on. Someone who just answered the

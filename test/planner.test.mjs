@@ -2276,5 +2276,47 @@ check(
   JSON.stringify(syncStep?.step.completion),
 )
 
+/* ---------------------------------------------------------------- */
+section('a step whose end is something disappearing')
+
+// The OneTrust sync banner. Its dismiss step listened for a click on the Close button
+// and the run did not advance: the snackbar tears itself down as it closes, so whether
+// the listener outlives the click is a race — and there are several other ways to
+// dismiss it (Escape, the Assign action, its own timeout) that never touch that button.
+//
+// "The banner is gone" is true for all of them, and no click completion can say it.
+const bannerStep = everyStep.find(({ step }) => /close the banner/i.test(step.say))
+check('the banner step exists', Boolean(bannerStep), 'not found')
+check(
+  'and waits for the banner to be gone, not for one particular button',
+  bannerStep?.step.completion.condition === 'hidden' &&
+    bannerStep?.step.completion.targetSelector === '.bulk-action-progress',
+  JSON.stringify(bannerStep?.step.completion),
+)
+// It is the last step of the first link in a four-link chain, so a stall here stops
+// everything behind it. Nothing about clearing a banner is worth that.
+check('and is optional, so it cannot strand the rest of the chain', bannerStep?.step.optional)
+
+// 'hidden' has to be a real, declared condition rather than a value the runtime happens
+// to tolerate, or a plan using it would pass the validator and stall forever.
+check(
+  'a hidden completion validates',
+  validatePlan({
+    recipeId: 'r',
+    goal: 'g',
+    summary: 's',
+    executionMode: 'templated',
+    steps: [
+      {
+        id: 's1',
+        actor: 'user',
+        targetSelector: '.x',
+        say: 'go',
+        completion: { type: 'dom_mutation', condition: 'hidden', targetSelector: '.y' },
+      },
+    ],
+  }).length === 0,
+)
+
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)
 process.exit(failures ? 1 : 0)

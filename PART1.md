@@ -465,6 +465,15 @@ The general rule, and what the tests now enforce: **if a step's completion watch
 something that is a sibling of what you are clicking rather than a consequence of
 clicking it, the completion has to be the click.** All three are `dom_event`/`click` now.
 
+**A third case needs neither.** Some steps end when something _disappears_, and no click
+can say that: the OneTrust sync banner can be dismissed by its Close button, by Escape,
+by the Assign action or by its own timeout, and only one of those touches the button we
+were listening on — plus the snackbar tears itself down as it closes, so whether the
+listener outlives the click is a race. `condition: 'hidden'` is the inverse of `'visible'`
+and is true for all four routes. That step is also `optional`, because it is the last step
+of the first link in a four-link chain and nothing about clearing a banner is worth
+stranding the other three.
+
 The mirror case is worth naming too, because the fix is the opposite. The OneTrust sync
 runs behind a banner whose own copy says _"do not leave this page until finished"_ —
 there the click is emphatically not the end of the step, so it waits for _"Cookies are

@@ -94,6 +94,8 @@ const SELECTORS = {
   synced: '.bulk-first-message >> text=Cookies are now synchronized',
   // Only rendered once `records && itsDone`, so it cannot be clicked early.
   closeBanner: '#bulk-action-progress-yes-btn',
+  // What the step actually waits for. See the 'hidden' note below.
+  banner: '.bulk-action-progress',
 }
 
 /** The default is prose ("the location you need"), not a name we can search for. */
@@ -280,7 +282,19 @@ export default {
         targetSelector: SELECTORS.closeBanner,
         say: 'Done — close the banner. Rerun this per location if you need more.',
         targetFallback: { description: 'the Close button on the sync banner' },
-        completion: { type: 'dom_event', value: 'click' },
+        // The BANNER going away, not a click on that button. Listening for the click
+        // did not advance the run: the snackbar tears itself down as it closes, so
+        // whether the listener outlives the click is a race, and there are several
+        // other ways to dismiss it — Escape, the Assign action, its own timeout — none
+        // of which touch this button. "The banner is gone" is true for all of them.
+        completion: {
+          type: 'dom_mutation',
+          condition: 'hidden',
+          targetSelector: SELECTORS.banner,
+        },
+        // And if it is somehow already gone, do not stand here waiting: this is the last
+        // step of the walkthrough, and a stall here stops the whole chain behind it.
+        optional: true,
       },
     ])
 
