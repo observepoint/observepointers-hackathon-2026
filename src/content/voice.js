@@ -92,23 +92,37 @@ function finish() {
   if (text) callbacks.onResult?.(text)
 }
 
-function teardown() {
+/**
+ * stop() vs abort(), which is not a detail.
+ *
+ * stop() means "stop taking audio, but finish what you have" — the service still returns a
+ * final result and the stream lingers while it does. That is right when SILENCE ended the
+ * sentence: we want that last word.
+ *
+ * abort() discards and releases immediately. That is right when the USER ended it, and it
+ * is what makes clicking the circle actually stop recording rather than stop listening —
+ * with stop(), the ripple went away and the mic stayed live for another beat.
+ */
+function teardown({ discard = false } = {}) {
   const active = recognition
   recognition = null
   try {
-    active?.stop()
+    if (discard) active?.abort()
+    else active?.stop()
   } catch {
     /* already dead */
   }
 }
 
-/** Abandon without submitting — the mic button's second press. */
+/** Abandon without submitting — the mic button's second press, or a click on the circle. */
 export function stopListening() {
-  if (!recognition && !recording()) return
+  if (!recognition) return
   submitted = true
   finishing = true
   clearSilenceTimer()
-  teardown()
+  // Discard: nothing heard so far is wanted, and the mic should be free the moment the
+  // ripple stops.
+  teardown({ discard: true })
   callbacks.onEnd?.()
 }
 

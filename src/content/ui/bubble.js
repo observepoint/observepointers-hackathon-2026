@@ -165,6 +165,9 @@ function wire() {
   // The logo does double duty: it opens the bar when collapsed and closes it when open.
   // One control, because it is the same object either way.
   logo.addEventListener('click', () => {
+    // While recording, the circle is a stop button and nothing else. It releases the mic
+    // (voice.js aborts rather than stops) and clears the card, so there is no half state
+    // where the rings have gone but something is still listening.
     if (recording) return stopRecording()
     setState(bar.dataset.state === STATE.OPEN ? STATE.COLLAPSED : STATE.OPEN)
   })
@@ -223,7 +226,15 @@ function clearDismiss() {
   dismissTimer = null
 }
 
-function showCard({ message, dim = false, withInput, withActions, placeholder, prefill }) {
+function showCard({
+  message,
+  dim = false,
+  withInput,
+  withActions,
+  placeholder,
+  prefill,
+  sticky = false,
+}) {
   const { card, text, form, input, actions } = nodes
 
   // Every path clears it: a card that replaces another must not inherit its countdown.
@@ -253,7 +264,12 @@ function showCard({ message, dim = false, withInput, withActions, placeholder, p
   }
 
   // Nothing is being asked for, so it can go by itself.
-  if (!withInput && !withActions) {
+  //
+  // `sticky` is the one case the derivation cannot see: a card that wants an action the
+  // card itself does not offer. "Reload the page" is the example — there is no button to
+  // press here, the user has to go and do something, and taking the message away after
+  // five seconds leaves a launcher that silently does nothing.
+  if (!withInput && !withActions && !sticky) {
     dismissTimer = setTimeout(closeCard, DISMISS_MS)
   }
 }
@@ -308,6 +324,8 @@ function stopRecording() {
   if (!recording) return
   recording = false
   nodes.bar.dataset.recording = 'false'
+  // Nothing was accepted, so nothing should be left on screen suggesting otherwise.
+  closeCard()
   handlers.onMicStop?.()
 }
 
@@ -394,9 +412,9 @@ export function askQuestion(question) {
  *
  * Auto-dismisses, because it wants nothing back. See DISMISS_MS.
  */
-export function say(message, { dim = false } = {}) {
+export function say(message, { dim = false, sticky = false } = {}) {
   if (!nodes) build()
-  showCard({ message, dim, withInput: false })
+  showCard({ message, dim, withInput: false, sticky })
 }
 
 export function setHint(message = '') {

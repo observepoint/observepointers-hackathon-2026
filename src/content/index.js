@@ -499,7 +499,37 @@ let pendingQuestion = null
 // buildChain reads it, and "jun@observepoint.com" chains to nothing.
 let lastGoal = ''
 
+/**
+ * Has this content script been orphaned?
+ *
+ * Reloading the extension leaves the OLD content script running in every open tab, with a
+ * dead `chrome.runtime`. Every call then fails with "Extension context invalidated", and
+ * the page keeps the stale code until it is reloaded — which is why the behaviour looked a
+ * version behind at the same time: the transcript-confirm step existed in the new bundle
+ * and the page was still running the one that submitted straight away.
+ *
+ * `chrome.runtime.id` is the cheap tell; the message match covers a context that dies
+ * mid-call.
+ */
+function contextGone(error) {
+  if (!chrome.runtime?.id) return true
+  return /Extension context invalidated|message port closed/i.test(error?.message ?? '')
+}
+
+function reachError(error) {
+  if (contextGone(error)) {
+    return 'Observe Pointers was updated — reload this page to pick up the new version.'
+  }
+  return `Could not reach the planner: ${error?.message ?? 'unknown error'}`
+}
+
 async function askPlanner(goal, answering) {
+  // Checked up front as well as caught: an orphaned script cannot plan, and spending two
+  // seconds pretending to before saying so is worse than saying so.
+  if (!chrome.runtime?.id) {
+    return bubble.say(reachError(new Error('Extension context invalidated')), { sticky: true })
+  }
+
   bubble.setBusy(true)
   bubble.setHint('Working out the steps…')
 
@@ -520,7 +550,7 @@ async function askPlanner(goal, answering) {
     })
     handlePlannerResult(result, answering ? lastGoal : goal)
   } catch (error) {
-    bubble.say(`Could not reach the planner: ${error?.message ?? 'unknown error'}`)
+    bubble.say(reachError(error), { sticky: contextGone(error) })
   } finally {
     bubble.setBusy(false)
     bubble.setHint('')
