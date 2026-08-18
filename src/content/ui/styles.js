@@ -586,46 +586,4 @@ export const STYLES = /* css */ `
     min-height: 14px;
   }
 
-  /* The transcript, shown for confirmation rather than sent. A pencil to change it,
-     an Ask to accept it -- because a heard sentence is a guess and sending a guess is
-     how a demo goes sideways. */
-  .op-launcher-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .op-launcher-actions[hidden] { display: none; }
-
-  .op-launcher-icon-btn {
-    all: unset;
-    flex: 0 0 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--text-dim);
-    transition:
-      background 120ms ease,
-      color 120ms ease;
-  }
-
-  .op-launcher-icon-btn:hover {
-    background: var(--op-gray-3);
-    color: var(--text);
-  }
-
-  .op-root.op-dark .op-launcher-icon-btn:hover { background: var(--op-gray-7); }
-
-  .op-launcher-icon-btn:focus-visible {
-    outline: 2px solid var(--op-blue);
-    outline-offset: -2px;
-  }
-
-  .op-launcher-icon-btn .op-icon { font-size: 18px; }
-
-  .op-launcher-spacer { flex: 1; }
 `

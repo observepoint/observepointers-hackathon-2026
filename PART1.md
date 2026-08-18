@@ -121,12 +121,18 @@ The mic collapses it back to a circle and ripples, because a ripple needs a circ
 ripple from. The logo does double duty as open and close, which is what makes the
 expansion read as one object growing rather than three appearing.
 
-**A spoken sentence is confirmed, not sent.** The mic hands its transcript to the card with
-an **Ask** and a **pencil** rather than straight to the planner. A transcript is a guess —
-it renders the demo sentence as "observe point dot com" often enough that the fingerprint
-in `demo.js` exists to survive it — and acting on a guess unseen is a coin toss on the one
-interaction people are watching. The pencil pre-fills the input with what was heard and
-puts the cursor at the end, because a correction is usually one word.
+**A spoken sentence lands in the input, not in the planner.** The mic fills the same box
+typing uses — prefilled, focused, cursor at the end — with the same Ask button. A
+transcript is a guess: it renders the demo sentence as "observe point dot com" often enough
+that the fingerprint in `demo.js` exists to survive it, and acting on a guess unseen is a
+coin toss on the one interaction people are watching.
+
+The first version of this showed the transcript read-only with a pencil beside it, and it
+was worse in every way — an extra control to find, an extra click for the common case, a
+second path into the planner, and a state where the text on screen was not the text in the
+field. Prefilling the one input makes the sentence editable by definition, so there is
+nothing left to attach an edit affordance to. **One input, one Ask, one commit path**:
+typing, fixing a transcript and answering a question all go through it.
 
 **Cards that want nothing go away after five seconds.** A reply is read once, and leaving
 it up means the app permanently wears a card that has stopped being true. Anything that

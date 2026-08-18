@@ -17,6 +17,9 @@
 //   recording   back to a circle, ripple rings
 //   asking      a card above the circle with a question and an input
 //
+// There is one input, and everything commits through it: typing, editing a transcript, and
+// answering a question all end up in the same box with the same Ask button.
+//
 // The bar is anchored by its RIGHT edge, so "expands left" is just the width animating --
 // no direction to get wrong. Everything lives in the shadow root from ui/host.js, so the
 // app's stylesheets cannot reach it and ours cannot reach the app.
@@ -37,10 +40,6 @@ let recording = false
 // A question we are waiting on. While set, submitting answers THAT rather than asking
 // something new -- otherwise "jun@observepoint.com" would be planned as a fresh request.
 let pending = null
-// What the mic heard, held for confirmation. A transcript is a guess, and sending a guess
-// is how a demo goes sideways -- so it waits for Ask, and the pencil is there if the guess
-// was close but wrong.
-let staged = ''
 let dismissTimer = null
 
 function build() {
@@ -75,33 +74,11 @@ function build() {
   send.type = 'button'
   send.textContent = 'Ask'
 
-  const actions = document.createElement('div')
-  actions.className = 'op-launcher-actions'
-  actions.hidden = true
-
-  const edit = document.createElement('button')
-  edit.className = 'op-launcher-icon-btn'
-  edit.type = 'button'
-  edit.setAttribute('aria-label', 'Edit before asking')
-  const editIcon = document.createElement('span')
-  editIcon.className = 'op-icon'
-  editIcon.textContent = 'edit'
-  edit.appendChild(editIcon)
-
-  const accept = document.createElement('button')
-  accept.className = 'op-btn'
-  accept.type = 'button'
-  accept.textContent = 'Ask'
-
-  const spacer = document.createElement('span')
-  spacer.className = 'op-launcher-spacer'
-
   const hint = document.createElement('p')
   hint.className = 'op-launcher-hint'
 
   form.append(input, send)
-  actions.append(spacer, edit, accept)
-  card.append(text, form, actions, hint)
+  card.append(text, form, hint)
 
   /* ---------------------------- the bar ----------------------------- */
 
@@ -141,7 +118,7 @@ function build() {
   root.append(card, shell)
   layer.appendChild(root)
 
-  nodes = { root, card, text, form, input, send, actions, edit, accept, hint, bar, mic, type, logo }
+  nodes = { root, card, text, form, input, send, hint, bar, mic, type, logo }
   wire()
   return nodes
 }
@@ -184,11 +161,7 @@ function wire() {
     openInput()
   })
 
-  send.addEventListener('click', () => commit(nodes.input.value))
-  nodes.accept.addEventListener('click', () => commit(staged))
-  // Pencil: hand the heard sentence to the input rather than replacing it, cursor at the
-  // end, so a small correction is a small edit.
-  nodes.edit.addEventListener('click', () => openInput(staged))
+  send.addEventListener('click', () => commit(input.value))
 
   input.addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -226,16 +199,8 @@ function clearDismiss() {
   dismissTimer = null
 }
 
-function showCard({
-  message,
-  dim = false,
-  withInput,
-  withActions,
-  placeholder,
-  prefill,
-  sticky = false,
-}) {
-  const { card, text, form, input, actions } = nodes
+function showCard({ message, dim = false, withInput, placeholder, prefill, sticky = false }) {
+  const { card, text, form, input } = nodes
 
   // Every path clears it: a card that replaces another must not inherit its countdown.
   clearDismiss()
@@ -245,7 +210,6 @@ function showCard({
   text.dataset.dim = String(dim)
   text.hidden = !message
 
-  actions.hidden = !withActions
   form.hidden = !withInput
 
   if (withInput) {
@@ -269,7 +233,7 @@ function showCard({
   // card itself does not offer. "Reload the page" is the example — there is no button to
   // press here, the user has to go and do something, and taking the message away after
   // five seconds leaves a launcher that silently does nothing.
-  if (!withInput && !withActions && !sticky) {
+  if (!withInput && !sticky) {
     dismissTimer = setTimeout(closeCard, DISMISS_MS)
   }
 }
@@ -278,9 +242,7 @@ function closeCard() {
   clearDismiss()
   nodes.card.hidden = true
   nodes.form.hidden = true
-  nodes.actions.hidden = true
   nodes.hint.textContent = ''
-  staged = ''
   pending = null
 }
 
@@ -299,7 +261,6 @@ function commit(raw) {
 
   nodes.input.value = ''
   nodes.input.style.height = 'auto'
-  staged = ''
 
   // An outstanding question owns the next thing said. Without this the answer to
   // "who should this alert email?" would be planned as a brand-new request.
@@ -386,9 +347,15 @@ export function confirmTranscript(text) {
   const heard = String(text ?? '').trim()
   if (!heard) return
 
-  staged = heard
   setState(STATE.COLLAPSED)
-  showCard({ message: heard, withActions: true })
+  // Into the SAME box typing uses, already filled and focused, with the same Ask button.
+  //
+  // The first version showed it read-only with a pencil beside it, which was worse in
+  // every way: an extra control to find, an extra click for the common case, a second
+  // path into the planner, and a state where the text on screen was not the text in the
+  // field. Prefilling the one input makes the sentence editable by definition, so there
+  // is nothing to add an edit affordance to.
+  showCard({ withInput: true, prefill: heard, placeholder: 'What are you trying to set up?' })
 }
 
 /**
