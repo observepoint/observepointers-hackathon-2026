@@ -58,7 +58,27 @@ import { unswept } from './_unswept.js'
  *     stable as the form itself.
  *   Product vocabulary — "Tag", "is set", and the tag names come from constants
  *     (FilterTypes, TagVariableOperators, the tag catalogue), matched by label.
- *   Nothing here is swept. It is the longest unswept path in the library.
+ *
+ * SWEPT, on a live local moonbeam: everything down the WHEN half. The Create Rule
+ * button, the name field, Next and Save; "Add condition"; Filter By and its "Tag"
+ * option; the Operator that follows ("equals"); the tag autocomplete and
+ * `mat-option.tag-id-option >> text=Google Universal Analytics`, which resolved to
+ * "Google Universal AnalyticsWeb Analytics"; rule-when-add-variable and
+ * rule-expect-add-variable, both reading "Add Variable"; and all five WHEN grid cells
+ * including their `>> last` forms.
+ *
+ * STILL UNSWEPT: the EXPECT grid rows (then-condition rule-tag-variable-filter …) and
+ * `.grid-select-panel mat-option >> text=is set`. They need a variable row added under
+ * EXPECT, which the sweep passes have not done yet.
+ *
+ * Two things the sweep settled that reading could not:
+ *
+ *   - `>> last` resolves on a real grid row. Only ONE row existed when it was checked,
+ *     so "the last one" and "the only one" were the same element — the mechanism is
+ *     confirmed, its discrimination is not.
+ *   - The tag option's visible text is the tag name WITH its category appended. That is
+ *     why the contains fallback in selector-query.js has to stay: exact matching alone
+ *     could never find a tag.
  */
 
 const SELECTORS = {
@@ -74,9 +94,23 @@ const SELECTORS = {
   expectTag: 'then-condition input[formControlName="tagId"]',
   addExpectVariable: '[op-selector="rule-expect-add-variable"]',
   save: '[op-selector="rule-setup-save-btn"]',
-  // Any open overlay's options. The overlay is the only one on screen, and
-  // findVisible filters to what is laid out, so this needs no further scoping.
-  option: 'mat-option',
+
+  // OPTIONS ARE SCOPED TO THE PANEL THAT OWNS THEM, and a sweep is why.
+  //
+  // A bare `mat-option >> text=Tag` was checked while the TAG autocomplete happened to
+  // be open, and resolved -- confidently -- to "Adobe DTMTag Management". Exact match
+  // beats partial, but only among the elements offered; with no option reading exactly
+  // "Tag" in that overlay it fell through to contains, and "DTMTag" contains it.
+  //
+  // Tightening the contains rule is not the fix. It has to stay, because the tag
+  // options render their category inline -- the row for Google Universal Analytics
+  // reads "Google Universal AnalyticsWeb Analytics" -- so exact matching alone would
+  // never find a tag. The fix is to stop asking a question that spans two overlays.
+  //
+  // Material 22 gives every panel a type class, and this screen's grid supplies its
+  // own `panelClass`, so both scopes are already there to be used.
+  selectOption: '.mat-mdc-select-panel mat-option',
+  gridOption: '.grid-select-panel mat-option',
 }
 
 /** The grid cells, scoped to whichever half of the screen they belong to. */
@@ -155,12 +189,12 @@ function variableRowSteps({ half, addSelector, name, operator, value, explain })
       completion: {
         type: 'dom_mutation',
         condition: 'visible',
-        targetSelector: SELECTORS.option,
+        targetSelector: SELECTORS.gridOption,
       },
     })
     steps.push({
       actor: 'user',
-      targetSelector: `${SELECTORS.option} >> text=${operator}`,
+      targetSelector: `${SELECTORS.gridOption} >> text=${operator}`,
       say: `Choose "${operator}".`,
       targetFallback: { description: `the "${operator}" option` },
       completion: { type: 'dom_event', value: 'click' },
@@ -359,12 +393,12 @@ export default {
           completion: {
             type: 'dom_mutation',
             condition: 'visible',
-            targetSelector: SELECTORS.option,
+            targetSelector: SELECTORS.selectOption,
           },
         },
         {
           actor: 'user',
-          targetSelector: `${SELECTORS.option} >> text=Tag`,
+          targetSelector: `${SELECTORS.selectOption} >> text=Tag`,
           say: 'Choose "Tag".',
           targetFallback: { description: 'the "Tag" option' },
           completion: { type: 'dom_event', value: 'click' },
@@ -433,6 +467,18 @@ export default {
       completion: { type: 'dom_event', value: 'click' },
     })
 
-    return unswept(numbered(steps))
+    // Everything down the WHEN half is swept; the EXPECT rows and the "is set" option
+    // are not. Flagged by id against the finished list, because the ids depend on
+    // whether a precondition was asked for and how many variables were named.
+    const built = numbered(steps)
+    const unsweptIds = built
+      .filter(
+        step =>
+          step.targetSelector.startsWith('then-condition rule-tag-variable-filter') ||
+          step.targetSelector.includes('grid-select-panel'),
+      )
+      .map(step => step.id)
+
+    return unswept(built, unsweptIds)
   },
 }

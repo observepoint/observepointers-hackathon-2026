@@ -169,8 +169,7 @@
           "type": "url_change",
           "value": "/rules/library"
         },
-        "id": "s1",
-        "unverified": true
+        "id": "s1"
       },
       {
         "actor": "user",
@@ -184,8 +183,7 @@
           "condition": "visible",
           "targetSelector": "rule-name-control input"
         },
-        "id": "s2",
-        "unverified": true
+        "id": "s2"
       },
       {
         "actor": "ai",
@@ -202,8 +200,7 @@
           "type": "dom_event",
           "value": "change"
         },
-        "id": "s3",
-        "unverified": true
+        "id": "s3"
       },
       {
         "actor": "user",
@@ -217,8 +214,7 @@
           "condition": "visible",
           "targetSelector": "if-condition mat-select[formControlName=\"type\"]"
         },
-        "id": "s4",
-        "unverified": true
+        "id": "s4"
       },
       {
         "actor": "user",
@@ -230,14 +226,13 @@
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
-          "targetSelector": "mat-option"
+          "targetSelector": ".mat-mdc-select-panel mat-option"
         },
-        "id": "s5",
-        "unverified": true
+        "id": "s5"
       },
       {
         "actor": "user",
-        "targetSelector": "mat-option >> text=Tag",
+        "targetSelector": ".mat-mdc-select-panel mat-option >> text=Tag",
         "say": "Choose \"Tag\".",
         "targetFallback": {
           "description": "the \"Tag\" option"
@@ -246,8 +241,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s6",
-        "unverified": true
+        "id": "s6"
       },
       {
         "actor": "user",
@@ -261,8 +255,7 @@
           "type": "dom_mutation",
           "targetSelector": "if-condition .main-filter mat-select[formControlName=\"matchType\"]"
         },
-        "id": "s7",
-        "unverified": true
+        "id": "s7"
       },
       {
         "actor": "ai",
@@ -279,8 +272,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s8",
-        "unverified": true
+        "id": "s8"
       },
       {
         "actor": "user",
@@ -293,8 +285,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s9",
-        "unverified": true
+        "id": "s9"
       },
       {
         "actor": "user",
@@ -308,8 +299,7 @@
           "condition": "visible",
           "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
         },
-        "id": "s10",
-        "unverified": true
+        "id": "s10"
       },
       {
         "actor": "ai",
@@ -326,8 +316,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s11",
-        "unverified": true
+        "id": "s11"
       },
       {
         "actor": "user",
@@ -341,8 +330,7 @@
           "type": "dom_mutation",
           "targetSelector": "if-condition rule-tag-variable-filter mat-checkbox[formControlName=\"variableMatchAsRegex\"]"
         },
-        "id": "s12",
-        "unverified": true
+        "id": "s12"
       },
       {
         "actor": "user",
@@ -356,8 +344,7 @@
           "type": "dom_mutation",
           "targetSelector": "if-condition rule-tag-variable-filter mat-select[formControlName=\"matchType\"]"
         },
-        "id": "s13",
-        "unverified": true
+        "id": "s13"
       },
       {
         "actor": "user",
@@ -371,8 +358,7 @@
           "type": "dom_mutation",
           "targetSelector": "if-condition rule-tag-variable-filter input[formControlName=\"selectorType\"]"
         },
-        "id": "s14",
-        "unverified": true
+        "id": "s14"
       },
       {
         "actor": "ai",
@@ -389,8 +375,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s15",
-        "unverified": true
+        "id": "s15"
       },
       {
         "actor": "ai",
@@ -407,8 +392,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s16",
-        "unverified": true
+        "id": "s16"
       },
       {
         "actor": "user",
@@ -421,8 +405,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s17",
-        "unverified": true
+        "id": "s17"
       },
       {
         "actor": "user",
@@ -436,8 +419,7 @@
           "condition": "visible",
           "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
         },
-        "id": "s18",
-        "unverified": true
+        "id": "s18"
       },
       {
         "actor": "ai",
@@ -467,14 +449,14 @@
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
-          "targetSelector": "mat-option"
+          "targetSelector": ".grid-select-panel mat-option"
         },
         "id": "s20",
         "unverified": true
       },
       {
         "actor": "user",
-        "targetSelector": "mat-option >> text=is set",
+        "targetSelector": ".grid-select-panel mat-option >> text=is set",
         "say": "Choose \"is set\".",
         "targetFallback": {
           "description": "the \"is set\" option"
@@ -498,8 +480,7 @@
           "condition": "visible",
           "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
         },
-        "id": "s22",
-        "unverified": true
+        "id": "s22"
       },
       {
         "actor": "ai",
@@ -529,14 +510,14 @@
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
-          "targetSelector": "mat-option"
+          "targetSelector": ".grid-select-panel mat-option"
         },
         "id": "s24",
         "unverified": true
       },
       {
         "actor": "user",
-        "targetSelector": "mat-option >> text=is set",
+        "targetSelector": ".grid-select-panel mat-option >> text=is set",
         "say": "Choose \"is set\".",
         "targetFallback": {
           "description": "the \"is set\" option"
@@ -560,8 +541,7 @@
           "condition": "visible",
           "targetSelector": "then-condition rule-tag-variable-filter input[formControlName=\"variable\"]"
         },
-        "id": "s26",
-        "unverified": true
+        "id": "s26"
       },
       {
         "actor": "ai",
@@ -591,14 +571,14 @@
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
-          "targetSelector": "mat-option"
+          "targetSelector": ".grid-select-panel mat-option"
         },
         "id": "s28",
         "unverified": true
       },
       {
         "actor": "user",
-        "targetSelector": "mat-option >> text=is set",
+        "targetSelector": ".grid-select-panel mat-option >> text=is set",
         "say": "Choose \"is set\".",
         "targetFallback": {
           "description": "the \"is set\" option"
@@ -621,8 +601,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s30",
-        "unverified": true
+        "id": "s30"
       }
     ]
   },
@@ -759,14 +738,14 @@
         "completion": {
           "type": "dom_mutation",
           "condition": "visible",
-          "targetSelector": "mat-option"
+          "targetSelector": ".alert-operator-selector mat-option"
         },
         "id": "s8",
         "unverified": true
       },
       {
         "actor": "user",
-        "targetSelector": "mat-option >> text=Greater than (>)",
+        "targetSelector": ".alert-operator-selector mat-option >> text=Greater than (>)",
         "say": "Choose \"Greater than (>)\".",
         "targetFallback": {
           "description": "the \"Greater than (>)\" option"

@@ -125,14 +125,14 @@
       "completion": {
         "type": "dom_mutation",
         "condition": "visible",
-        "targetSelector": "mat-option"
+        "targetSelector": ".alert-operator-selector mat-option"
       },
       "id": "s8",
       "unverified": true
     },
     {
       "actor": "user",
-      "targetSelector": "mat-option >> text=Greater than (>)",
+      "targetSelector": ".alert-operator-selector mat-option >> text=Greater than (>)",
       "say": "Choose \"Greater than (>)\".",
       "targetFallback": {
         "description": "the \"Greater than (>)\" option"

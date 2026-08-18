@@ -1919,6 +1919,21 @@ check(
   ruleSteps.filter(s => s.say.includes('REGEX')).length === 1,
   ruleSteps.filter(s => s.say.includes('REGEX')).length,
 )
+// Every option selector names the panel that owns it. A bare `mat-option` spans every
+// open overlay: swept while the tag autocomplete happened to be open, `mat-option >>
+// text=Tag` resolved to "Adobe DTMTag Management" -- no option there reads exactly
+// "Tag", so it fell through to contains and "DTMTag" contains it.
+check(
+  'no option selector is left unscoped to its panel',
+  everyStep
+    .map(({ step }) => step.targetSelector)
+    .filter(sel => /(^|\s)mat-option/.test(sel))
+    .every(sel => /-panel |-selector |mat-option\./.test(sel)),
+  everyStep
+    .map(({ step }) => step.targetSelector)
+    .find(sel => /(^|\s)mat-option/.test(sel) && !/-panel |-selector |mat-option\./.test(sel)),
+)
+
 check('it ends on Save', ruleSteps.at(-1).targetSelector.includes('rule-setup-save-btn'))
 check(
   'and the save stays with the user',

@@ -57,7 +57,11 @@ const SELECTORS = {
   metric: 'input[aria-label="Select report metric"]',
   menuItem: 'button[mat-menu-item]',
   operator: 'alert-trigger mat-select[formControlName="operator"]',
-  option: 'mat-option',
+  // Scoped to the operator select's own panelClass. A bare `mat-option` spans every
+  // open overlay, and "Greater than (>)" would be matched against whatever else
+  // happened to be on screen -- see the note in create-tag-variable-rule.js, where a
+  // sweep caught exactly that resolving to the wrong row.
+  option: '.alert-operator-selector mat-option',
   targetValue: 'alert-trigger input[formControlName="targetValue"]',
   urlFilter: 'input[aria-label="Search by URL"]',
   emails: 'mat-chip-grid#email-chip-grid input',

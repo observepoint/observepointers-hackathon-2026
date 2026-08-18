@@ -671,13 +671,20 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **The two longest recipes are still entirely unswept.** `create_tag_variable_rule`
-  (30 steps) and `create_first_alert` (16) are source-accurate and neither has been
-  watched resolve — 46 of the demo's 72 steps. They also need the newest moonbeam
-  branch, where five of the rule selectors were added.
-  `import_consent_from_onetrust` **is** swept now, end to end, and it proved the
-  `>> text=` machinery those two lean on — so the remaining risk is which selectors
-  exist, not whether label matching works.
+- **`create_first_alert` is entirely unswept, and the rule's EXPECT half isn't done.**
+  The alert designer's 16 steps have never been watched resolve.
+  `create_tag_variable_rule` is 21 of 30: everything down the WHEN half is confirmed,
+  including the tag autocomplete and all five grid cells; the EXPECT rows and the
+  `is set` option still need a pass. Note `>> last` was checked against a grid with
+  ONE row, so the mechanism is proven and its discrimination is not.
+- **Label matching is proven, scoping is what needs care.** A sweep caught
+  `mat-option >> text=Tag` resolving to "Adobe DTMTag Management" while the tag
+  autocomplete was open — no option there reads exactly "Tag", so it fell through to
+  contains. Tightening contains is not available: tag options render their category
+  inline ("Google Universal AnalyticsWeb Analytics"), so exact matching alone could
+  never find a tag. Every option selector is now scoped to its panel
+  (`.mat-mdc-select-panel`, `.grid-select-panel`, `.alert-operator-selector`), and a
+  test keeps it that way.
 - **Two fields we type and cannot commit.** The alert's URL filter reads its input on
   `keyup`, and the subscriber list turns text into a chip on Enter. Setting `.value`
   and firing `input`/`change` puts the text in the box without registering it, so both

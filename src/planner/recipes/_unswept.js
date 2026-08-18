@@ -66,8 +66,34 @@
  *    the hidden one. Reading the template found all eight buttons; only the
  *    sweep said which one was on screen.
  *
+ *   Rule builder     button[aria-label="Add condition"]; Filter By
+ *                    (if-condition mat-select[formControlName="type"]) and its "Tag"
+ *                    option; the Operator that follows, reading "equals"; the tag
+ *                    autocomplete and `mat-option.tag-id-option >> text=Google
+ *                    Universal Analytics` -> "Google Universal AnalyticsWeb
+ *                    Analytics"; rule-when-add-variable and rule-expect-add-variable,
+ *                    both "Add Variable"; and every WHEN grid cell including its
+ *                    `>> last` form — variable, the REGEX checkbox, OPERATOR
+ *                    ("equals"), SELECTOR and VALUE.
+ *
+ *                    Note `>> last` was checked against a grid with ONE row, so the
+ *                    mechanism is confirmed and its discrimination is not.
+ *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, the rule conditions grid, and the alert designer.
+ * Audit screen, the EXPECT half of the rule grid, and the alert designer.
+ *
+ * 5. AN UNSCOPED OPTION SELECTOR WILL FIND THE WRONG OVERLAY, and did. Checked while
+ *    the TAG autocomplete was open, `mat-option >> text=Tag` resolved to "Adobe DTMTag
+ *    Management" — no option in that panel reads exactly "Tag", so it fell through to
+ *    contains, and "DTMTag" contains it. Harmless in the real run, where only the
+ *    Filter By panel is open at that step, and a plain warning about what a three
+ *    letter label can reach.
+ *
+ *    Tightening the contains rule is NOT the fix: tag options render their category
+ *    inline ("Google Universal AnalyticsWeb Analytics"), so exact matching alone could
+ *    never find a tag. Scoping is. Material 22 gives every panel a type class
+ *    (.mat-mdc-select-panel, .mat-mdc-autocomplete-panel) and this app supplies its own
+ *    where it matters — .grid-select-panel, .alert-operator-selector.
  *
  * 3. A SWEEP CAN INVENT EVIDENCE, and did. Two of the OneTrust sweeps reported
  *    `button[mat-menu-item] >> text=Audits` as "in DOM but hidden" on the consent
