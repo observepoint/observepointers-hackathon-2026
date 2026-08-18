@@ -297,27 +297,48 @@ async function handle(type, payload, message) {
     // plan, PLAN_READY goes to the tab from here, exactly as the side panel used to send
     // it. So the handoff to Part 2 is unchanged.
     case 'OP_PLAN': {
-      const account = await readAccount()
-      const result = payload?.pending
-        ? answerAndRetry(payload.pending, payload.answer ?? '', payload.goal ?? '', { account })
-        : await createPlan(payload?.goal ?? '', { account })
-
-      if (result.status === 'plan') {
-        const tab = await activeTab().catch(() => null)
-        if (tab?.id) {
-          await ensureContentScript(tab.id)
-          // Flat, not via sendToTab: PLAN_READY is Part 1's shape and the content script
-          // reads message.plan / message.plans directly. sendToTab wraps into
-          // { type, payload }, which would arrive as an empty PLAN_READY.
-          await chrome.tabs
-            .sendMessage(tab.id, { type: 'PLAN_READY', plan: result.plan, plans: result.plans })
-            .catch(() => {})
-        }
+      // PLANNING AND DELIVERY ARE SEPARATE, and the try/catch boundaries say so.
+      //
+      // The listener below turns any throw into { ok: false, error } — no `status` — so a
+      // failure anywhere in here used to surface as the launcher's catch-all line with
+      // the actual reason discarded. Two things follow: the reason always travels, and a
+      // plan that was built successfully is never lost to a problem delivering it.
+      let result
+      try {
+        const account = await readAccount()
+        result = payload?.pending
+          ? answerAndRetry(payload.pending, payload.answer ?? '', payload.goal ?? '', { account })
+          : await createPlan(payload?.goal ?? '', { account })
+      } catch (error) {
+        console.error('[observe-pointers] planning failed', error)
+        return { status: 'error', message: `Planning failed: ${error?.message ?? error}` }
       }
 
       // `recipe` carries functions (buildSteps, derive) and cannot cross the message
       // boundary; nothing on the other side wants it.
-      return Object.fromEntries(Object.entries(result).filter(([key]) => key !== 'recipe'))
+      const reply = Object.fromEntries(Object.entries(result).filter(([key]) => key !== 'recipe'))
+
+      if (result.status !== 'plan') return reply
+
+      try {
+        const tab = await activeTab()
+        await ensureContentScript(tab.id)
+        // Flat, not via sendToTab: PLAN_READY is Part 1's shape and the content script
+        // reads message.plan / message.plans directly. sendToTab wraps into
+        // { type, payload }, which would arrive as an empty PLAN_READY.
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'PLAN_READY',
+          plan: result.plan,
+          plans: result.plans,
+        })
+      } catch (error) {
+        console.error('[observe-pointers] could not start the walkthrough', error)
+        // The plan is good; only the handoff failed. Say which, because "something went
+        // wrong" sends someone looking at the planner for a messaging problem.
+        reply.startError = `Planned it, but could not start the walkthrough: ${error?.message ?? error}`
+      }
+
+      return reply
     }
 
     case MSG.LIST_RECIPES:

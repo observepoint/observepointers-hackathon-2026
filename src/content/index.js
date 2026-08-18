@@ -521,12 +521,23 @@ async function askPlanner(goal, answering) {
 function handlePlannerResult(result, goal) {
   if (!result) return bubble.say('No answer from the planner.')
 
+  // The worker's listener turns any throw into { ok: false, error } with no `status`, so
+  // without this it fell to the default branch below and the reason was thrown away —
+  // which is exactly how a real failure came back as "Something went wrong building that
+  // plan." and told nobody anything.
+  if (result.ok === false || (!result.status && result.error)) {
+    return bubble.say(result.error ?? 'The planner did not answer.')
+  }
+
   switch (result.status) {
     case 'plan':
       pendingQuestion = null
       // The worker has already sent PLAN_READY, so the walkthrough is starting. One line
       // is the right amount to say -- the walkthrough itself is the output.
-      bubble.say(result.plan.summary, { dim: true })
+      //
+      // startError means the plan is fine and only the handoff failed. Saying so beats a
+      // summary for a walkthrough that never began.
+      bubble.say(result.startError ?? result.plan.summary, { dim: !result.startError })
       break
 
     case 'needs_input':
@@ -542,7 +553,9 @@ function handlePlannerResult(result, goal) {
 
     default:
       pendingQuestion = null
-      bubble.say(result.message || 'Something went wrong building that plan.')
+      bubble.say(
+        result.message || `The planner returned something unexpected: ${JSON.stringify(result)}`,
+      )
   }
 
   if (goal) lastGoal = goal
