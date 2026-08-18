@@ -140,7 +140,8 @@
         "id": "s9"
       }
     ],
-    "chain": ["create_tag_variable_rule", "create_first_alert", "audit_with_all_standards"]
+    "chain": ["create_tag_variable_rule", "create_first_alert", "audit_with_all_standards"],
+    "guards": ["nav-available"]
   },
   {
     "recipeId": "create_tag_variable_rule",
@@ -594,7 +595,8 @@
         },
         "id": "s30"
       }
-    ]
+    ],
+    "guards": ["nav-available"]
   },
   {
     "recipeId": "create_first_alert",
@@ -843,7 +845,8 @@
         },
         "id": "s16"
       }
-    ]
+    ],
+    "guards": ["nav-available"]
   },
   {
     "recipeId": "audit_with_all_standards",
@@ -1112,6 +1115,7 @@
           "value": "click"
         }
       }
-    ]
+    ],
+    "guards": ["nav-available"]
   }
 ]

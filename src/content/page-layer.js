@@ -148,6 +148,8 @@
 //
 // ============================================================================
 
+import { ANCHOR } from '../shared/selectors.js'
+import { GUARDS, guardsFor, activeRemedy, appliesToStep, isConfirmed } from '../shared/guards.js'
 import { matchesNavContext, onRouteChange } from './navigation.js'
 import { parseTargetSelector, applyOperators, cssPartOf } from './selector-query.js'
 import {
@@ -158,10 +160,17 @@ import {
   showConfetti,
   showCompletionPopup,
   showPrerequisitePopup,
+  showGuardPopup,
+  hideGuardPopup,
+  showGuardTooltip,
+  hideGuardTooltip,
 } from './ui.js'
 
 const callbacks = { onState: null, onCompleted: null }
 let activeElement = null
+// The element a violated guard is pointing at, tracked separately from activeElement because a
+// guard highlight outlives the step it interrupted and has to survive endWalkthrough().
+let guardPointer = null
 let abortController = null
 
 // ---------------------------------------------------------------------------
@@ -214,17 +223,18 @@ const OP_TAB_MAP = {
   '[op-selector="standards-tab-consent-categories"]': 'Consent Categories',
   'filter-menu:data-source-type': 'Data Source Type',
   'filter-menu:audits': 'Audits',
+  'filter-menu:journeys': 'Journeys',
 }
 
 function findOpTab(selector) {
   const text = OP_TAB_MAP[selector]
   if (!text) return null
+  const cssQuery = selector.startsWith('filter-menu:')
+    ? 'button.filter-bar-menu-item, div.filter-bar-menu-item'
+    : 'div.op-tab, button.filter-bar-menu-item, mat-checkbox.filter-bar-menu-item'
   return (
-    Array.from(
-      document.querySelectorAll(
-        'div.op-tab, button.filter-bar-menu-item, mat-checkbox.filter-bar-menu-item',
-      ),
-    ).find(el => el.textContent.includes(text)) ?? null
+    Array.from(document.querySelectorAll(cssQuery)).find(el => el.textContent.includes(text)) ??
+    null
   )
 }
 
@@ -235,7 +245,7 @@ function findOpTab(selector) {
 // Performs the action declared on an actor:'ai' step automatically.
 // Angular inputs need value + bubbled input/change events, otherwise
 // ControlValueAccessor never sees the change and the form stays pristine.
-async function executeAiAction(element, action) {
+async function executeAiAction(element, action, dwellMs = 800) {
   if (!action) return
 
   switch (action.type) {
@@ -261,8 +271,9 @@ async function executeAiAction(element, action) {
       break
   }
 
-  // Brief pause so the user can see what the AI just did before moving on.
-  await new Promise(r => setTimeout(r, 800))
+  // Brief pause so the user can see what the AI just did before moving on. Steps that
+  // exist to be READ rather than to change something set their own, longer dwell.
+  await new Promise(r => setTimeout(r, dwellMs))
 }
 
 // ---------------------------------------------------------------------------
@@ -312,6 +323,400 @@ function findVisible(selector) {
  */
 export const resolveTarget = selector => findVisible(selector)
 
+// ---------------------------------------------------------------------------
+// Guards
+//
+// State the walkthrough needs held for its whole run, not just at one step. See
+// shared/guards.js for the why. A guard is satisfied while its `requireVisible`
+// selector resolves — the same test every step target goes through, so a satisfied
+// guard genuinely means "the rest of this plan can work".
+// ---------------------------------------------------------------------------
+
+const GUARD_POLL_MS = 500
+
+// There is deliberately NO debounce here. An earlier version made a violation wait ~1.5s before
+// it counted, to stop the hover-transient pin control popping the card up constantly. That is
+// now handled where it belongs -- a hover-expanded nav SATISFIES the block test (see the
+// 'pin-the-nav' remedy), so there is no flicker left to absorb -- and delaying meant a nav the
+// user actually collapsed took over a second to register, which just felt broken.
+
+/**
+ * What the guards can see right now. Rebuilt on every check, never cached: the user can
+ * resize or re-pin mid-walkthrough and noticing that is the entire point.
+ *
+ * `find` is handed in rather than imported by guards.js so the shared module stays free of
+ * DOM access, and so every guard measures visibility exactly the way step targets are
+ * measured. Absent and present-but-hidden both read as "not there" -- an earlier version
+ * treated "matches nothing" as "cannot evaluate, carry on", which swallowed the real signal,
+ * because Angular destroys the sidebar's collapse-wrapper rather than hiding it. Absence IS
+ * how you detect an unpinned nav.
+ */
+function guardContext() {
+  return {
+    find: findVisible,
+    // Visible AND at least this wide. The sidebar is the reason this exists: pinned open,
+    // hover-expanded and inside the mobile drawer all render wide nav rows, while a collapsed
+    // rail renders the same elements icon-only. Width tells those apart; presence can't.
+    findWide: (selector, minWidth) => {
+      const el = findVisible(selector)
+      return el && el.getBoundingClientRect().width >= minWidth ? el : null
+    },
+    // The app only renders the hamburger in its mobile layout, so if it is visible there is
+    // no pin control to talk about. Deriving this from the app's own media queries beats
+    // hardcoding a breakpoint that silently diverges the next time they change theirs.
+    isMobileLayout: Boolean(findVisible(ANCHOR.mobileNavToggle)),
+  }
+}
+
+/**
+ * The first violated guard relevant to `step`, as a { guard, remedy } pair, or null.
+ *
+ * Pass no step to evaluate every guard regardless of relevance — that is what the monitor
+ * does, so a single poll can serve waiters interested in different steps.
+ */
+function guardViolation(guards, step) {
+  const ctx = guardContext()
+
+  for (const guard of guards) {
+    if (step && !appliesToStep(guard, step)) continue
+
+    // The guard holds if ANY remedy's condition is met, whichever route the user took to get
+    // there. Checking only the `when`-selected remedy made a misread of the layout fatal: if
+    // isMobileLayout came back false on a narrow window, we would test for a pinned nav that
+    // can never exist there and stay violated no matter what the user did. `when` now only
+    // decides which advice to show, never whether we block.
+    if (guard.remedies.some(remedy => remedy.satisfied(ctx))) continue
+
+    // Nothing is satisfied, so we do have to ask. Fall back to the last remedy if no `when`
+    // matched, so there is always something to say.
+    const remedy = activeRemedy(guard, ctx) ?? guard.remedies[guard.remedies.length - 1]
+    if (remedy) return { guard, remedy }
+  }
+
+  return null
+}
+
+/**
+ * One poller for the whole plan.
+ *
+ * Deliberately NOT per-step. A watcher created around a single step only covers the window
+ * where we happen to be waiting on that step, which leaves the route waits, the settle
+ * delays and an 'ai' step's dwell unmonitored — and those gaps are seconds long each, so
+ * they are exactly where a user gets to unpin the nav unnoticed. One interval runs from the
+ * plan's first step to its last, and every wait consults it.
+ *
+ * Polled, not observed. We can't know which mutation a given state change produces --
+ * unpinning the nav could be a class on a wrapper, an inline style, or a detach -- and a
+ * subtree observer on body is the one thing this file is explicitly warned off (bite #7).
+ * Half a second is imperceptible and costs one querySelector per guard.
+ */
+function startGuardMonitor(guards, signal) {
+  // Each waiter records the step it cares about, so a violation of a guard that step doesn't
+  // use never wakes it.
+  const waiters = new Set()
+  // Woken on ANY transition, including one violation replacing another. That is what lets the
+  // pause UI re-render when a resize swaps which remedy applies.
+  const changeWaiters = new Set()
+
+  // Evaluated without a step filter: one poll serves every waiter, and each of them applies
+  // its own relevance test to the result.
+  let current = guards.length > 0 ? guardViolation(guards) : null
+
+  const relevantGuard = (guard, step) => !step || appliesToStep(guard, step)
+
+  const relevant = (violation, step) => Boolean(violation) && relevantGuard(violation.guard, step)
+
+  // Identity includes the remedy: narrow-and-closed and wide-and-unpinned are both violations
+  // of the same guard but need different advice, so swapping between them is a change.
+  const identity = violation => (violation ? `${violation.guard.id}:${violation.remedy.id}` : '')
+
+  const commit = next => {
+    if (identity(next) === identity(current)) return
+
+    const appeared = Boolean(next) && !current
+    current = next
+
+    for (const resolve of [...changeWaiters]) resolve()
+    changeWaiters.clear()
+
+    if (!appeared) return
+
+    for (const waiter of [...waiters]) {
+      if (!relevant(next, waiter.step)) continue
+      waiters.delete(waiter)
+      waiter.resolve(next)
+    }
+  }
+
+  const evaluate = () => {
+    if (guards.length === 0) return
+    commit(guardViolation(guards))
+  }
+
+  const timer = guards.length > 0 ? window.setInterval(evaluate, GUARD_POLL_MS) : null
+
+  // Width is an input to which remedy applies -- the hamburger only exists in the app's
+  // mobile layout -- so a resize can invalidate the current answer without anything in the
+  // DOM being touched by the user. Waiting up to GUARD_POLL_MS to notice means the prompt
+  // keeps saying "widen the window" for half a second after they already did.
+  //
+  // rAF-coalesced because resize fires continuously through a drag and we only need the
+  // settled value once per frame.
+  let rafId = null
+  const onResize = () => {
+    if (rafId !== null) return
+    rafId = window.requestAnimationFrame(() => {
+      rafId = null
+      evaluate()
+    })
+  }
+
+  if (guards.length > 0) window.addEventListener('resize', onResize)
+
+  const dispose = () => {
+    if (timer !== null) window.clearInterval(timer)
+    if (rafId !== null) window.cancelAnimationFrame(rafId)
+    window.removeEventListener('resize', onResize)
+    // Resolve pending waiters rather than dropping them. A race still holding one would
+    // otherwise never settle -- and the dom_mutation path has no other way out, since its
+    // promise only resolves when the user clicks Next.
+    for (const waiter of [...waiters]) waiter.resolve(null)
+    waiters.clear()
+    for (const resolve of [...changeWaiters]) resolve()
+    changeWaiters.clear()
+  }
+
+  signal?.addEventListener('abort', dispose, { once: true })
+
+  return {
+    /**
+     * The { guard, remedy } currently blocking this step, or null. Omit the step to ask
+     * whether anything at all is violated.
+     */
+    violatedFor(step) {
+      return relevant(current, step) ? current : null
+    },
+    /** Resolves with the violation the moment one relevant to this step appears. */
+    nextViolationFor(step) {
+      if (relevant(current, step)) return Promise.resolve(current)
+      if (signal?.aborted) return Promise.resolve(null)
+      return new Promise(resolve => waiters.add({ step, resolve }))
+    },
+    /**
+     * Are all the guards this step depends on durably fixed? Stricter than violatedFor, which
+     * is about whether to block; this is what may dismiss a prompt already on screen.
+     */
+    confirmedFor(step) {
+      const ctx = guardContext()
+      return guards.every(guard => !relevantGuard(guard, step) || isConfirmed(guard, ctx))
+    },
+    /** Resolves on the next transition — appeared, cleared, or a different remedy. */
+    changed() {
+      if (signal?.aborted) return Promise.resolve()
+      return new Promise(resolve => changeWaiters.add(resolve))
+    },
+    /** Force a re-check now rather than waiting for the next tick. */
+    refresh: evaluate,
+    dispose,
+  }
+}
+
+// Block until every guard holds. Deliberately unbounded: there is no sensible timeout for
+// "the user has not put the nav back yet", and giving up would leave the walkthrough
+// silently stalled. They can always end it from the status bar.
+//
+// The sleep here only yields; the monitor above is what actually re-checks, so there is one
+// place that decides whether a guard holds.
+async function awaitGuards(monitor, signal, step, plan) {
+  let violation = monitor.violatedFor(step)
+  if (!violation) return
+
+  console.debug(
+    // Names the step, not just the guard. A pause is easy to misattribute: the step you can see
+    // on screen is often the one BEFORE the one that paused, because an optional step whose
+    // target didn't resolve is skipped silently on the way here.
+    `[op-walkthroughs] paused: ${plan?.recipeId ?? '?'} / step '${step?.id ?? '?'}' ` +
+      `needs '${violation.guard.id}' -> advising '${violation.remedy.id}'`,
+  )
+
+  // Point at the control they need if we can reach it, and fall back to the centred popup if
+  // we can't. Not reaching it is ordinary, not exceptional: on a narrow window the pin toggle
+  // isn't rendered at all, and when the nav is fully hidden neither is. Either way there has
+  // to be something on screen explaining why the walkthrough stopped.
+  let clickWait = null
+
+  const present = () => {
+    showGuardUi(violation.remedy)
+    reportState({ status: 'paused', goal: violation.remedy.title })
+    // Re-armed per presentation, because a changed remedy asks for a different control.
+    clickWait = waitForRemedyClick(violation.remedy, signal)
+  }
+
+  present()
+
+  while (!signal.aborted) {
+    // The timer, a state transition, or the user clicking what we asked them to. The click is
+    // the decisive one -- see below.
+    const clicked = await Promise.race([
+      new Promise(r => window.setTimeout(() => r(false), GUARD_POLL_MS)),
+      monitor.changed().then(() => false),
+      clickWait,
+    ])
+
+    // They did the thing. Treat that as answer enough even if the state hasn't caught up yet:
+    // refreshing and giving the app a beat to re-render stops a pin that is mid-animation from
+    // reading as "still collapsed" and immediately prompting again. Not gating on the state
+    // here also means a finicky probe can never strand someone who has visibly complied.
+    if (clicked) {
+      monitor.refresh()
+      await new Promise(r => window.setTimeout(r, GUARD_POLL_MS))
+      monitor.refresh()
+      break
+    }
+
+    // Only a durable fix dismisses the prompt. Hovering the rail satisfies the block test, so
+    // using that here would let the card vanish as the pointer crossed the nav and come back
+    // the moment it left, without anything actually being pinned.
+    if (monitor.confirmedFor(step)) break
+
+    const next = monitor.violatedFor(step)
+    if (!next) continue
+
+    // Two reasons to re-present, and the remedy is the important one: resizing changes WHICH
+    // remedy applies, so holding on to the one we started with would keep telling someone to
+    // widen a window they already widened, while pointing at a hamburger that no longer
+    // exists. The second is the control being re-rendered or swapped under us.
+    const wanted = next.remedy.pointAt ? findVisible(next.remedy.pointAt) : null
+    if (next.remedy === violation.remedy && wanted === guardPointer) continue
+
+    violation = next
+    present()
+  }
+
+  clearGuardUi()
+
+  // Back to running the moment the pause ends. Without this the status bar keeps showing the
+  // remedy title ("Pin the left navigation") until some later step resolves a target -- and if
+  // the next step is optional and gets skipped, that stale label sits there through it, which
+  // makes the pause look like it belongs to the wrong step.
+  if (!signal.aborted) reportState({ status: 'running', goal: plan?.goal })
+}
+
+/**
+ * Resolve when the user clicks the control the remedy asked them to.
+ *
+ * Listens on document in the CAPTURE phase and matches with closest(), rather than binding to
+ * the element itself, for two reasons: Material calls stopPropagation so bubble-phase listeners
+ * miss clicks (bite #6), and the sidebar swaps these controls out from under us constantly, so
+ * a listener bound to one node would go stale the first time it re-rendered.
+ */
+function waitForRemedyClick(remedy, signal) {
+  const selector = remedy.clickToConfirm
+  if (!selector) return new Promise(() => {})
+
+  return new Promise(resolve => {
+    const onClick = event => {
+      if (!(event.target instanceof Element)) return
+      if (!event.target.closest(selector)) return
+
+      cleanup()
+      resolve(true)
+    }
+
+    const cleanup = () => document.removeEventListener('click', onClick, true)
+
+    document.addEventListener('click', onClick, true)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        cleanup()
+        resolve(false)
+      },
+      { once: true },
+    )
+  })
+}
+
+// Point at the control that would fix things if we can reach it, and fall back to the centred
+// popup if we can't. Not reaching it is ordinary rather than exceptional: on a narrow window
+// the pin toggle isn't rendered at all, and when the nav is fully hidden neither is. Either
+// way something has to be on screen explaining why the walkthrough stopped.
+function showGuardUi(remedy) {
+  clearGuardUi()
+
+  guardPointer = remedy.pointAt ? findVisible(remedy.pointAt) : null
+
+  if (guardPointer) {
+    highlightElement(guardPointer)
+    showGuardTooltip(guardPointer, remedy)
+    return
+  }
+
+  showGuardPopup(remedy)
+}
+
+/** Tear down whichever guard presentation is up. Safe to call when none is. */
+function clearGuardUi() {
+  if (guardPointer) unhighlightElement(guardPointer)
+  guardPointer = null
+  hideGuardTooltip()
+  hideGuardPopup()
+}
+
+/**
+ * Dev helper: exactly what every guard sees right now. Surfaced as `__opWt.guards()`.
+ *
+ * Guard bugs are all of the form "the DOM isn't what we assumed", and reading them off a
+ * paused walkthrough is guesswork. This prints the context, whether each guard holds, which
+ * remedy would be advised, and for every selector involved: how many nodes match, whether one
+ * is visible, and its size. Run it with the nav pinned, unpinned, and with the mobile drawer
+ * open, and the answer is in the diff.
+ */
+export function inspectGuards() {
+  const ctx = guardContext()
+
+  const describe = selector => {
+    if (!selector) return null
+
+    const matches = document.querySelectorAll(resolveSelector(selector)).length
+    const el = findVisible(selector)
+    const rect = el?.getBoundingClientRect()
+
+    return {
+      selector,
+      matches,
+      visible: Boolean(el),
+      width: rect ? Math.round(rect.width) : null,
+      size: rect ? `${Math.round(rect.width)}x${Math.round(rect.height)}` : null,
+    }
+  }
+
+  return {
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    isMobileLayout: ctx.isMobileLayout,
+    // The selectors the guards and the nav steps depend on, so you can see at a glance
+    // whether a satisfied guard actually leaves the step targets reachable.
+    probes: {
+      mobileNavToggle: describe(ANCHOR.mobileNavToggle),
+      mobileNavOpened: describe(ANCHOR.mobileNavOpened),
+      navExpanded: describe(ANCHOR.navExpanded),
+      navPinToggle: describe(ANCHOR.navPinToggle),
+      navCreateNew: describe(ANCHOR.navCreateNew),
+    },
+    guards: Object.values(GUARDS).map(guard => ({
+      id: guard.id,
+      holds: guard.remedies.some(remedy => remedy.satisfied(ctx)),
+      advice: (activeRemedy(guard, ctx) ?? guard.remedies.at(-1))?.id ?? null,
+      remedies: guard.remedies.map(remedy => ({
+        id: remedy.id,
+        wouldAdvise: !remedy.when || remedy.when(ctx),
+        satisfied: remedy.satisfied(ctx),
+        pointAt: describe(remedy.pointAt),
+      })),
+    })),
+  }
+}
+
 /** Wired at boot by content/index.js. You don't need to call this. */
 export function registerHostCallbacks({ onState, onCompleted }) {
   callbacks.onState = onState
@@ -356,6 +761,11 @@ const NAV_LABELS = {
 }
 
 function navContextPrompt(step) {
+  // A step scoped to '*' has no destination, so naming one would be a lie -- and
+  // "Go to *" is what a naive lookup produces. This is reached for a missed step
+  // mid-plan as well as for a route mismatch on step one.
+  if (!step.navContext || step.navContext === '*') return step.say
+
   const where = NAV_LABELS[step.navContext] ?? step.navContext
   return `Go to <strong>${where}</strong> to begin. Then: ${step.say}`
 }
@@ -465,128 +875,209 @@ function advanceModeFor(step) {
 }
 
 export async function startWalkthrough(plans) {
+  // Stop anything already running FIRST. This used to just overwrite abortController, which
+  // orphaned the previous loop instead of ending it: it kept its own guard monitor, its own
+  // highlight and its own reportState, so you could get one run's "Open the navigation" prompt
+  // on screen while another run highlighted a step in a modal, with the status bar owned by
+  // whichever wrote last. Two runs are easy to start -- the picker, the post-orientation offer,
+  // the message handler and the dev handle all call in here.
+  if (abortController) {
+    console.debug('[op-walkthroughs] superseding a walkthrough already in progress')
+    abortController.abort()
+    // Let the old loop observe the abort and tear its own UI down before we put ours up,
+    // otherwise its cleanup lands after ours and wipes the new run's highlight.
+    await new Promise(r => window.setTimeout(r, 0))
+  }
+
+  clearGuardUi()
+  removeTooltip()
+  if (activeElement) {
+    unhighlightElement(activeElement)
+    activeElement = null
+  }
+
   abortController = new AbortController()
   const { signal } = abortController
 
   for (const plan of plans) {
-    for (const [stepIndex, step] of plan.steps.entries()) {
-      if (!matchesNavContext(step.navContext)) {
-        // Tell the user what we are waiting for. Without this the run stalls
-        // SILENTLY: a plan whose first step is scoped to /sources, started from
-        // anywhere else, sits in the promise below with no highlight, no tooltip
-        // and no popup — indistinguishable from the extension being broken. The
-        // popup already exists for the sibling case (right route, missing
-        // element); this is the same situation from the user's point of view.
-        if (stepIndex === 0) showPrerequisitePopup(plan.goal, navContextPrompt(step))
+    // A non-optional step whose element never turned up means the plan did not really
+    // run. Without this the loop falls through to reportCompleted() below and the user
+    // gets confetti plus a "Done" badge in the picker for a walkthrough they never saw.
+    let missedRequired = null
 
-        await new Promise(resolve => {
-          const unsub = onRouteChange(() => {
-            if (matchesNavContext(step.navContext)) {
-              unsub()
-              resolve()
-            }
+    // Started once, here, so the guards are polled continuously for the plan's whole life
+    // rather than only while a step happens to be waiting. Disposed in the finally below,
+    // which every exit path from the step loop runs through.
+    const monitor = startGuardMonitor(guardsFor(plan), signal)
+
+    // Manual index rather than for..of: a guard that breaks mid-step has to re-run that
+    // same step once the state is back, not advance past it.
+    let stepIndex = 0
+
+    try {
+      while (stepIndex < plan.steps.length) {
+        const step = plan.steps[stepIndex]
+
+        if (!matchesNavContext(step.navContext)) {
+          // Tell the user what we are waiting for. Without this the run stalls
+          // SILENTLY: a plan whose first step is scoped to /consent-categories,
+          // started from anywhere else, sits in the promise below with no highlight,
+          // no tooltip and no popup -- indistinguishable from the extension being
+          // broken.
+          if (stepIndex === 0) showPrerequisitePopup(plan.goal, navContextPrompt(step))
+
+          await new Promise(resolve => {
+            const unsub = onRouteChange(() => {
+              if (matchesNavContext(step.navContext)) {
+                unsub()
+                resolve()
+              }
+            })
+            signal.addEventListener(
+              'abort',
+              () => {
+                unsub()
+                resolve()
+              },
+              { once: true },
+            )
           })
-          signal.addEventListener(
-            'abort',
-            () => {
-              unsub()
-              resolve()
-            },
-            { once: true },
-          )
-        })
-      }
-
-      if (signal.aborted) return
-
-      // Some flows (new-user audit creation) intercept with a quick-setup modal.
-      // Auto-click through to the advanced form so recipe selectors resolve correctly.
-      await new Promise(r => setTimeout(r, 500))
-      const advancedBtn = document.querySelector(
-        '[op-selector="web-audit-switch-to-advanced-setup"]',
-      )
-      if (advancedBtn) {
-        advancedBtn.click()
-        await new Promise(r => setTimeout(r, 2000))
-      }
-
-      if (signal.aborted) return
-
-      // Give the target a chance to appear before giving up on it. It used to be a
-      // single lookup followed by `continue`, which silently skipped the step --
-      // and a run whose steps all skip reports Complete without showing anything.
-      // Optional steps are not worth waiting for: absent is their expected state.
-      let element = findVisible(step.targetSelector)
-      if (!element && !step.optional) {
-        element = await waitForElement(step.targetSelector, signal)
-      }
-
-      if (signal.aborted) return
-      if (!element && step.optional) continue
-
-      if (!element) {
-        if (stepIndex === 0) {
-          showPrerequisitePopup(plan.goal, navContextPrompt(step))
-          return
         }
-        console.warn(`[observe-pointers] gave up waiting for: ${step.targetSelector}`)
-        continue
-      }
 
-      activeElement = element
-      // Scroll before highlighting, not after. The standards picker's "add all"
-      // button sits below the fold on a short window: it was being highlighted
-      // correctly and the user could not see it, which is indistinguishable from
-      // the walkthrough pointing at nothing.
-      //
-      // Also before showTooltip, which anchors to the element's rect -- position it
-      // first and the tooltip ends up wherever the element used to be.
-      await scrollIntoViewIfNeeded(element)
-      highlightElement(element)
+        if (signal.aborted) return
 
-      const advance = advanceModeFor(step)
-      let resolveNext = null
-      const nextPromise = new Promise(resolve => {
-        resolveNext = resolve
-        // Without this an aborted run sits here forever, because nothing else
-        // resolves the button's promise.
-        signal.addEventListener('abort', () => resolve(), { once: true })
-      })
+        // Don't point at anything while the app is in a state this plan can't work in --
+        // an unpinned left nav makes every sidebar anchor unresolvable, and skipping them
+        // one by one would quietly gut the tour.
+        await awaitGuards(monitor, signal, step, plan)
 
-      showTooltip(element, step.say, stepIndex, plan.steps.length, resolveNext, {
-        label: advance === 'auto' ? 'Next →' : 'Continue →',
-        revealAfterMs: advance === 'auto' ? STUCK_MS : 0,
-      })
-      reportState({ status: 'running', goal: plan.goal })
+        if (signal.aborted) return
 
-      if (step.actor === 'ai') {
-        await executeAiAction(element, step.action)
-      }
+        // Some flows (new-user audit creation) intercept with a quick-setup modal.
+        // Auto-click through to the advanced form so recipe selectors resolve correctly.
+        await new Promise(r => setTimeout(r, 500))
+        const advancedBtn = document.querySelector(
+          '[op-selector="web-audit-switch-to-advanced-setup"]',
+        )
+        if (advancedBtn) {
+          advancedBtn.click()
+          await new Promise(r => setTimeout(r, 2000))
+        }
 
-      if (advance === 'button') {
-        // The button is the only way on. Either we just typed something and the
-        // user should look at it before we move, or the step is telling them
-        // something rather than waiting for them to do anything detectable.
-        await nextPromise
-      } else if (advance === 'race' || advance === 'auto') {
-        // Race, rather than pick one. Skyler's button is always available, because
-        // mutation-watching proved unreliable and a stuck walkthrough is the worst
-        // outcome. But when the step says `condition: 'visible'` we can watch for a
-        // specific element appearing, which is reliable — so whichever wins, wins.
+        if (signal.aborted) return
+
+        // The waits above take seconds. Re-check rather than trusting the state we saw
+        // before them, otherwise the first thing we do after a long route change is
+        // highlight something that moved.
+        if (monitor.violatedFor(step)) continue
+
+        // Give the target a chance to appear before giving up on it. A single lookup
+        // followed by `continue` silently skipped steps -- and a run whose steps all
+        // skip used to report Complete without showing anything. Optional steps are not
+        // worth waiting for: absent is their expected state.
+        let element = findVisible(step.targetSelector)
+        if (!element && !step.optional) {
+          element = await waitForElement(step.targetSelector, signal)
+        }
+
+        if (signal.aborted) return
+
+        if (!element && step.optional) {
+          // Skipping silently makes a target that just hasn't lazy-loaded yet
+          // indistinguishable from a module this customer isn't licensed for. Say which
+          // step it was so the difference is visible in the console.
+          console.debug(
+            `[op-walkthroughs] skipped optional step '${step.id}':`,
+            step.targetSelector,
+          )
+          stepIndex++
+          continue
+        }
+
+        if (!element) {
+          if (stepIndex === 0) {
+            showPrerequisitePopup(plan.goal, navContextPrompt(step))
+            return
+          }
+          console.warn(`[op-walkthroughs] could not find element: ${step.targetSelector}`)
+          missedRequired ??= step
+          stepIndex++
+          continue
+        }
+
+        activeElement = element
+        // Scroll before highlighting, not after. The standards picker's "add all"
+        // button sits below the fold on a short window: it was being highlighted
+        // correctly and the user could not see it, which is indistinguishable from
+        // the walkthrough pointing at nothing.
         //
-        // This matters more than it looks. The original brief on this project was
-        // "I clicked the button as directed and still had to say next myself — I
-        // want it to know I clicked", and auto-advance is the answer to that.
-        // Requiring a click on every step walks it back. Racing keeps the automatic
-        // path AND keeps the escape hatch when detection fails.
-        await Promise.race([nextPromise, waitForCompletion(step, signal)])
+        // Also before showTooltip, which anchors to the element's rect -- position it
+        // first and the tooltip ends up wherever the element used to be.
+        await scrollIntoViewIfNeeded(element)
+        highlightElement(element)
+
+        const advance = advanceModeFor(step)
+        let resolveNext = null
+        const nextPromise = new Promise(resolve => {
+          resolveNext = resolve
+          // Without this an aborted run sits here forever, because nothing else
+          // resolves the button's promise.
+          signal.addEventListener('abort', () => resolve(), { once: true })
+        })
+
+        showTooltip(element, step.say, stepIndex, plan.steps.length, resolveNext, {
+          label: advance === 'auto' ? 'Next →' : 'Continue →',
+          revealAfterMs: advance === 'auto' ? STUCK_MS : 0,
+        })
+        reportState({ status: 'running', goal: plan.goal })
+
+        if (step.actor === 'ai') {
+          await executeAiAction(element, step.action, step.dwellMs)
+        }
+
+        // What "done" means for this step. `button` is the only mode with nothing to
+        // detect -- we typed something, or the step is a remark -- so the button is the
+        // whole condition. The others race detection against the button, which keeps
+        // auto-advance (the entire point of this project) while leaving an escape hatch
+        // when detection fails. See advanceModeFor.
+        const finished =
+          advance === 'button'
+            ? nextPromise
+            : Promise.race([nextPromise, waitForCompletion(step, signal, element)])
+
+        // Race the step against the monitor. If the user unpins the nav while we are
+        // waiting on them, stop waiting on a step they can no longer see and re-run it
+        // once the state is back, rather than sitting on a dead highlight.
+        //
+        // Boolean(), not () => true: nextViolationFor resolves null on shutdown, which
+        // is not an interruption to retry.
+        const interrupted = await Promise.race([
+          finished.then(() => false),
+          monitor.nextViolationFor(step).then(Boolean),
+        ])
+
+        if (signal.aborted) return
+
+        removeTooltip()
+        unhighlightElement(element)
+        activeElement = null
+
+        // Leave stepIndex alone so the top of the loop waits for the guard, then repeats
+        // this step from scratch.
+        if (interrupted) continue
+
+        stepIndex++
       }
+    } finally {
+      monitor.dispose()
+    }
 
-      if (signal.aborted) return
-
-      removeTooltip()
-      unhighlightElement(element)
-      activeElement = null
+    // Tell them what was actually missing rather than celebrating. Stopping the whole
+    // chain is deliberate: a later plan built on this one's premise will not fare better.
+    if (missedRequired) {
+      showPrerequisitePopup(plan.goal, navContextPrompt(missedRequired))
+      reportState({ status: 'idle' })
+      return
     }
 
     reportCompleted(plan.recipeId)
@@ -600,7 +1091,11 @@ export async function startWalkthrough(plans) {
   reportState({ status: 'idle' })
 }
 
-function waitForCompletion(step, signal) {
+/**
+ * @param {Element} [stepElement] the element the step is highlighting, so the completion
+ *   watcher and the highlight are guaranteed to be the same node
+ */
+function waitForCompletion(step, signal, stepElement) {
   const completion = step.completion
   if (!completion) return Promise.resolve()
 
@@ -611,7 +1106,27 @@ function waitForCompletion(step, signal) {
 
   if (completion.type === 'click') {
     return new Promise(resolve => {
-      const target = findVisible(rawSelector) ?? document.querySelector(watchSelector)
+      // Watch what we highlighted, rather than looking the selector up again.
+      //
+      // These nav ids are duplicated across <global-sidebar> and <mobile-sidebar>. This used to
+      // be document.querySelector, which returns whichever comes first in DOCUMENT order, while
+      // the highlight used findVisible, which returns the first VISIBLE one. Once the nav
+      // selectors were unscoped those stopped being the same node in the mobile drawer: we
+      // highlighted the drawer's item and listened on the hidden desktop copy, so the click was
+      // never seen, the step never advanced, and closing the drawer re-fired the guard on step 1
+      // forever.
+      //
+      // Falls back to findVisible -- not querySelector -- when the completion names a different
+      // selector than the step highlights. findVisible is also what resolves `>> last` and
+      // `>> text=`, so a completion pointing at "the row just added" reaches the same node the
+      // recipe meant.
+      const watchesStepTarget =
+        !completion.targetSelector || completion.targetSelector === step.targetSelector
+
+      const target =
+        (watchesStepTarget && stepElement) ||
+        findVisible(rawSelector) ||
+        document.querySelector(watchSelector)
       if (!target) return resolve()
 
       const handler = () => {
@@ -739,6 +1254,10 @@ export function endWalkthrough(reason) {
   abortController?.abort()
   abortController = null
   removeTooltip()
+  // The guard prompt has no dismiss button of its own -- ending the walkthrough is the other
+  // way out of it -- and its highlight is on a different element than activeElement, so it
+  // needs clearing here or it pulses forever.
+  clearGuardUi()
   if (activeElement) {
     unhighlightElement(activeElement)
     activeElement = null

@@ -5,8 +5,13 @@
 // the product's real terminology matters: a walkthrough that calls things by
 // different names than the UI does is worse than no walkthrough.
 //
-// `recipeIds` drives two things: which walkthroughs the picker surfaces first, and
-// the chain that onboarding queues up once the user has answered.
+// `recipeIds` drives which walkthroughs we put in front of this user: the picker's
+// "Recommended for you" section, and the one we offer them when orientation finishes.
+//
+// Nothing is auto-queued off the back of these any more. Onboarding starts the composed
+// orientation tour and nothing else; deeper walkthroughs are suggested, and the user
+// decides. Being dropped into an Audit setup form you didn't ask for is worse than being
+// asked.
 
 export const PURPOSES = [
   {
@@ -72,22 +77,25 @@ export function getPurpose(id) {
 }
 
 /**
- * Build the ordered recipe chain for a set of selected purposes.
+ * The recipes a set of purposes recommends, in order, de-duplicated.
  *
- * Everyone starts with the left-nav orientation, then we append each purpose's
- * recipes in the order the purposes are listed above, de-duplicated so overlapping
- * selections (Web Privacy and Consent Management both want the consent recipe)
- * don't queue the same walkthrough twice.
+ * Ordered by the PURPOSES declaration above rather than by the order the user happened to
+ * tick the boxes, so the same selection always produces the same list. De-duplicated
+ * because overlapping selections (Web Privacy and Consent Management both want the consent
+ * recipe) should not surface the same walkthrough twice.
+ *
+ * Shared by the picker's "Recommended for you" section and the suggestion offered when
+ * orientation finishes, so those two can never disagree.
  */
-export function buildChain(purposeIds, { includeOrientation = true } = {}) {
-  const chain = includeOrientation ? ['orientation-left-nav'] : []
+export function recommendedRecipeIds(purposeIds = []) {
   const selected = new Set(purposeIds)
+  const ids = []
 
   for (const purpose of PURPOSES) {
     if (!selected.has(purpose.id)) continue
 
-    for (const recipeId of purpose.recipeIds) if (!chain.includes(recipeId)) chain.push(recipeId)
+    for (const recipeId of purpose.recipeIds) if (!ids.includes(recipeId)) ids.push(recipeId)
   }
 
-  return chain
+  return ids
 }

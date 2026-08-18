@@ -80,5 +80,6 @@
         "value": "click"
       }
     }
-  ]
+  ],
+  "guards": ["nav-available"]
 }

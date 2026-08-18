@@ -23,6 +23,8 @@ import { render } from './template.js'
 import { validatePlan } from './schema.js'
 import { GeminiClient, getStoredApiKey } from './llm.js'
 import { amendmentFor } from './amend.js'
+// Part 2's, at the integration merge. Pure constants, no DOM.
+import { SIDEBAR_ANCHORS } from '../shared/selectors.js'
 
 const MIN_CONFIDENCE = 0.35
 
@@ -118,6 +120,19 @@ export function buildPlan(recipe, goal, rawParameters, context = {}) {
   // set, so the field stays absent rather than null for everything else.
   const chain = recipe.buildChain ? recipe.buildChain(planningContext) : recipe.chain
   if (chain?.length) plan.chain = chain
+
+  // App state that has to hold for the whole run, which Part 2's runner polls and
+  // prompts for. Derived rather than declared per recipe, because it can be: a plan
+  // needs the nav guard exactly when one of its steps points into the sidebar, and
+  // deriving it means a recipe cannot forget.
+  //
+  // It matters for nine of the ten recipes here -- every one of them opens with a
+  // sidebar link, and on a collapsed or unpinned nav that link does not resolve at
+  // all. Before this the guard applied only to Part 2's own walkthroughs, so a Part 1
+  // run in the same window would sit on step one pointing at nothing.
+  if (steps.some(step => SIDEBAR_ANCHORS.has(step.targetSelector))) {
+    plan.guards = ['nav-available']
+  }
 
   const errors = validatePlan(plan)
   if (errors.length) {

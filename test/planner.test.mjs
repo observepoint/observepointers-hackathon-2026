@@ -19,6 +19,7 @@ import {
   representativeParameters,
 } from '../src/planner/recipes/index.js'
 import { unswept } from '../src/planner/recipes/_unswept.js'
+import { SIDEBAR_ANCHORS } from '../src/shared/selectors.js'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -2023,6 +2024,42 @@ check(
   'and its head names the three that follow, in order',
   JSON.stringify(demoChain[0].chain) === JSON.stringify(demoChain.slice(1).map(p => p.recipeId)),
   JSON.stringify(demoChain[0].chain),
+)
+
+/* ---------------------------------------------------------------- */
+section('guards, after the integration merge')
+
+// Part 2 polls these for a plan's whole run and prompts when the state breaks. The
+// nav guard only applies to steps whose selector is in SIDEBAR_ANCHORS, and three of
+// Part 1's four sidebar selectors were absent from that set -- so declaring the guard
+// would have been a no-op. Both halves are checked here, because either one alone
+// looks fine and does nothing.
+const navPlan = await createPlan('create a rule', { forceLocal: true })
+const navResumed = answerAndRetry(navPlan, 'GA4 fires on every page', 'create a rule')
+
+check(
+  'a sidebar-first plan declares the nav guard',
+  JSON.stringify(navResumed.plan?.guards) === JSON.stringify(['nav-available']),
+  JSON.stringify(navResumed.plan?.guards),
+)
+check(
+  'and its sidebar step is actually in the set the guard tests against',
+  SIDEBAR_ANCHORS.has(navResumed.plan.steps[0].targetSelector),
+  navResumed.plan.steps[0].targetSelector,
+)
+// alert_from_report starts on a report widget, so a nav guard would hold it up over a
+// sidebar it never touches.
+const widgetPlan = await createPlan('alert me when the purchase tag stops firing', {
+  forceLocal: true,
+})
+const widgetResumed =
+  widgetPlan.status === 'needs_input'
+    ? answerAndRetry(widgetPlan, 'the purchase tag stops firing', 'x')
+    : widgetPlan
+check(
+  'a plan that never touches the sidebar declares no guards',
+  widgetResumed.plan?.guards === undefined,
+  JSON.stringify(widgetResumed.plan?.guards),
 )
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)

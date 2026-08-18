@@ -222,5 +222,6 @@
       },
       "id": "s15"
     }
-  ]
+  ],
+  "guards": ["nav-available"]
 }

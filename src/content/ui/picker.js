@@ -5,25 +5,12 @@
 // but are marked, since re-running a walkthrough is a perfectly reasonable thing to
 // want.
 
-import { RECIPES } from '../../shared/recipes.js'
-import { PURPOSES, getPurpose } from '../../shared/purposes.js'
+import { RECIPES, resolveRecipe } from '../../shared/recipes.js'
+import { getPurpose, recommendedRecipeIds } from '../../shared/purposes.js'
 import { storage, KEYS } from '../../shared/utils.js'
 import { openModal } from './modal.js'
 
 const LAYER = 'picker'
-
-/** Recipe ids the user's purposes recommend, in purpose order. */
-function recommendedIds(purposeIds = []) {
-  const selected = new Set(purposeIds)
-  const ids = []
-
-  for (const purpose of PURPOSES) {
-    if (!selected.has(purpose.id)) continue
-    for (const id of purpose.recipeIds) if (!ids.includes(id)) ids.push(id)
-  }
-
-  return ids
-}
 
 /** Which of the user's purposes recommend this recipe -- shown as a hint on the card. */
 function purposeLabelsFor(recipeId, purposeIds = []) {
@@ -100,7 +87,13 @@ export async function openPicker({ onStart, onStartOnboarding } = {}) {
     onStart?.(recipeId)
   }
 
-  const recommended = recommendedIds(purposeIds)
+  // RECIPES carries the core-only default for anything composed, so resolve before
+  // rendering or the step count and summary describe a tour we won't run. Deliberately no
+  // includeSettingsIntro: pointing someone at the Walkthroughs menu item while they are
+  // reading the Walkthroughs modal is not worth a step.
+  const view = recipe => resolveRecipe(recipe.recipeId, { purposeIds }) ?? recipe
+
+  const recommended = recommendedRecipeIds(purposeIds)
   const rest = RECIPES.filter(recipe => !recommended.includes(recipe.recipeId))
 
   if (recommended.length > 0) {
@@ -111,7 +104,7 @@ export async function openPicker({ onStart, onStartOnboarding } = {}) {
       if (!recipe) continue
 
       body.appendChild(
-        buildCard(recipe, {
+        buildCard(view(recipe), {
           completed: Boolean(completedRecipes[recipeId]),
           purposeLabels: purposeLabelsFor(recipeId, purposeIds),
           onStart: start,
@@ -127,7 +120,7 @@ export async function openPicker({ onStart, onStartOnboarding } = {}) {
 
     for (const recipe of rest)
       body.appendChild(
-        buildCard(recipe, {
+        buildCard(view(recipe), {
           completed: Boolean(completedRecipes[recipe.recipeId]),
           onStart: start,
         }),
