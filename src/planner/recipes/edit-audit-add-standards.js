@@ -24,13 +24,22 @@ import { unswept } from './_unswept.js'
  * AuditEditorComponent with panelClass 'op-audit-editor': the SAME advanced editor the
  * create flow lands in. Which is why the Standards half transfers unchanged.
  *
- * PICKING THE RIGHT CARD
+ * PICKING THE RIGHT CARD, WHICH TAKES AN EXTRA STEP
  *
- * The card's own selector embeds its id — `sources-view-card-audit-1234` — so it
- * cannot be named in advance. A prefix match on the type gets "the audits", and the
- * copy names the one to open rather than pretending we can point at it. Good enough
- * because the overwhelmingly common shape for this request is an account with one
- * audit; when there are several, the user picks and the step still makes sense.
+ * The card's own selector embeds its id — `sources-view-card-audit-1234` — so it cannot
+ * be named in advance, and a prefix match on the type reaches "the first audit card"
+ * rather than the named one. On an account with several audits that is the wrong card,
+ * silently: the pointer lands on something plausible and the user edits the wrong
+ * audit.
+ *
+ * So the name is used the way a person would use it — typed into the Data Sources
+ * search box, which narrows the grid to one card and makes the prefix selector exact.
+ * That is one more step and it is worth it; the alternative was a selector language
+ * feature for "the element inside the row containing this text", which is a lot of
+ * machinery for something the screen already does.
+ *
+ * Skipped when no name was given, because "search for your audit" is not an
+ * instruction. Then the prefix match stands and the copy says which card to use.
  *
  * SELECTORS
  *   op-menu's own — button[op-selector="open-menu-options-btn"] is the trigger, and
@@ -38,13 +47,19 @@ import { unswept } from './_unswept.js'
  *     matched the same way every other menu in this library is.
  *   Shared with the create flow, and swept there — the Standards tab, its three
  *     sub-tabs, the picker, and Save Audit.
- *   Unswept: the three steps that get from Data Sources into the editor.
+ *
+ *   SWEPT on a live /sources: the sidebar link ("Audits & Journeys"), the card's
+ *   overflow trigger, and `button.op-menu-item >> text=Edit` -> "Edit", reported at
+ *   position 3 of 8. Only the search box is unswept, having been added after.
  */
 
 const EDIT = {
   // sidebar.constants.ts maps 'audits & journeys' to this. NOT the guide-* id Part 2's
   // ANCHOR.navDataSources scopes to — global-sidebar-link never binds an id.
   dataSources: '[op-selector="sidebar-data-sources-audits-journeys"]',
+  // op-filter-bar-v2 builds this from searchByTextPlaceholderPrefix + Suffix, so it is
+  // literally "Search By Data Source" on this screen.
+  search: 'input[aria-label="Search By Data Source"]',
   cardMenu: '[op-selector^="sources-view-card-audit-"] button[op-selector="open-menu-options-btn"]',
   editItem: 'button.op-menu-item >> text=Edit',
 }
@@ -117,6 +132,8 @@ export default {
 
   buildSteps(context) {
     const name = context.parameters?.auditName ?? 'your audit'
+    // The default is prose, not something to type into a search box.
+    const named = Boolean(context.parameters?.auditName) && name !== 'your audit'
 
     // Only the first three are new. The Standards tab and everything after it is
     // shared with audit_with_all_standards and was swept there.
@@ -129,6 +146,23 @@ export default {
         targetFallback: { description: 'the "Audits & Journeys" link in the left sidebar' },
         completion: { type: 'url_change', value: '/sources' },
       },
+      // Narrow the grid first, so the prefix selector below can only match one card.
+      // op-filter-bar-v2 commits on Enter (searchByTextKeyUp), so setting .value and
+      // firing input does not apply the filter -- same shape as the alert's URL filter,
+      // and said the same way rather than pretended around.
+      ...(named
+        ? [
+            {
+              actor: 'ai',
+              navContext: '/sources',
+              targetSelector: EDIT.search,
+              say: `Typed "${name}" — press Enter to filter the list, then Continue.`,
+              targetFallback: { description: 'the "Search By Data Source" box' },
+              action: { type: 'fill_text', value: name },
+              completion: { type: 'dom_event', value: 'change' },
+            },
+          ]
+        : []),
       {
         actor: 'user',
         navContext: '/sources',
@@ -171,9 +205,9 @@ export default {
       },
     ]
 
-    // The three steps that get from Data Sources into the editor have never been
-    // watched resolve; everything after them has.
-    const NEW_STEPS = new Set([EDIT.dataSources, EDIT.cardMenu, EDIT.editItem])
+    // Everything here has been watched resolve on a live page EXCEPT the search box,
+    // which was added after that sweep.
+    const NEW_STEPS = new Set([EDIT.search])
     const built = numbered([
       ...openEditor,
       ...standardsSubTabSteps(context).map(({ id: _id, ...step }) => step),

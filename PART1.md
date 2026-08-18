@@ -476,6 +476,11 @@ Value best practice on Google Universal Analytics, and alert me if anything brea
 `startWalkthrough` takes. The sentence, its routing and its ordering are all in the
 test suite, so none of it can rot quietly.
 
+The onboarding tour fills the NAME and not the starting URL. The name is load-bearing —
+the walkthrough after it opens the audit by name — while which site to crawl is the one
+decision in an orientation tour that is genuinely the user's, and nothing downstream
+depends on its value.
+
 **Edit, not create, and the difference is not cosmetic.** `audit_with_all_standards`
 types a name and a starting URL as part of creating the audit. Run against an audit
 that already exists, those two steps overwrite fields nobody asked to change — and
@@ -689,12 +694,12 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **Three steps of the demo have never been watched resolve** — the ones that get from
-  Data Sources into an existing audit's editor: the Audits & Journeys sidebar link, the
-  card's overflow menu, and its Edit item. Everything from the Standards tab onward was
-  swept on the create path and is shared. Also unswept and off the demo path:
-  `alert_from_report` (6 steps — needs a completed run) and one transient menu row in
-  `create_first_consent_category`.
+- **One step of the demo has never been watched resolve** — the Data Sources search box,
+  added after that screen was swept. It exists because the audit card's selector embeds
+  its id, so a prefix match reaches the FIRST audit rather than the named one; typing the
+  name into the grid's own search narrows it to one card. Also unswept and off the demo
+  path: `alert_from_report` (6 steps — needs a completed run) and one transient menu row
+  in `create_first_consent_category`.
 - **The selector language is evidenced, not assumed.** `>> last` reported
   "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
   "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.

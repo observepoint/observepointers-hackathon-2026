@@ -30,8 +30,11 @@ const createFirstAudit = {
   summary:
     'Walks through creating a Web Audit: naming it, adding starting URLs, and setting the page limit and frequency.',
   executionMode: 'templated',
-  // Filled in, not just suggested — see the two 'ai' steps below.
-  parameters: { auditName: 'My First Audit', siteUrl: 'https://observepoint.com' },
+  // The NAME is filled in rather than suggested — see the 'ai' step below. The
+  // starting URL is not: this is an orientation tour, and which site to crawl is the
+  // one decision in it that is genuinely the user's. The demo's own site gets typed in
+  // the walkthrough that follows, where it is the point rather than a detail.
+  parameters: { auditName: 'My First Audit' },
   // Only the first step needs the sidebar, and appliesTo means the guard leaves the audit
   // form steps alone -- so declaring it costs nothing and stops step 1 stalling.
   guards: ['nav-available'],
@@ -66,6 +69,10 @@ const createFirstAudit = {
       // It reads better: "something like My First Audit" leaves the user to type it,
       // and then a tour about learning the app has spent a step on data entry.
       //
+      // The starting URL below is deliberately NOT filled, for the mirror of the same
+      // reason: nothing downstream depends on its value, and which site to crawl is
+      // the one decision in this tour that is genuinely the user's.
+      //
       // And the walkthrough AFTER this one has to find what this one made. The demo
       // runs onboarding first and then "edit My First Audit to add…", which opens the
       // audit by name. If the name is a suggestion, the second walkthrough is looking
@@ -88,11 +95,10 @@ const createFirstAudit = {
     },
     {
       id: 'starting-urls',
-      actor: 'ai',
+      actor: 'user',
       navContext: '*',
       targetSelector: ANCHOR.auditStartingUrls,
-      say: 'Starting URLs are where the crawl begins — one per line. One homepage is plenty for a first run.',
-      action: { type: 'input', value: '{{parameters.siteUrl}}' },
+      say: 'Starting URLs are where the crawl begins. One per line. For a first run, a single homepage URL is plenty.',
       completion: { type: 'dom_mutation', targetSelector: ANCHOR.auditStartingUrls },
     },
     {

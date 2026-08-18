@@ -712,6 +712,35 @@ check(
   otEdit?.steps.some(s => s.say.includes('My First Audit')),
   otEdit?.steps.map(s => s.say).join(' | '),
 )
+// The audit card's op-selector embeds its id, so a prefix match reaches the FIRST
+// audit card and not the named one. On an account with several audits that edits the
+// wrong audit, silently. The fix is a step, not a selector: filter the grid by name
+// first, so the prefix can only match one card.
+check(
+  'a named audit gets filtered for before the card is touched',
+  otEdit?.steps.some(
+    s => s.targetSelector === 'input[aria-label="Search By Data Source"]' && s.actor === 'ai',
+  ),
+  otEdit?.steps.map(s => s.targetSelector).join(' | '),
+)
+check(
+  'and the search runs before the card menu, or it narrows nothing',
+  otEdit.steps.findIndex(s => s.targetSelector.includes('Search By Data Source')) <
+    otEdit.steps.findIndex(s => s.targetSelector.includes('open-menu-options-btn')),
+)
+// With no name there is nothing to search for, and "search for your audit" is not an
+// instruction.
+const unnamedEdit = buildPlan(
+  RECIPES.find(r => r.id === 'edit_audit_add_standards'),
+  'add rules and alerts to the audit',
+  { siteUrl: 'gap.com' },
+)
+check(
+  'with no audit named, the search step is dropped rather than filled with prose',
+  unnamedEdit.plan?.steps.every(s => !s.targetSelector.includes('Search By Data Source')),
+  unnamedEdit.plan?.steps.map(s => s.say).join(' | '),
+)
+
 check(
   'the edit path never types a name or a starting URL',
   otEdit?.steps.every(
@@ -2074,6 +2103,32 @@ check(
   'a plan that never touches the sidebar declares no guards',
   widgetResumed.plan?.guards === undefined,
   JSON.stringify(widgetResumed.plan?.guards),
+)
+
+/* ---------------------------------------------------------------- */
+section("the onboarding tour's audit, which the demo then edits")
+
+// Part 2's recipe, checked from here because Part 1's demo depends on its output: the
+// walkthrough that follows opens the audit BY NAME, so a suggested name is a name the
+// second walkthrough cannot address.
+const { RECIPES: PART2_RECIPES } = await import('../src/shared/recipes.js')
+const firstAudit = PART2_RECIPES.find(r => r.recipeId === 'create-first-audit')
+
+check('the onboarding tour still exists', Boolean(firstAudit))
+check(
+  'it names the audit itself rather than suggesting a name',
+  firstAudit.steps.find(s => s.id === 'name-the-audit')?.actor === 'ai',
+)
+check(
+  'and the name is the one the demo sentence then edits',
+  firstAudit.parameters.auditName === 'My First Audit',
+  firstAudit.parameters.auditName,
+)
+// The mirror: nothing downstream depends on the starting URL's value, and which site to
+// crawl is the one decision in an orientation tour that is genuinely the user's.
+check(
+  'the starting URL is left to the user',
+  firstAudit.steps.find(s => s.id === 'starting-urls')?.actor === 'user',
 )
 
 console.log(failures ? `\n${failures} check(s) failed\n` : `\nall checks passed\n`)

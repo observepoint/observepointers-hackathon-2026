@@ -143,11 +143,28 @@
  *                    operator before adding the next row — reordering it would point
  *                    at an unclickable element and wait forever.
  *
+ *   Existing audit   The route into an audit that already exists, on a live /sources:
+ *                    the "Audits & Journeys" sidebar link, the card's overflow
+ *                    trigger, and `button.op-menu-item >> text=Edit` -> "Edit" at
+ *                    position 3 of 8. Everything after that is shared with the create
+ *                    path and was swept there.
+ *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, and the three steps that get from Data Sources into an EXISTING audit's
- * editor — the Audits & Journeys sidebar link, the card's overflow menu, and its Edit
- * item. Everything edit_audit_add_standards does after that is shared with the create
- * path and was swept there.
+ * Audit screen, and the Data Sources search box (input[aria-label="Search By Data
+ * Source"]), which was added after that sweep — see note 8.
+ *
+ * 8. A PREFIX SELECTOR PICKS THE FIRST MATCH, WHICH IS THE WRONG AUDIT. The audit card's
+ *    op-selector embeds its id (sources-view-card-audit-628481), so the only way to reach
+ *    it by name is not to: `[op-selector^="sources-view-card-audit-"]` gets the FIRST
+ *    card, and on an account with several audits that is silently the wrong one — a
+ *    plausible pointer and an edit to something nobody asked about.
+ *
+ *    Fixed with a step rather than a selector: type the name into the Data Sources
+ *    search box, which narrows the grid to one card and makes the prefix exact. The
+ *    alternative was a selector-language feature for "the element inside the row
+ *    containing this text", which is a lot of machinery for something the screen already
+ *    does. Skipped when no name was given, since "search for your audit" is not an
+ *    instruction.
  *
  * Worth knowing about that path, because reading found it and nothing else would:
  * clicking an audit card opens its REPORT. The editor is behind the card's ⋮ menu, and

@@ -879,7 +879,25 @@
           "type": "url_change",
           "value": "/sources"
         },
-        "id": "s1",
+        "id": "s1"
+      },
+      {
+        "actor": "ai",
+        "navContext": "/sources",
+        "targetSelector": "input[aria-label=\"Search By Data Source\"]",
+        "say": "Typed \"My First Audit\" — press Enter to filter the list, then Continue.",
+        "targetFallback": {
+          "description": "the \"Search By Data Source\" box"
+        },
+        "action": {
+          "type": "fill_text",
+          "value": "My First Audit"
+        },
+        "completion": {
+          "type": "dom_event",
+          "value": "change"
+        },
+        "id": "s2",
         "unverified": true
       },
       {
@@ -895,8 +913,7 @@
           "condition": "visible",
           "targetSelector": "button.op-menu-item"
         },
-        "id": "s2",
-        "unverified": true
+        "id": "s3"
       },
       {
         "actor": "user",
@@ -911,8 +928,7 @@
           "condition": "visible",
           "targetSelector": ".op-audit-editor"
         },
-        "id": "s3",
-        "unverified": true
+        "id": "s4"
       },
       {
         "actor": "user",
@@ -927,7 +943,7 @@
           "condition": "visible",
           "targetSelector": ".op-tabs.sub-menu"
         },
-        "id": "s4"
+        "id": "s5"
       },
       {
         "actor": "user",
@@ -940,7 +956,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s5"
+        "id": "s6"
       },
       {
         "actor": "ai",
@@ -957,7 +973,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s6"
+        "id": "s7"
       },
       {
         "actor": "user",
@@ -970,7 +986,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s7"
+        "id": "s8"
       },
       {
         "actor": "user",
@@ -983,7 +999,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s8"
+        "id": "s9"
       },
       {
         "actor": "ai",
@@ -1000,7 +1016,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s9"
+        "id": "s10"
       },
       {
         "actor": "user",
@@ -1013,7 +1029,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s10"
+        "id": "s11"
       },
       {
         "actor": "user",
@@ -1026,7 +1042,7 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s11"
+        "id": "s12"
       },
       {
         "actor": "ai",
@@ -1043,7 +1059,7 @@
           "type": "dom_event",
           "value": "input"
         },
-        "id": "s12"
+        "id": "s13"
       },
       {
         "actor": "user",
@@ -1056,10 +1072,10 @@
           "type": "dom_event",
           "value": "click"
         },
-        "id": "s13"
+        "id": "s14"
       },
       {
-        "id": "s14",
+        "id": "s15",
         "actor": "user",
         "targetSelector": "[op-selector=\"web-audit-create-save\"]",
         "say": "Save Audit — nothing exists until you do.",
