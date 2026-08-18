@@ -694,12 +694,11 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **One step of the demo has never been watched resolve** — the Data Sources search box,
-  added after that screen was swept. It exists because the audit card's selector embeds
-  its id, so a prefix match reaches the FIRST audit rather than the named one; typing the
-  name into the grid's own search narrows it to one card. Also unswept and off the demo
-  path: `alert_from_report` (6 steps — needs a completed run) and one transient menu row
-  in `create_first_consent_category`.
+- **Every step of the demo chain has been watched resolve on a live page.** What is left
+  unswept needs account states we do not have: `alert_from_report` (6 steps — needs an
+  audit with a completed run) and the Quick Audit branch (needs an account with no data
+  sources), plus one transient menu row in `create_first_consent_category`. None is on
+  the demo path.
 - **The selector language is evidenced, not assumed.** `>> last` reported
   "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
   "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.

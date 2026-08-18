@@ -1206,6 +1206,11 @@ check(
         'audit_with_alerts',
         // Reuses only selectors the three above already proved.
         'audit_with_all_standards',
+        // Swept end to end on a live /sources: the Audits & Journeys link, the Search
+        // By Data Source box, the card's overflow trigger, and its Edit item at
+        // position 3 of 8. Everything from the Standards tab on is shared with
+        // audit_with_all_standards.
+        'edit_audit_add_standards',
         // Swept end to end on /rules/library: sidebar link, Create Rule,
         // name field, Next, Save.
         'create_first_rule',

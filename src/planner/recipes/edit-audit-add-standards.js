@@ -1,6 +1,5 @@
 import { SELECTORS, saveAuditStep, standardsSubTabSteps } from './_audit-standards.js'
 import { bestCategoryFor } from './_consent-matching.js'
-import { unswept } from './_unswept.js'
 
 /**
  * Attach Standards to an audit that already exists.
@@ -48,9 +47,9 @@ import { unswept } from './_unswept.js'
  *   Shared with the create flow, and swept there — the Standards tab, its three
  *     sub-tabs, the picker, and Save Audit.
  *
- *   SWEPT on a live /sources: the sidebar link ("Audits & Journeys"), the card's
- *   overflow trigger, and `button.op-menu-item >> text=Edit` -> "Edit", reported at
- *   position 3 of 8. Only the search box is unswept, having been added after.
+ *   SWEPT END TO END on a live /sources: the sidebar link ("Audits & Journeys"), the
+ *   Search By Data Source box, the card's overflow trigger, and
+ *   `button.op-menu-item >> text=Edit` -> "Edit", reported at position 3 of 8.
  */
 
 const EDIT = {
@@ -205,18 +204,12 @@ export default {
       },
     ]
 
-    // Everything here has been watched resolve on a live page EXCEPT the search box,
-    // which was added after that sweep.
-    const NEW_STEPS = new Set([EDIT.search])
     const built = numbered([
       ...openEditor,
       ...standardsSubTabSteps(context).map(({ id: _id, ...step }) => step),
       saveAuditStep(null),
     ])
 
-    return unswept(
-      built,
-      built.filter(step => NEW_STEPS.has(step.targetSelector)).map(step => step.id),
-    )
+    return built
   },
 }

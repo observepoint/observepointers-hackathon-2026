@@ -143,15 +143,17 @@
  *                    operator before adding the next row — reordering it would point
  *                    at an unclickable element and wait forever.
  *
- *   Existing audit   The route into an audit that already exists, on a live /sources:
- *                    the "Audits & Journeys" sidebar link, the card's overflow
+ *   Existing audit   The whole route into an audit that already exists, on a live
+ *                    /sources: the "Audits & Journeys" sidebar link,
+ *                    input[aria-label="Search By Data Source"], the card's overflow
  *                    trigger, and `button.op-menu-item >> text=Edit` -> "Edit" at
  *                    position 3 of 8. Everything after that is shared with the create
  *                    path and was swept there.
  *
- * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick
- * Audit screen, and the Data Sources search box (input[aria-label="Search By Data
- * Source"]), which was added after that sweep — see note 8.
+ * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole Quick
+ * Audit screen. Every step of the demo chain has now been watched resolve; what is left
+ * needs account states we do not have — a completed audit run for alert_from_report, an
+ * account with no data sources for Quick Audit — plus one transient menu row.
  *
  * 8. A PREFIX SELECTOR PICKS THE FIRST MATCH, WHICH IS THE WRONG AUDIT. The audit card's
  *    op-selector embeds its id (sources-view-card-audit-628481), so the only way to reach

@@ -897,8 +897,7 @@
           "type": "dom_event",
           "value": "change"
         },
-        "id": "s2",
-        "unverified": true
+        "id": "s2"
       },
       {
         "actor": "user",
