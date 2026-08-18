@@ -1239,16 +1239,11 @@ check(
         // SWAP: Next is hidden on Preview, Save hidden everywhere else. Three Nexts
         // land on Preview, and only then does a step point at Save.
         'create_first_alert',
-        // Reads clean here despite two unswept steps, and the reason is worth knowing:
-        // both are the CLOSE controls at the end, and both are `optional` — which this
-        // check excludes, because an optional step exists precisely because its target
-        // may be absent.
-        //
-        // That filter now covers two different reasons for `optional`. The audit path's
-        // "switch to advanced" is optional because absence is its expected state; these
-        // two are optional because a stall in the first link of a four-link chain would
-        // strand the other three. Same field, different argument. Not worth a second
-        // field today, but it is why this line is not the contradiction it looks like.
+        // Swept end to end, eleven steps, over three passes of /consent-categories --
+        // the banner only exists while an import is running, so its states could not be
+        // caught in one. Those passes also confirmed the ORDER: `>> text=Close` found
+        // nothing mid-sync, matched 1 of 1 when it finished, and the importer's own close
+        // button was still there afterwards.
         'import_consent_from_onetrust',
       ].join()
     )

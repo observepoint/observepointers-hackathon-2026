@@ -158,8 +158,7 @@
           "targetSelector": ".bulk-action-progress"
         },
         "optional": true,
-        "id": "s10",
-        "unverified": true
+        "id": "s10"
       },
       {
         "actor": "user",
@@ -174,8 +173,7 @@
           "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
         },
         "optional": true,
-        "id": "s11",
-        "unverified": true
+        "id": "s11"
       }
     ],
     "chain": ["create_tag_variable_rule", "create_first_alert", "edit_audit_add_standards"],

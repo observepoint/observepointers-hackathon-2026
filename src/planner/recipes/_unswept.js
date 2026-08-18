@@ -36,10 +36,21 @@
  *                    elements. Note Sync is visible BEFORE the detect runs, so it
  *                    is not gated — which is why the detect step waits on
  *                    .options-selected-container rather than on Sync appearing.
- *   Sync banner     .bulk-action-progress in all three of its states — mid-run ("1 of 6
+ *   Sync banner     .bulk-action-progress in all three of its states — mid-run ("2 of 6
  *                    Synchronizing cookies…"), finished ("Cookies are now synchronized",
- *                    matched 1 of 1), and absent afterwards. Took a third pass of this
- *                    screen because the banner only exists while an import is running.
+ *                    matched 1 of 1), and absent afterwards. Took three passes of this
+ *                    screen, because the banner only exists while an import is running.
+ *
+ *                    Plus both CLOSE controls: `.bulk-action-progress button >>
+ *                    text=Close` -> "Close", matched 1 of 1, and the importer's own
+ *                    `.cc-import-modal-wrapper [op-selector="close-btn"]`.
+ *
+ *                    THE THREE PASSES ALSO CONFIRMED THE ORDER, which no single sweep
+ *                    can. Mid-sync, `>> text=Close` found nothing — so that step cannot
+ *                    fire early. When the sync finished it matched. And once the banner
+ *                    was dismissed the importer's close button was still there, which is
+ *                    the whole reason the last step exists. Three states of one screen,
+ *                    swept in sequence, are worth more than three selectors confirmed.
  *
  *                    It also produced note 10.
  *
@@ -157,9 +168,9 @@
  *                    position 3 of 8. Everything after that is shared with the create
  *                    path and was swept there.
  *
- * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick Audit
- * screen, and the two CLOSE controls at the end of the OneTrust flow — the banner's,
- * whose selector was just rewritten, and the importer's, which is new.
+ * Still unlooked-at: report widgets, the alert quick-create dialog, and the whole Quick
+ * Audit screen. Every step of the demo chain has now been watched resolve, in every state
+ * it passes through.
  *
  * 10. AN ID IN THE TEMPLATE IS NOT AN ID ON THE PAGE. The banner's Close button was
  *     targeted as #bulk-action-progress-yes-btn, read straight out of the template, and it

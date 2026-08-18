@@ -1,7 +1,6 @@
 import { NAV, stepsToLibrary } from './_standards-library.js'
 import { normalizeSiteUrl } from '../naming.js'
 import { mentionsArea, wantsAudit, editsExistingAudit } from '../areas.js'
-import { unswept } from './_unswept.js'
 
 /**
  * Import consent categories from OneTrust, for one site and one location.
@@ -64,21 +63,19 @@ import { unswept } from './_unswept.js'
  *     need no patch. The `:not(.mat-select-search-hidden)` matters: the library
  *     renders TWO inputs with that class and the first is a spacer.
  *
- *   SWEPT except the two CLOSE controls at the end. Everything else has been watched
- *   resolve on a live local moonbeam, each echoing back the element it should —
- *   including the sync banner in all three of its states, which took a third pass
- *   because it only exists while an import is running. This is the only recipe in the
- *   library that has been verified end to end including the states that only exist
- *   mid-flow: the open create menu, the open location overlay, and the post-detect
- *   result row. Two things it settled that reading could not:
+ *   SWEPT END TO END, all eleven steps, on a live local moonbeam — including the sync
+ *   banner in all three of its states, which took three passes of this screen because it
+ *   only exists while an import is running.
  *
- *     - `mat-option.loc-autocomplete >> text=USA, Utah` resolves, to "USA, Utah".
- *       That is the first live proof of label-matching, which is how the rule and
- *       alert recipes address every menu they touch.
- *     - `.options-selected-container` resolves after the detect, to "Detected with
- *       observepoint.com, USA, Uta[h]". So the wait is real and lands on the right
- *       thing — which matters because Sync is visible from the start and waiting on
- *       it instead would have advanced straight into the spinner.
+ *   Those passes also confirmed the ORDER, which is the part a single sweep cannot show.
+ *   While the sync was running, `>> text=Close` found nothing — so that step cannot fire
+ *   early. When it finished it matched 1 of 1, reading "Close". And once the banner was
+ *   gone the importer's own close button was still there, which is the entire reason the
+ *   last step exists.
+ *
+ *   It is the only recipe in the library verified end to end including the states that
+ *   exist only mid-flow: the open create menu, the open location overlay, the post-detect
+ *   result row, and all three faces of the sync banner.
  */
 
 const SELECTORS = {
@@ -227,14 +224,7 @@ export default {
           },
         ]
 
-    // Swept since: .bulk-action-progress mid-run ("1 of 6 Synchronizing cookies…"), the
-    // finished message ("Cookies are now synchronized", matched 1 of 1), and the banner
-    // being absent afterwards. What is left unlooked-at is the two CLOSE controls — the
-    // banner's, whose label-matched selector replaced an id that never resolved, and the
-    // importer's, which is new. Flagged by selector, since ids shift with the location
-    // branch.
-    const UNSWEPT = new Set([SELECTORS.closeBanner, SELECTORS.closeImporter])
-    const built = numbered([
+    return numbered([
       ...stepsToLibrary({
         link: NAV.consentCategoriesLink,
         label: 'Consent Categories',
@@ -334,15 +324,6 @@ export default {
         optional: true,
       },
     ])
-
-    return unswept(
-      built,
-      built
-        .filter(
-          step => UNSWEPT.has(step.targetSelector) || UNSWEPT.has(step.completion?.targetSelector),
-        )
-        .map(step => step.id),
-    )
   },
 
   /**

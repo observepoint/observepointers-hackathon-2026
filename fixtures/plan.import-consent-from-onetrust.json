@@ -120,8 +120,7 @@
         "targetSelector": ".bulk-action-progress"
       },
       "optional": true,
-      "id": "s8",
-      "unverified": true
+      "id": "s8"
     },
     {
       "actor": "user",
@@ -136,8 +135,7 @@
         "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
       },
       "optional": true,
-      "id": "s9",
-      "unverified": true
+      "id": "s9"
     }
   ],
   "guards": ["nav-available"]

@@ -428,7 +428,7 @@ flows for an account that has none of them yet.
 | `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
 | `create_first_alert`            | An alert, metric and threshold included        | ✅ all steps  |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 9/11 swept |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ✅ all steps  |
 
 `create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
 and the split is about the REQUEST rather than the recipe. "Make me a rule" says
@@ -755,17 +755,16 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **Two steps of the demo have not been watched resolve** — the two CLOSE controls at the
-  end of the OneTrust flow. The banner's was targeted by an id read straight out of the
-  template, `#bulk-action-progress-yes-btn`, and it came back "not found" on every sweep
-  of that screen including the pass where the banner plainly read
-  _"…Cookies are now synchronizedClose"_: the template declares that id **twice**, in
-  mutually exclusive branches, and which one renders depends on the caller. It is matched
-  by label now. What is left
-  unswept needs account states we do not have: `alert_from_report` (6 steps — needs an
-  audit with a completed run) and the Quick Audit branch (needs an account with no data
-  sources), plus one transient menu row in `create_first_consent_category`. None is on
-  the demo path.
+- **Every step of the demo chain has been watched resolve, in every state it passes
+  through.** The OneTrust banner took three passes of one screen — it only exists while an
+  import is running — and those three are worth more than three selectors, because they
+  confirmed the ORDER: mid-sync `>> text=Close` found nothing, so that step cannot fire
+  early; when the sync finished it matched 1 of 1; and once the banner was dismissed the
+  importer's own close button was still there, which is the entire reason the last step
+  exists. What is left unswept needs account states we do not have: `alert_from_report`
+  (6 steps — needs an audit with a completed run) and the Quick Audit branch (needs an
+  account with no data sources), plus one transient menu row in
+  `create_first_consent_category`. None is on the demo path.
 - **The selector language is evidenced, not assumed.** `>> last` reported
   "matched 3 of 3" against three EXPECT rows, and `>> text=is set` reported
   "matched 9 of 13" reading "is set" — the ninth entry in `TagVariableOperators`.
