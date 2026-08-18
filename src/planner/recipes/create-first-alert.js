@@ -193,7 +193,11 @@ export default {
       ...stepsToLibrary({
         link: NAV.alertsLink,
         label: 'Alerts',
-        route: '/alerts',
+        // /alerts-library, not /alerts. It was the latter, and worked only because
+        // matchesRouteValue is a startsWith -- the sweep landing on
+        // localhost:9004/alerts-library is what surfaced it. Part 2's own
+        // ROUTE.alertsLibrary had it right all along.
+        route: '/alerts-library',
       }).map(({ id: _id, ...step }) => step),
       {
         actor: 'user',

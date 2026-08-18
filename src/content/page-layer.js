@@ -352,7 +352,7 @@ const NAV_LABELS = {
   '/sources': 'Data Sources',
   '/rules/library': 'Standards → Tag & Variable Rules',
   '/consent-categories': 'Standards → Consent Categories',
-  '/alerts': 'Standards → Alerts',
+  '/alerts-library': 'Standards → Alerts',
 }
 
 function navContextPrompt(step) {

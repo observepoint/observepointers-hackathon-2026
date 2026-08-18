@@ -623,7 +623,7 @@
         },
         "completion": {
           "type": "url_change",
-          "value": "/alerts"
+          "value": "/alerts-library"
         },
         "id": "s1"
       },
