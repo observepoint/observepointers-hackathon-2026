@@ -428,7 +428,7 @@ flows for an account that has none of them yet.
 | `create_tag_variable_rule`      | The same builder, driven through the grid      | ⚠️ 0/30 swept |
 | `create_first_consent_category` | Fill an empty consent category library         | ⚠️ 4/5 swept  |
 | `create_first_alert`            | An alert, metric and threshold included        | ✅ all steps  |
-| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 8/10 swept |
+| `import_consent_from_onetrust`  | Pull consent categories from a OneTrust CMP    | ⚠️ 9/11 swept |
 
 `create_first_rule` and `create_tag_variable_rule` are the same screen at two depths,
 and the split is about the REQUEST rather than the recipe. "Make me a rule" says
@@ -524,7 +524,7 @@ My First Audit to check the site against them with tag rules, follow the Timing
 Value best practice on Google Universal Analytics, and alert me if anything breaks
 ```
 
-**Four walkthroughs, 73 steps**, in dependency order:
+**Four walkthroughs, 74 steps**, in dependency order:
 
 | #   | Walkthrough                    | Steps | What it does                                      |
 | --- | ------------------------------ | ----- | ------------------------------------------------- |
@@ -755,9 +755,13 @@ is empty.
   tells the user both things and waits on the dialog, so either route completes,
   but Part 3's pointer will land on the wrong widget until it can resolve
   `targetFallback.description` against nearby text.
-- **Two steps of the demo have not been watched resolve** — the OneTrust sync banner,
-  which only exists while an import is running and so fell between the two passes of that
-  screen. What is left
+- **Two steps of the demo have not been watched resolve** — the two CLOSE controls at the
+  end of the OneTrust flow. The banner's was targeted by an id read straight out of the
+  template, `#bulk-action-progress-yes-btn`, and it came back "not found" on every sweep
+  of that screen including the pass where the banner plainly read
+  _"…Cookies are now synchronizedClose"_: the template declares that id **twice**, in
+  mutually exclusive branches, and which one renders depends on the caller. It is matched
+  by label now. What is left
   unswept needs account states we do not have: `alert_from_report` (6 steps — needs an
   audit with a completed run) and the Quick Audit branch (needs an account with no data
   sources), plus one transient menu row in `create_first_consent_category`. None is on

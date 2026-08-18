@@ -36,6 +36,13 @@
  *                    elements. Note Sync is visible BEFORE the detect runs, so it
  *                    is not gated — which is why the detect step waits on
  *                    .options-selected-container rather than on Sync appearing.
+ *   Sync banner     .bulk-action-progress in all three of its states — mid-run ("1 of 6
+ *                    Synchronizing cookies…"), finished ("Cookies are now synchronized",
+ *                    matched 1 of 1), and absent afterwards. Took a third pass of this
+ *                    screen because the banner only exists while an import is running.
+ *
+ *                    It also produced note 10.
+ *
  *   Location overlay input.mat-select-search-input:not(.mat-select-search-hidden) —
  *                    the :not() earns its keep, the library renders two inputs with
  *                    that class and the first is a spacer — and
@@ -151,8 +158,20 @@
  *                    path and was swept there.
  *
  * Still unlooked-at: report widgets, the alert quick-create dialog, the whole Quick Audit
- * screen, and the OneTrust SYNC BANNER — which only exists while an import is running, so
- * both passes of that screen missed it by timing rather than by oversight.
+ * screen, and the two CLOSE controls at the end of the OneTrust flow — the banner's,
+ * whose selector was just rewritten, and the importer's, which is new.
+ *
+ * 10. AN ID IN THE TEMPLATE IS NOT AN ID ON THE PAGE. The banner's Close button was
+ *     targeted as #bulk-action-progress-yes-btn, read straight out of the template, and it
+ *     came back "not found" on EVERY pass of this screen — including the one where the
+ *     banner plainly read "…Cookies are now synchronizedClose". The template declares that
+ *     id twice, in mutually exclusive branches, and which one renders depends on whether
+ *     `records` was populated by the caller. `rightBtnLabel` becomes 'Close' when the run
+ *     finishes either way, so the LABEL is the thing both branches agree on.
+ *
+ *     The near miss worth noting: the step had been made `optional` for an unrelated
+ *     reason, so a selector that never resolved was being skipped in silence rather than
+ *     stalling. Optional is the right call there and it hid this for a day.
  *
  * 9. A COMPLETION THAT IS ALREADY TRUE SKIPS ITS OWN STEP. Three live-run failures, all
  *    the same shape and all looking like different bugs: a `dom_mutation`/visible

@@ -47,8 +47,14 @@ import { unswept } from './_unswept.js'
  * The sync then runs behind a progress banner whose own copy says "Do not close this
  * banner, or leave this page until finished". Advancing on the click ignored that and
  * sent the next walkthrough off to the sidebar mid-import, so that step waits for
- * "Cookies are now synchronized" and then closes the banner — which also gets it out of
- * the way of everything after.
+ * "Cookies are now synchronized".
+ *
+ * TWO THINGS TO CLOSE, NOT ONE
+ *
+ * The banner, then the importer under it. A sweep taken after dismissing the banner
+ * still found every field of the modal, so it stays up — over the sidebar the next
+ * walkthrough starts from. Both closers are `optional`: this is the first link of a
+ * four-link chain, and neither of them is worth stranding the other three over.
  *
  * SELECTORS
  *   Added upstream — cc-import-onetrust, cc-onetrust-{url,location,detect,sync}. The
@@ -58,9 +64,10 @@ import { unswept } from './_unswept.js'
  *     need no patch. The `:not(.mat-select-search-hidden)` matters: the library
  *     renders TWO inputs with that class and the first is a spacer.
  *
- *   SWEPT except the sync banner, which only exists while an import is running and so
- *   fell between the two passes of this screen. Everything else: nine targets and every
- *   completion, on a live local moonbeam, each echoing back the element it should. This is the only recipe in the
+ *   SWEPT except the two CLOSE controls at the end. Everything else has been watched
+ *   resolve on a live local moonbeam, each echoing back the element it should —
+ *   including the sync banner in all three of its states, which took a third pass
+ *   because it only exists while an import is running. This is the only recipe in the
  *   library that has been verified end to end including the states that only exist
  *   mid-flow: the open create menu, the open location overlay, and the post-detect
  *   result row. Two things it settled that reading could not:
@@ -92,10 +99,22 @@ const SELECTORS = {
   // footer buttons appear depends on `records` and `showSecondBtn`. The message does
   // not -- it is messages[3], assigned to firstMessage the moment itsDone flips.
   synced: '.bulk-first-message >> text=Cookies are now synchronized',
-  // Only rendered once `records && itsDone`, so it cannot be clicked early.
-  closeBanner: '#bulk-action-progress-yes-btn',
-  // What the step actually waits for. See the 'hidden' note below.
   banner: '.bulk-action-progress',
+  // By LABEL, not by id, and the sweep is why: #bulk-action-progress-yes-btn came back
+  // "not found" on every pass of this screen, including the one where the banner plainly
+  // read "…Cookies are now synchronizedClose".
+  //
+  // The template has TWO buttons that can carry this label, in mutually exclusive
+  // branches — #bulk-action-progress-yes-btn inside `records && itsDone`, and
+  // #bulk-action-progress-quit-btn outside it — and which one renders depends on whether
+  // `records` was populated. `rightBtnLabel` is set to 'Close' when the run finishes
+  // either way, so the label is the thing both branches agree on.
+  closeBanner: '.bulk-action-progress button >> text=Close',
+
+  // Closing the banner does NOT close the importer behind it. The sweep taken after
+  // dismissing the banner still found cc-onetrust-url, -location, -detect and -sync, so
+  // the modal is left sitting over the sidebar the next walkthrough needs.
+  closeImporter: '.cc-import-modal-wrapper [op-selector="close-btn"]',
 }
 
 /** The default is prose ("the location you need"), not a name we can search for. */
@@ -208,10 +227,13 @@ export default {
           },
         ]
 
-    // The sync banner is the one part of this flow nobody has watched: it only exists
-    // while an import is running, and the two sweeps of this screen were done either
-    // side of that. Flagged by selector, since the ids shift with the location branch.
-    const UNSWEPT = new Set([SELECTORS.synced, SELECTORS.closeBanner])
+    // Swept since: .bulk-action-progress mid-run ("1 of 6 Synchronizing cookies…"), the
+    // finished message ("Cookies are now synchronized", matched 1 of 1), and the banner
+    // being absent afterwards. What is left unlooked-at is the two CLOSE controls — the
+    // banner's, whose label-matched selector replaced an id that never resolved, and the
+    // importer's, which is new. Flagged by selector, since ids shift with the location
+    // branch.
+    const UNSWEPT = new Set([SELECTORS.closeBanner, SELECTORS.closeImporter])
     const built = numbered([
       ...stepsToLibrary({
         link: NAV.consentCategoriesLink,
@@ -292,8 +314,23 @@ export default {
           condition: 'hidden',
           targetSelector: SELECTORS.banner,
         },
-        // And if it is somehow already gone, do not stand here waiting: this is the last
-        // step of the walkthrough, and a stall here stops the whole chain behind it.
+        // And if it is somehow already gone, do not stand here waiting: a stall in the
+        // first link of a four-link chain stops the other three.
+        optional: true,
+      },
+      {
+        actor: 'user',
+        targetSelector: SELECTORS.closeImporter,
+        say: 'Close the importer too — the next part needs the sidebar.',
+        targetFallback: { description: 'the X at the top of the OneTrust import modal' },
+        // Witnessed by the URL field going away rather than by the modal wrapper, because
+        // cc-onetrust-url is a selector this screen's sweeps have already confirmed and
+        // it is inside the modal: no field, no modal.
+        completion: {
+          type: 'dom_mutation',
+          condition: 'hidden',
+          targetSelector: SELECTORS.url,
+        },
         optional: true,
       },
     ])

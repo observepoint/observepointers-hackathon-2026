@@ -1239,6 +1239,17 @@ check(
         // SWAP: Next is hidden on Preview, Save hidden everywhere else. Three Nexts
         // land on Preview, and only then does a step point at Save.
         'create_first_alert',
+        // Reads clean here despite two unswept steps, and the reason is worth knowing:
+        // both are the CLOSE controls at the end, and both are `optional` — which this
+        // check excludes, because an optional step exists precisely because its target
+        // may be absent.
+        //
+        // That filter now covers two different reasons for `optional`. The audit path's
+        // "switch to advanced" is optional because absence is its expected state; these
+        // two are optional because a stall in the first link of a four-link chain would
+        // strand the other three. Same field, different argument. Not worth a second
+        // field today, but it is why this line is not the contradiction it looks like.
+        'import_consent_from_onetrust',
       ].join()
     )
   })(),
@@ -2293,6 +2304,26 @@ check(
     bannerStep?.step.completion.targetSelector === '.bulk-action-progress',
   JSON.stringify(bannerStep?.step.completion),
 )
+// Its Close button is matched by LABEL. #bulk-action-progress-yes-btn came back "not
+// found" on every sweep of this screen, including the pass where the banner plainly read
+// "…Cookies are now synchronizedClose": the template has two buttons that can carry that
+// label in mutually exclusive branches, and which renders depends on `records`.
+check(
+  'and points at Close by label rather than by an id that may not render',
+  bannerStep?.step.targetSelector === '.bulk-action-progress button >> text=Close',
+  bannerStep?.step.targetSelector,
+)
+
+// Closing the banner leaves the importer open over the sidebar the next walkthrough
+// starts from — the sweep taken after dismissing it still found every field of the modal.
+const importerStep = everyStep.find(({ step }) => /Close the importer/.test(step.say))
+check('the importer is closed too', Boolean(importerStep), 'not found')
+check(
+  'and that step waits for the modal to be gone',
+  importerStep?.step.completion.condition === 'hidden',
+  JSON.stringify(importerStep?.step.completion),
+)
+check('and is optional for the same reason', importerStep?.step.optional)
 // It is the last step of the first link in a four-link chain, so a stall here stops
 // everything behind it. Nothing about clearing a banner is worth that.
 check('and is optional, so it cannot strand the rest of the chain', bannerStep?.step.optional)

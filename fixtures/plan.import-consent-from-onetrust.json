@@ -105,12 +105,11 @@
         "condition": "visible",
         "targetSelector": ".bulk-first-message >> text=Cookies are now synchronized"
       },
-      "id": "s7",
-      "unverified": true
+      "id": "s7"
     },
     {
       "actor": "user",
-      "targetSelector": "#bulk-action-progress-yes-btn",
+      "targetSelector": ".bulk-action-progress button >> text=Close",
       "say": "Done — close the banner. Rerun this per location if you need more.",
       "targetFallback": {
         "description": "the Close button on the sync banner"
@@ -122,6 +121,22 @@
       },
       "optional": true,
       "id": "s8",
+      "unverified": true
+    },
+    {
+      "actor": "user",
+      "targetSelector": ".cc-import-modal-wrapper [op-selector=\"close-btn\"]",
+      "say": "Close the importer too — the next part needs the sidebar.",
+      "targetFallback": {
+        "description": "the X at the top of the OneTrust import modal"
+      },
+      "completion": {
+        "type": "dom_mutation",
+        "condition": "hidden",
+        "targetSelector": "[op-selector=\"cc-onetrust-url\"]"
+      },
+      "optional": true,
+      "id": "s9",
       "unverified": true
     }
   ],
